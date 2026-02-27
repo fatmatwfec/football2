@@ -1,7 +1,8 @@
 import { auth, db } from "../firebase"; 
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
-import { collection, query, where, getDocs} from 'firebase/firestore';
+import { doc,getDoc } from "firebase/firestore"
+//import { collection, query, where, getDocs} from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import back from './back.jpg';
 
@@ -12,39 +13,38 @@ function Login() {
   const [error, setError] = useState('');
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-   
-    try{
-      
-      const q = query(collection(db, "users"), where("studentCode", "==", studentCode));
-      const querySnapshot = await getDocs(q);
+  e.preventDefault();
+  setError('');
 
-      if (querySnapshot.empty) {
-        setError("Student code not found");
-        return;
-      }
+  const internalEmail = `${studentCode}@university.com`;
 
-      const userData = querySnapshot.docs[0].data();
-       const email = userData.email;
-      const userSignIn = await signInWithEmailAndPassword(auth, email, password);
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, internalEmail, password);
+    const user = userCredential.user;
 
+    const docRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
       if (userData.role === "admin") {
         navigate("/admin");
-      } else if (userData.role === "student") {
-        navigate("/student");
       } else {
-        setError("Unknown role");
+        navigate("/student");
       }
-    }catch(error){
-        console.error(error.code);
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential' ) {
-          setError("Invalid id or password");
-      }else {
-        setError("Login failed , please try again");
-      }
+    } else {
+      setError("User profile not found.");
     }
-  };
+
+  } catch (error) {
+    console.error("Error code:", error.code);
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      setError("Invalid ID or Password.");
+    } else {
+      setError("Login failed, please try again.");
+    }
+  }
+};
 
   return (
      
