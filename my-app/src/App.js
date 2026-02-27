@@ -4,9 +4,9 @@ import { auth, db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import Register from './components/Register';
 import Login from './components/Login';
+import AdminDashboard from './Dashboard/AdminDashboard';
+import StudentDashboard from './Dashboard/StudentDashboard';
  
-
-
 function App() {
   
   const [userRole, setUserRole] = useState(null);
@@ -44,7 +44,7 @@ function App() {
 
         <Route 
           path="/dashboard" 
-          element={userRole ? <div>   Hi !</div> : <Navigate to="/login" />} 
+          element={userRole ? (userRole === "admin" ? (<AdminDashboard />) : (<StudentDashboard/>) ) : (<Navigate to="/login" />)} 
         />
       </Routes>
     </div>
