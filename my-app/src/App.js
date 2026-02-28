@@ -8,10 +8,10 @@ import AdminDashboard from './Dashboard/AdminDashboard';
 import StudentDashboard from './Dashboard/StudentDashboard';
  
 function App() {
-  
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
-   useEffect(() => {
+
+  useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         const docRef = doc(db, "users", user.uid);
@@ -27,28 +27,34 @@ function App() {
      return () => unsubscribe();
   }, []);
 
-  
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
   }
+
   return (
     <Router>
-    <div className="App">
-      <Routes>
-        <Route 
-          path="/" 
-          element={userRole ? <Navigate to="/dashboard" /> : <Login />} 
-        /> 
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<Login />} /> 
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        <Route 
-          path="/dashboard" 
-          element={userRole ? (userRole === "admin" ? (<AdminDashboard />) : (<StudentDashboard/>) ) : (<Navigate to="/login" />)} 
-        />
-      </Routes>
-    </div>
-  </Router>
+          <Route 
+            path="/dashboard" 
+            element={
+              userRole ? (
+                userRole === "admin" ? <AdminDashboard /> : <StudentDashboard />
+              ) : (
+                <Navigate to="/login" />
+              )
+            } 
+          />
+          
+          <Route path="/admin" element={userRole === "admin" ? <AdminDashboard /> : <Navigate to="/login" />} />
+          <Route path="/student" element={userRole === "student" ? <StudentDashboard /> : <Navigate to="/login" />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
