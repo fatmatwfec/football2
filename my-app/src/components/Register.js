@@ -1,4 +1,4 @@
-import { auth, db } from "../firebase"; 
+import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, setDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import '../index.css';
 function Register() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState(""); 
+  const [email, setEmail] = useState("");
   const [studentCode, setStudentCode] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -21,13 +21,13 @@ function Register() {
     setError("");
 
     if (!email.endsWith("edu.eg")) {
-      setError("Only Cairo University emails (edu.eg) are allowed.");
+      setError("Invalid Email");
       return;
     }
 
     if (password !== confirmPassword) { setError("Passwords mismatch!"); return; }
-    
-      if (phone.length < 11) {
+
+    if (phone.length < 11) {
       setError("Please enter a valid phone number.");
       return;
     }
@@ -38,7 +38,7 @@ function Register() {
       if (!querySnapshot.empty) { setError("Student ID already exists!"); return; }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+
       await sendEmailVerification(userCredential.user);
 
       await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -51,11 +51,11 @@ function Register() {
         createdAt: new Date()
       });
 
-alert(
-  `A verification link has been sent to: ${email}\n\n` +
-  `Please check your university inbox and click the link to activate your account.\n` +
-  `Check your Spam/Junk folder if you don't see it.`
-);
+      alert(
+        `A verification link has been sent to: ${email}\n\n` +
+        `Please check your university inbox and click the link to activate your account.\n` +
+        `Check your Spam/Junk folder if you don't see it.`
+      );
       navigate("/Login");
     } catch (err) {
       if (err.code === "auth/email-already-in-use") {
@@ -75,7 +75,7 @@ alert(
         <form onSubmit={handleRegister}>
           <h1>Registration</h1>
           <div className="input-box">
-            <input type="text" placeholder="Full Name" required onChange={(e) => setName(e.target.value)} />
+            <input type="text" placeholder="Name" required onChange={(e) => setName(e.target.value)} />
             <FaUser className="icon" />
           </div>
           <div className="input-box">

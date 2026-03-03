@@ -4,10 +4,10 @@ import { auth, db } from "../firebase";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { FaUser, FaLock } from "react-icons/fa";
-import'../index.css';
+import '../index.css';
 
 const Login = () => {
-  const [studentCode, setStudentCode] = useState(""); 
+  const [studentCode, setStudentCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -45,6 +45,7 @@ const Login = () => {
     }
   };
 
+
   return (
     <div className="wrapper">
       <div className="form-box login">
@@ -67,6 +68,7 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
             />
             <FaLock className="icon" />
+            <p > <Link to="/Forgetpassword"> <em className="Forgetpassword" > Forget Password ?</em> </Link> </p>
           </div>
           {error && <p className="error-message">{error}</p>}
           <button type="submit">Login</button>
