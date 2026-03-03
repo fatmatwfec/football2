@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { auth, db } from './firebase'; 
+import { auth, db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import Register from './components/Register';
 import Login from './components/Login';
 import AdminDashboard from './Dashboard/AdminDashboard';
 import StudentDashboard from './Dashboard/StudentDashboard';
- 
+import Forgetpassword from './components/Forgetpassword';
+
 function App() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ function App() {
       }
       setLoading(false);
     });
-     return () => unsubscribe();
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -35,21 +36,22 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          <Route path="/" element={<Login />} /> 
+          <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/Forgetpassword" element={<Forgetpassword />} />
 
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               userRole ? (
                 userRole === "admin" ? <AdminDashboard /> : <StudentDashboard />
               ) : (
                 <Navigate to="/login" />
               )
-            } 
+            }
           />
-          
+
           <Route path="/admin" element={userRole === "admin" ? <AdminDashboard /> : <Navigate to="/login" />} />
           <Route path="/student" element={userRole === "student" ? <StudentDashboard /> : <Navigate to="/login" />} />
         </Routes>
