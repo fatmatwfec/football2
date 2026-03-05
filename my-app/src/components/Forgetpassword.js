@@ -18,14 +18,14 @@ const ForgotPassword = () => {
         try {
             // هذه الدالة هي المسؤولة عن إرسال الرابط للإيميل
             await sendPasswordResetEmail(auth, email);
-            setMessage("");
+            setMessage("Done , Do not Forget Your password again ");
             setEmail("");
         } catch (err) {
             console.error(err);
             if (err.code === "auth/user-not-found" || err.code === "auth/invalid-email") {
                 setError("Invalid Email");
             } else {
-                setError("Try Again");
+                setError("Something wrong happend. Try Again ");
             }
         } finally {
             setIsLoading(false);
@@ -48,14 +48,10 @@ const ForgotPassword = () => {
                         />
                     </div>
 
-                    {/* رسائل التنبيه */}
-                    {error && <div className="ErrMsg">{error}</div>}
-                    {message && <div className="msg">{message}</div>}
+                    {error && <div className="ErrMsg">Something wrong happend</div>}
+                    {message && <div className="msg"><p> Done , Do not Forget Your password again </p></div>}
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                    >
+                    <button type="submit" disabled={isLoading}>
                         {isLoading ? "Sending....." : "Send Reset Link"}
                     </button>
                 </form>

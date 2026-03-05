@@ -172,22 +172,18 @@ body {
 
 /* رسالة الخطأ */
 .ErrMsg {
-   color: #ffb3b3;
-   /* لون أحمر فاتح ليناسب الخلفية الداكنة */
+   color: #d42a2a;
    font-size: 14px;
    margin-bottom: 15px;
-   background: rgba(255, 0, 0, 0.2);
    padding: 10px;
    border-radius: 10px;
 }
 
 /* رسالة النجاح */
 .msg {
-   color: #b3ffcc;
-   /* لون أخضر فاتح */
+   color: #18da59;
    font-size: 14px;
    margin-bottom: 15px;
-   background: rgba(0, 255, 0, 0.2);
    padding: 10px;
    border-radius: 10px;
 }
