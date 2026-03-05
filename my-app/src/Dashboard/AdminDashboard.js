@@ -4,7 +4,7 @@ import { collection, onSnapshot, doc, updateDoc, addDoc } from "firebase/firesto
 import PlayersTab from "./PlayersTab";
 import MatchesTab from "./MatchesTab";
 import SettingsTab from "./SettingsTab";
-import TeamsTab from "./TeamsTab"; 
+import TeamsTab from "./TeamsTab";
 import AddActionModal from "./AddActionModal";
 import { FaUsers, FaUserPlus, FaCheck, FaTimes, FaRegCalendarAlt, FaCog, FaShieldAlt } from 'react-icons/fa';
 import { BsGridFill } from 'react-icons/bs';
@@ -12,11 +12,11 @@ import { BsGridFill } from 'react-icons/bs';
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const [stats, setStats] = useState({ total: 0, pending: 0, free: 0, approved: 0 });
   const [pendingTeams, setPendingTeams] = useState([]);
-  const [approvedTeams, setApprovedTeams] = useState([]); 
-  const [allUsers, setAllUsers] = useState([]); 
+  const [approvedTeams, setApprovedTeams] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [freeAgents, setFreeAgents] = useState([]);
   const [matches, setMatches] = useState([]);
 
@@ -24,11 +24,11 @@ const AdminDashboard = () => {
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllUsers(all);
-      
-      const free = all.filter(u => 
+
+      const free = all.filter(u =>
         (u.role === "student" || u.role === "player") && (u.hasTeam === false || u.hasTeam === undefined)
       );
-      
+
       setFreeAgents(free);
       setStats(prev => ({ ...prev, total: all.length, free: free.length }));
     });
@@ -37,7 +37,7 @@ const AdminDashboard = () => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const pending = all.filter(t => t.status === "pending");
       const approved = all.filter(t => t.status === "approved");
-      
+
       setPendingTeams(pending);
       setApprovedTeams(approved);
       setStats(prev => ({ ...prev, pending: pending.length, approved: approved.length }));
@@ -77,7 +77,8 @@ const AdminDashboard = () => {
             background-size: cover; background-position: center; background-attachment: fixed;
         }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-      `}</style>
+      `}
+      </style>
 
       <header className="w-full flex items-center p-4 md:p-6 justify-between sticky top-0 z-50 glass shadow-2xl shrink-0">
         <div className="flex items-center gap-3">
@@ -90,7 +91,7 @@ const AdminDashboard = () => {
           </div>
         </div>
         <div className="size-10 rounded-full border-2 border-blue-500 bg-slate-800 flex items-center justify-center overflow-hidden">
-             <span className="material-symbols-outlined text-slate-300">person</span>
+          <span className="material-symbols-outlined text-slate-300">person</span>
         </div>
       </header>
 
@@ -98,10 +99,10 @@ const AdminDashboard = () => {
         {activeTab === "dashboard" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <StatCard label="Registered" value={stats.total} icon={<FaUsers/>} color="text-blue-500" trend="+12%" />
-              <StatCard label="Pending" value={stats.pending} icon={<FaRegCalendarAlt/>} color="text-yellow-500" trend="+5%" />
-              <StatCard label="Free Agents" value={stats.free} icon={<FaUserPlus/>} color="text-green-500" trend="-2%" />
-              <StatCard label="Approved" value={stats.approved} icon={<FaCheck/>} color="text-purple-500" trend="+8%" />
+              <StatCard label="Registered" value={stats.total} icon={<FaUsers />} color="text-blue-500" trend="+12%" />
+              <StatCard label="Pending" value={stats.pending} icon={<FaRegCalendarAlt />} color="text-yellow-500" trend="+5%" />
+              <StatCard label="Free Agents" value={stats.free} icon={<FaUserPlus />} color="text-green-500" trend="-2%" />
+              <StatCard label="Approved" value={stats.approved} icon={<FaCheck />} color="text-purple-500" trend="+8%" />
             </section>
 
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">Team Requests</h2>
@@ -138,21 +139,21 @@ const AdminDashboard = () => {
 
       <AddActionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
-      
-      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 px-4 pb-8 pt-4 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <NavButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} icon={<BsGridFill/>} label="Home" />
-        <NavButton active={activeTab === "players"} onClick={() => setActiveTab("players")} icon={<FaUserPlus/>} label="Players" />
-        
-        
+
+      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 pl-[4rem] pr-[4rem] pb-8 pt-4 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <NavButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} icon={<BsGridFill />} label="Home" />
+        <NavButton active={activeTab === "players"} onClick={() => setActiveTab("players")} icon={<FaUserPlus />} label="Players" />
+
+
         <div className="relative -top-8">
-            <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 size-14 rounded-full shadow-lg shadow-blue-600/40 flex items-center justify-center border-4 border-slate-950 text-white text-2xl hover:scale-110 transition-transform active:scale-95">
-                +
-            </button>
+          <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 size-14 rounded-full shadow-lg shadow-blue-600/40 flex items-center justify-center border-4 border-slate-950 text-white text-2xl hover:scale-110 transition-transform active:scale-95">
+            +
+          </button>
         </div>
 
-        <NavButton active={activeTab === "teams"} onClick={() => setActiveTab("teams")} icon={<FaShieldAlt/>} label="Teams" />
-        <NavButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} icon={<FaRegCalendarAlt/>} label="Matches" />
-        <NavButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")} icon={<FaCog/>} label="Settings" />
+        <NavButton active={activeTab === "teams"} onClick={() => setActiveTab("teams")} icon={<FaShieldAlt />} label="Teams" />
+        <NavButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} icon={<FaRegCalendarAlt />} label="Matches" />
+        <NavButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")} icon={<FaCog />} label="Settings" />
       </nav>
     </div>
   );
@@ -162,8 +163,8 @@ const StatCard = ({ icon, label, value, trend, color }) => (
     <div className={`text-xl ${color}`}>{icon}</div>
     <p className="text-slate-400 text-[10px] font-medium uppercase">{label}</p>
     <div className="flex items-end justify-between">
-        <p className="text-white text-2xl font-bold">{value}</p>
-        <span className="text-accent-lime text-[10px] font-bold">{trend}</span>
+      <p className="text-white text-2xl font-bold">{value}</p>
+      <span className="text-accent-lime text-[10px] font-bold">{trend}</span>
     </div>
   </div>
 );
