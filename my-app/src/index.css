@@ -29,7 +29,7 @@ body {
 .wrapper {
    background: rgba(255, 255, 255, 0.05);
    width: 420px;
-   min-height: 600px;
+   min-height: 670px;
    border-radius: 20px;
    color: white;
    display: flex;
@@ -43,12 +43,22 @@ body {
    margin: 20px;
 }
 
-form { width: 100%; }
+form {
+   width: 100%;
+}
+
+.Forgetpassword {
+   text-align: right;
+   color: azure;
+   font-size: smaller;
+   position: relative;
+   font-style: italic;
+}
 
 form h1 {
-   font-size: 32px;
+   font-size: 40px;
    text-align: center;
-   margin-bottom: 20px;
+   margin-bottom: 30px;
 }
 
 /* حقل إدخال الإيميل */
@@ -169,10 +179,6 @@ form h1 {
    transform: translate(0);
 }
 
-form h1 {
-   font-size: 36px;
-   text-align: center;
-}
 
 form .input-box {
    position: relative;
@@ -180,6 +186,11 @@ form .input-box {
    height: 55px;
    margin: 20px 0;
 }
+
+/* padding: 15px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 30px;
+    margin-bottom: 20px; */
 
 .input-box input {
    width: 100%;
@@ -193,7 +204,9 @@ form .input-box {
    transition: 0.3s;
 }
 
-.input-box input:focus { border-color: #fff; }
+.input-box input:focus {
+   border-color: #fff;
+}
 
 .input-box .icon {
    position: absolute;
@@ -216,7 +229,9 @@ button[type="submit"] {
    transition: 0.3s;
 }
 
-button[type="submit"]:hover { background: #e0e0e0; }
+button[type="submit"]:hover {
+   background: #e0e0e0;
+}
 
 .error-message {
    color: #ff6b6b;
@@ -232,30 +247,35 @@ button[type="submit"]:hover { background: #e0e0e0; }
    margin-top: 20px;
 }
 
-.register-link a { color: #fff; font-weight: 600; text-decoration: none; }
+.register-link a {
+   color: #fff;
+   font-weight: 600;
+   text-decoration: none;
+}
 
 .admin-page-layout {
-  width: 100vw !important;
-  min-height: 100vh;
-  display: block !important; 
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: #0f172a;
+   width: 100vw !important;
+   min-height: 100vh;
+   display: block !important;
+   position: absolute;
+   top: 0;
+   left: 0;
+   background: #0f172a;
 }
 
 .auth-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100vw;
-    height: 100vh;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   width: 100vw;
+   height: 100vh;
 }
 
 .admin-page-layout {
-    width: 100% !important;
-    display: block !important;
+   width: 100% !important;
+   display: block !important;
 }
+
 .auth-container {
    display: flex;
    justify-content: center;
@@ -311,6 +331,7 @@ button[type="submit"]:hover { background: #e0e0e0; }
    font-size: 14px;
    font-weight: 600;
 }
+
 .ErrMsg {
    color: #ffb3b3;
    background: rgba(255, 0, 0, 0.2);
