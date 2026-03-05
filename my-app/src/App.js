@@ -7,6 +7,7 @@ import Login from './components/Login';
 import AdminDashboard from './Dashboard/AdminDashboard';
 import StudentDashboard from './Dashboard/StudentDashboard';
 import Forgetpassword from './components/Forgetpassword';
+import ProtectedRoute from './components/ProtectedRoute'; 
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -15,10 +16,14 @@ function App() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserRole(docSnap.data().role);
+        try {
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setUserRole(docSnap.data().role);
+          }
+        } catch (error) {
+          console.error("Error fetching user role:", error);
         }
       } else {
         setUserRole(null);
@@ -28,10 +33,6 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
-  }
-
   return (
     <Router>
       <div className="App">
@@ -40,20 +41,23 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/Forgetpassword" element={<Forgetpassword />} />
-
-          <Route
-            path="/dashboard"
+          <Route 
+            path="/admin" 
             element={
-              userRole ? (
-                userRole === "admin" ? <AdminDashboard /> : <StudentDashboard />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
+              <ProtectedRoute userRole={userRole} allowedRole="admin" loading={loading}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
           />
-
-          <Route path="/admin" element={userRole === "admin" ? <AdminDashboard /> : <Navigate to="/login" />} />
-          <Route path="/student" element={userRole === "student" ? <StudentDashboard /> : <Navigate to="/login" />} />
+          
+          <Route 
+            path="/student" 
+            element={
+              <ProtectedRoute userRole={userRole} allowedRole="student" loading={loading}>
+                <StudentDashboard />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </div>
     </Router>
