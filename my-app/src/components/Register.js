@@ -48,6 +48,7 @@ function Register() {
         email,
         role: "student",
         uid: userCredential.user.uid,
+        hasTeam: false, 
         createdAt: new Date()
       });
 
@@ -68,40 +69,41 @@ function Register() {
     }
   };
 
-
   return (
-    <div className="wrapper register-wrapper">
-      <div className="form-box register">
-        <form onSubmit={handleRegister}>
-          <h1>Registration</h1>
-          <div className="input-box">
-            <input type="text" placeholder="Name" required onChange={(e) => setName(e.target.value)} />
-            <FaUser className="icon" />
-          </div>
-          <div className="input-box">
-            <input type="email" placeholder="University Email" required onChange={(e) => setEmail(e.target.value)} />
-            <FaEnvelope className="icon" />
-          </div>
-          <div className="input-box">
-            <input type="text" placeholder="Student ID" required onChange={(e) => setStudentCode(e.target.value)} />
-            <FaUser className="icon" />
-          </div>
-          <div className="input-box">
-            <input type="text" placeholder="Phone Number" required onChange={(e) => setPhone(e.target.value)} />
-            <FaPhoneAlt className="icon" />
-          </div>
-          <div className="input-box">
-            <input type="password" placeholder="Password" required onChange={(e) => setPassword(e.target.value)} />
-            <FaLock className="icon" />
-          </div>
-          <div className="input-box">
-            <input type="password" placeholder="Confirm Password" required onChange={(e) => setConfirmPassword(e.target.value)} />
-            <FaLock className="icon" />
-          </div>
-          {error && <p className="error-message">{error}</p>}
-          <button type="submit">Register</button>
-          <div className="register-link"><p>Have an account? <a href="#" onClick={() => navigate('/Login')}>Login</a></p></div>
-        </form>
+    <div className="auth-container"> 
+      <div className="wrapper register-wrapper">
+        <div className="form-box register">
+          <form onSubmit={handleRegister}>
+            <h1>Registration</h1>
+            <div className="input-box">
+              <input type="text" placeholder="Name" required onChange={(e) => setName(e.target.value)} />
+              <FaUser className="icon" />
+            </div>
+            <div className="input-box">
+              <input type="email" placeholder="University Email" required onChange={(e) => setEmail(e.target.value)} />
+              <FaEnvelope className="icon" />
+            </div>
+            <div className="input-box">
+              <input type="text" placeholder="Student ID" required onChange={(e) => setStudentCode(e.target.value)} />
+              <FaUser className="icon" />
+            </div>
+            <div className="input-box">
+              <input type="text" placeholder="Phone Number" required onChange={(e) => setPhone(e.target.value)} />
+              <FaPhoneAlt className="icon" />
+            </div>
+            <div className="input-box">
+              <input type="password" placeholder="Password" required onChange={(e) => setPassword(e.target.value)} />
+              <FaLock className="icon" />
+            </div>
+            <div className="input-box">
+              <input type="password" placeholder="Confirm Password" required onChange={(e) => setConfirmPassword(e.target.value)} />
+              <FaLock className="icon" />
+            </div>
+            {error && <p className="error-message">{error}</p>}
+            <button type="submit">Register</button>
+            <div className="register-link"><p>Have an account? <a href="#" onClick={() => navigate('/Login')}>Login</a></p></div>
+          </form>
+        </div>
       </div>
     </div>
   );

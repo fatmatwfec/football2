@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { auth } from "../firebase"; // تأكد من أن مسار ملف firebase صحيح
+import { auth } from "../firebase"; 
 import { sendPasswordResetEmail } from "firebase/auth";
 
 const ForgotPassword = () => {
@@ -16,9 +16,8 @@ const ForgotPassword = () => {
         setIsLoading(true);
 
         try {
-            // هذه الدالة هي المسؤولة عن إرسال الرابط للإيميل
             await sendPasswordResetEmail(auth, email);
-            setMessage("");
+            setMessage("Check your inbox for reset link!");
             setEmail("");
         } catch (err) {
             console.error(err);
@@ -33,35 +32,36 @@ const ForgotPassword = () => {
     };
 
     return (
-        <div className="FBForm">
-            <div className="FormBox">
-                <h2 className="Title"> Forget password </h2>
-                <form onSubmit={handleResetPassword}>
-                    <div className="InputBox">
-                        <input
-                            type="email"
-                            placeholder="Enter Your Email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            dir="ltr"
-                        />
-                    </div>
+        <div className="auth-container"> 
+            <div className="FBForm">
+                <div className="FormBox">
+                    <h2 className="Title">Forget password</h2>
+                    <form onSubmit={handleResetPassword}>
+                        <div className="InputBox">
+                            <input
+                                type="email"
+                                placeholder="Enter Your Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                dir="ltr"
+                            />
+                        </div>
 
-                    {/* رسائل التنبيه */}
-                    {error && <div className="ErrMsg">{error}</div>}
-                    {message && <div className="msg">{message}</div>}
+                        {error && <div className="ErrMsg">{error}</div>}
+                        {message && <div className="msg">{message}</div>}
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? "Sending....." : "Send Reset Link"}
-                    </button>
-                </form>
-                <Link to="/login">
-                    Ready to Login
-                </Link>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                        >
+                            {isLoading ? "Sending....." : "Send Reset Link"}
+                        </button>
+                    </form>
+                    <Link to="/login" className="back-link">
+                        Ready to Login
+                    </Link>
+                </div>
             </div>
         </div>
     );

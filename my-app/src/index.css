@@ -7,7 +7,6 @@
 }
 
 body {
-
    font-family: 'Poppins', sans-serif;
    background: url(./components/background.jpg) no-repeat;
    background-size: cover;
@@ -17,314 +16,192 @@ body {
    justify-content: center;
    align-items: center;
    min-height: 100vh;
-
-
 }
 
-.Forgetpassword {
-   display: block;
-   text-align: right;
-   color: #b2b9dc;
-   text-decoration: none;
-   font-size: 13px;
-   margin-bottom: 25px;
-   padding-left: 10px;
-   font-style: italic;
-}
-
-.forgot-pass:hover {
-   text-decoration: underline;
-}
-
-.login-container {
+.auth-container {
    display: flex;
    justify-content: center;
    align-items: center;
-   height: 100vh;
-}
-
-.login-form {
-   display: flex;
-   flex-direction: column;
-   width: 350px;
-   gap: 20px;
-}
-
-.login-form h1 {
-   text-align: center;
-   margin-bottom: 20px;
-}
-
-.login-input {
-   padding: 15px;
-   font-size: 18px;
-   border-radius: 10px;
-   border: 1px solid #ccc;
-}
-
-.login-btn {
-   padding: 10px;
-   font-size: 16px;
-   border-radius: 8px;
-   border: none;
-   background-color: #fff;
-   cursor: pointer;
-   width: 60%;
-   align-self: center;
+   width: 100%;
+   min-height: 100vh;
 }
 
 .wrapper {
-   background: transparent;
+   background: rgba(255, 255, 255, 0.05);
    width: 420px;
-   height: 650px;
-   border-radius: 10px;
+   min-height: 600px;
+   border-radius: 20px;
    color: white;
-   position: relative;
    display: flex;
+   flex-direction: column;
    align-items: center;
-   transition: height .2s ease;
-   overflow: hidden;
+   justify-content: center;
    border: 2px solid rgba(225, 225, 255, 0.1);
-   backdrop-filter: blur(5px);
-   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+   backdrop-filter: blur(15px);
+   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+   padding: 40px;
+   margin: 20px;
 }
 
-/* المربع الزجاجي الشفاف */
-.FormBox {
-   background: rgba(255, 255, 255, 0.1);
-   backdrop-filter: blur(12px);
-   -webkit-backdrop-filter: blur(12px);
-   border: 1px solid rgba(255, 255, 255, 0.2);
-   border-radius: 15px;
-   padding: 40px 30px;
-   width: 420px;
-   text-align: center;
-   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-}
+form { width: 100%; }
 
-/* العنوان */
-.FormBox .Title {
-   color: #ffffff;
+form h1 {
    font-size: 32px;
-   margin-top: 0;
-   margin-bottom: 30px;
-   font-weight: bold;
-   letter-spacing: 1px;
-}
-
-/* حاوية حقل الإدخال */
-.InputBox {
-   position: relative;
+   text-align: center;
    margin-bottom: 20px;
 }
 
-/* حقل إدخال الإيميل */
-.InputBox input {
-   width: 100%;
-   box-sizing: border-box;
-   padding: 15px 25px;
-   background: transparent;
-   border: 1px solid rgba(255, 255, 255, 0.4);
-   border-radius: 30px;
-   color: #ffffff;
-   font-size: 15px;
-   outline: none;
-   transition: 0.3s;
-}
-
-.InputBox input::placeholder {
-   color: rgba(255, 255, 255, 0.8);
-   font-weight: 500;
-}
-
-.InputBox input:focus {
-   border-color: #ffffff;
-   background: rgba(255, 255, 255, 0.1);
-}
-
-/* زر الإرسال */
-.FormBox button[type="submit"] {
-   width: 100%;
-   padding: 15px;
-   background: #ffffff;
-   color: #7b8de6;
-   /* لون أزرق متناسق مع الخلفية */
-   border: none;
-   border-radius: 30px;
-   font-size: 18px;
-   font-weight: 600;
-   cursor: pointer;
-   margin-top: 10px;
-   margin-bottom: 25px;
-   transition: 0.3s;
-}
-
-.FormBox button[type="submit"]:hover:not(:disabled) {
-   background: #f1f1f1;
-}
-
-/* حالة الزر أثناء التحميل (Disabled) */
-.FormBox button[type="submit"]:disabled {
-   background: rgba(255, 255, 255, 0.5);
-   color: #ffffff;
-   cursor: not-allowed;
-}
-
-/* رسالة الخطأ */
-.ErrMsg {
-   color: #ffb3b3;
-   /* لون أحمر فاتح ليناسب الخلفية الداكنة */
-   font-size: 14px;
-   margin-bottom: 15px;
-   background: rgba(255, 0, 0, 0.2);
-   padding: 10px;
-   border-radius: 10px;
-}
-
-/* رسالة النجاح */
-.msg {
-   color: #b3ffcc;
-   /* لون أخضر فاتح */
-   font-size: 14px;
-   margin-bottom: 15px;
-   background: rgba(0, 255, 0, 0.2);
-   padding: 10px;
-   border-radius: 10px;
-}
-
-/* رابط العودة لتسجيل الدخول */
-.FormBox a {
-   color: #ffffff;
-   text-decoration: none;
-   font-weight: bold;
-   font-size: 15px;
-   transition: 0.3s;
-   display: inline-block;
-}
-
-.FormBox a:hover {
-   text-decoration: underline;
-}
-
-.wrapper.active {
-   height: 650px;
-}
-
-.wrapper .form-box {
-   width: 100%;
-   padding: 40px;
-
-
-}
-
-.wrapper .form-box.login {
-
-   transition: transform .18s ease;
-   transform: translate(0);
-}
-
-.wrapper.active .form-box.login {
-   transition: none;
-   transform: translateX(-400px);
-}
-
-.wrapper .form-box.register {
-   position: absolute;
-   transition: none;
-
-}
-
-.wrapper.active .form-box.register {
-
-   transition: transform .18s ease;
-   transform: translate(0);
-}
-
-form h1 {
-   font-size: 36px;
-   text-align: center;
-}
-
-form .input-box {
+.input-box {
    position: relative;
    width: 100%;
-   height: 50px;
-   margin: 30px 0;
-
+   height: 55px;
+   margin: 20px 0;
 }
 
 .input-box input {
    width: 100%;
    height: 100%;
    background: transparent;
-   border: none;
-   outline: none;
-   border: 2px solid rgba(225, 225, 255, 0.1);
+   border: 2px solid rgba(225, 225, 255, 0.2);
    border-radius: 40px;
    color: #fff;
-   padding: 20px 45px 20px 20px;
+   padding: 0 45px 0 20px;
+   outline: none;
+   transition: 0.3s;
 }
 
-.input-box input::placeholder {
-   color: #fff;
-}
+.input-box input:focus { border-color: #fff; }
 
 .input-box .icon {
    position: absolute;
    right: 20px;
    top: 50%;
-   transform: translate(0, -50%);
-   font-size: 16px;
+   transform: translateY(-50%);
 }
 
-form .remember-forgot {
-   display: flex;
-   justify-content: space-between;
-   font-size: 14.5px;
-   margin: -15px 0 15px;
-   margin-right: 4px;
-}
-
-.remember-forgot a {
-   color: #fff;
-   text-decoration: none;
-}
-
-.remember-forgot a:hover {
-   text-decoration: underline;
-}
-
-form button {
+button[type="submit"] {
    width: 100%;
-   height: 45px;
-   border: none;
-   outline: none;
+   height: 50px;
    background: #fff;
+   border: none;
    border-radius: 40px;
    font-size: 16px;
    font-weight: 700;
-   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-   cursor: pointer;
    color: #333;
-
+   cursor: pointer;
+   margin-top: 20px;
+   transition: 0.3s;
 }
 
-form .register-link {
-   font-size: 14.5px;
+button[type="submit"]:hover { background: #e0e0e0; }
+
+.error-message {
+   color: #ff6b6b;
+   font-size: 13px;
    text-align: center;
-   margin: 20px 0 15px;
-}
-
-.register-link p a {
-   color: #fff;
-   text-decoration: none;
+   margin: 10px 0;
    font-weight: 600;
 }
 
-.register-link p a:hover {
-   text-decoration: underline;
+.register-link {
+   font-size: 14px;
+   text-align: center;
+   margin-top: 20px;
 }
 
-input[type="checkbox"] {
-   transform: translateY(1.001px);
+.register-link a { color: #fff; font-weight: 600; text-decoration: none; }
+
+.admin-page-layout {
+  width: 100vw !important;
+  min-height: 100vh;
+  display: block !important; 
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #0f172a;
+}
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+}
+
+.admin-page-layout {
+    width: 100% !important;
+    display: block !important;
+}
+.auth-container {
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   width: 100vw;
+   height: 100vh;
+}
+
+.FBForm .FormBox {
+   background: rgba(255, 255, 255, 0.1);
+   backdrop-filter: blur(12px);
+   border: 1px solid rgba(255, 255, 255, 0.2);
+   border-radius: 20px;
+   padding: 40px;
+   width: 420px;
+   text-align: center;
+   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.FBForm .Title {
+   color: #ffffff;
+   font-size: 28px;
+   margin-bottom: 30px;
+   font-weight: bold;
+}
+
+.FBForm .InputBox input {
+   width: 100%;
+   padding: 15px 20px;
+   background: transparent;
+   border: 1px solid rgba(255, 255, 255, 0.4);
+   border-radius: 30px;
+   color: #fff;
+   margin-bottom: 20px;
+   outline: none;
+}
+
+.FBForm button {
+   width: 100%;
+   padding: 15px;
+   background: #fff;
+   color: #7b8de6;
+   border: none;
+   border-radius: 30px;
+   font-weight: 600;
+   cursor: pointer;
+   margin-bottom: 20px;
+}
+
+.FBForm .back-link {
+   color: #fff;
+   text-decoration: none;
+   font-size: 14px;
+   font-weight: 600;
+}
+.ErrMsg {
+   color: #ffb3b3;
+   background: rgba(255, 0, 0, 0.2);
+   padding: 10px;
+   border-radius: 10px;
+   margin-bottom: 15px;
+   font-size: 14px;
+}
+
+.msg {
+   color: #b3ffcc;
+   background: rgba(0, 255, 0, 0.2);
+   padding: 10px;
+   border-radius: 10px;
+   margin-bottom: 15px;
+   font-size: 14px;
 }

@@ -31,8 +31,10 @@ const Login = () => {
       const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
       const user = userCredential.user;
 
-      if (!user.emailVerified) {
-        setError("Please verify your university email first.");
+      const isManuallyVerified = userData.isVerified === true;
+      
+      if (!user.emailVerified && !isManuallyVerified) {
+        setError("Please verify your university email or contact admin for manual activation.");
         await signOut(auth);
         return;
       }
@@ -45,40 +47,30 @@ const Login = () => {
     }
   };
 
-
   return (
-    <div className="wrapper">
-      <div className="form-box login">
-        <form onSubmit={handleSubmit}>
-          <h1>Login</h1>
-          <div className="input-box">
-            <input
-              type="text"
-              placeholder="Student ID"
-              required
-              onChange={(e) => setStudentCode(e.target.value)}
-            />
-            <FaUser className="icon" />
-          </div>
-          <div className="input-box">
-            <input
-              type="password"
-              placeholder="Password"
-              required
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <FaLock className="icon" />
-            <p > <Link to="/Forgetpassword"> <em className="Forgetpassword" > Forget Password ?</em> </Link> </p>
-          </div>
-          {error && <p className="error-message">{error}</p>}
-          <button type="submit">Login</button>
-          <div className="register-link">
-            <p>Don't have an account? <Link to="/register">Register</Link></p>
-          </div>
-        </form>
+    <div className="auth-container"> 
+      <div className="wrapper">
+        <div className="form-box login">
+          <form onSubmit={handleSubmit}>
+            <h1>Login</h1>
+            <div className="input-box">
+              <input type="text" placeholder="Student ID" required onChange={(e) => setStudentCode(e.target.value)} />
+              <FaUser className="icon" />
+            </div>
+            <div className="input-box">
+              <input type="password" placeholder="Password" required onChange={(e) => setPassword(e.target.value)} />
+              <FaLock className="icon" />
+              <p> <Link to="/Forgetpassword"> <em className="Forgetpassword"> Forget Password ?</em> </Link> </p>
+            </div>
+            {error && <p className="error-message">{error}</p>}
+            <button type="submit">Login</button>
+            <div className="register-link">
+              <p>Don't have an account? <Link to="/register">Register</Link></p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
-
 export default Login;
