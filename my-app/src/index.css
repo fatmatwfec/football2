@@ -51,7 +51,130 @@ form h1 {
    margin-bottom: 20px;
 }
 
-.input-box {
+/* حقل إدخال الإيميل */
+.InputBox input {
+   width: 100%;
+   box-sizing: border-box;
+   padding: 15px 25px;
+   background: transparent;
+   border: 1px solid rgba(255, 255, 255, 0.4);
+   border-radius: 30px;
+   color: #ffffff;
+   font-size: 15px;
+   outline: none;
+   transition: 0.3s;
+}
+
+.InputBox input::placeholder {
+   color: rgba(255, 255, 255, 0.8);
+   font-weight: 500;
+}
+
+.InputBox input:focus {
+   border-color: #ffffff;
+   background: rgba(255, 255, 255, 0.1);
+}
+
+/* زر الإرسال */
+.FormBox button[type="submit"] {
+   width: 100%;
+   padding: 15px;
+   background: #ffffff;
+   color: #7b8de6;
+   /* لون أزرق متناسق مع الخلفية */
+   border: none;
+   border-radius: 30px;
+   font-size: 18px;
+   font-weight: 600;
+   cursor: pointer;
+   margin-top: 10px;
+   margin-bottom: 25px;
+   transition: 0.3s;
+}
+
+.FormBox button[type="submit"]:hover:not(:disabled) {
+   background: #f1f1f1;
+}
+
+/* حالة الزر أثناء التحميل (Disabled) */
+.FormBox button[type="submit"]:disabled {
+   background: rgba(255, 255, 255, 0.5);
+   color: #ffffff;
+   cursor: not-allowed;
+}
+
+/* رسالة الخطأ */
+.ErrMsg {
+   color: #d42a2a;
+   font-size: 14px;
+   margin-bottom: 15px;
+   padding: 10px;
+   border-radius: 10px;
+}
+
+/* رسالة النجاح */
+.msg {
+   color: #18da59;
+   font-size: 14px;
+   margin-bottom: 15px;
+   padding: 10px;
+   border-radius: 10px;
+}
+
+/* رابط العودة لتسجيل الدخول */
+.FormBox a {
+   color: #ffffff;
+   text-decoration: none;
+   font-weight: bold;
+   font-size: 15px;
+   transition: 0.3s;
+   display: inline-block;
+}
+
+.FormBox a:hover {
+   text-decoration: underline;
+}
+
+.wrapper.active {
+   height: 650px;
+}
+
+.wrapper .form-box {
+   width: 100%;
+   padding: 40px;
+
+
+}
+
+.wrapper .form-box.login {
+
+   transition: transform .18s ease;
+   transform: translate(0);
+}
+
+.wrapper.active .form-box.login {
+   transition: none;
+   transform: translateX(-400px);
+}
+
+.wrapper .form-box.register {
+   position: absolute;
+   transition: none;
+
+}
+
+.wrapper.active .form-box.register {
+
+   transition: transform .18s ease;
+   transform: translate(0);
+}
+
+form h1 {
+   font-size: 36px;
+   text-align: center;
+}
+
+form .input-box {
    position: relative;
    width: 100%;
    height: 55px;
