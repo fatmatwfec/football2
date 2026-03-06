@@ -37,8 +37,8 @@ const StudentDashboard = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-green-500"></div>
+            <div className="loader">
+                <div className="spinner"></div>
             </div>
         );
     }
@@ -84,7 +84,7 @@ const StudentDashboard = () => {
 
                         <div className="mt-5">
 
-                            {userData?.hasTeam === "true" ? (
+                            {userData?.hasTeam ? (
                                 <span className="bg-green-500/20 text-green-400 px-5 py-2 rounded-xl border border-green-500/30">
                                     {userData?.assignedTeam}
                                 </span>
@@ -98,15 +98,13 @@ const StudentDashboard = () => {
                     </div>
 
                     {/* Team Options */}
-                    {userData?.hasTeam !== "true" && (
-                        <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
-
+                    {userData && !userData.hasTeam && (
+                        <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl mt-5">
                             <h3 className="text-lg font-bold mb-4 text-left">
                                 Team Options
                             </h3>
 
                             <div className="space-y-3">
-
                                 <button
                                     onClick={() => navigate("/create-team")}
                                     className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-3 rounded-xl transition"
@@ -120,9 +118,7 @@ const StudentDashboard = () => {
                                 >
                                     Play Solo
                                 </button>
-
                             </div>
-
                         </div>
                     )}
 
