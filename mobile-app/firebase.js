@@ -1,25 +1,22 @@
-import { initializeApp } from "firebase/app";
  
-import { initializeAuth, getSecondaryAuth, getReactNativePersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
- import { getAuth } from "firebase/auth";
 
- 
+import { initializeApp } from "firebase/app"; 
+import { getAuth } from "firebase/auth"; 
+import { getFirestore } from "firebase/firestore"; 
+
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDdMuHhfYiGDokBwEj_seBaQSrO9c_ertI",
+  authDomain: "football-tournament-f8545.firebaseapp.com",
+  projectId: "football-tournament-f8545",
+  storageBucket: "football-tournament-f8545.firebasestorage.app",
+  messagingSenderId: "833048671728",
+  appId: "1:833048671728:web:f5f27fc88f5973da37d935",
+  measurementId: "G-C3DK7R47NQ"
 };
 
- 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
- 
- 
 
-const db = getFirestore(app);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
-export { auth, db };
+ 
