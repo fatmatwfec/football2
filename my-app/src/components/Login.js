@@ -32,14 +32,14 @@ const Login = () => {
       const user = userCredential.user;
 
       const isManuallyVerified = userData.isVerified === true;
-      
+
       if (!user.emailVerified && !isManuallyVerified) {
         setError("Please verify your university email or contact admin for manual activation.");
         await signOut(auth);
         return;
       }
 
-      navigate(userData.role === "admin" ? "/admin" : "/dashboard");
+      navigate(userData.role === "admin" ? "/admin" : "/student");
 
     } catch (err) {
       console.error(err.code);
@@ -48,7 +48,7 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-container"> 
+    <div className="auth-container">
       <div className="wrapper">
         <div className="form-box login">
           <form onSubmit={handleSubmit}>

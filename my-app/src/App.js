@@ -7,7 +7,8 @@ import Login from './components/Login';
 import AdminDashboard from './Dashboard/AdminDashboard';
 import StudentDashboard from './Dashboard/StudentDashboard';
 import Forgetpassword from './components/Forgetpassword';
-import ProtectedRoute from './components/ProtectedRoute'; 
+import ProtectedRoute from './components/ProtectedRoute';
+import ChangePassword from './Dashboard/ChangePassword'
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -41,22 +42,23 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/Forgetpassword" element={<Forgetpassword />} />
-          <Route 
-            path="/admin" 
+          <Route path="/ChangePassword" element={<ChangePassword />} />
+          <Route
+            path="/admin"
             element={
               <ProtectedRoute userRole={userRole} allowedRole="admin" loading={loading}>
                 <AdminDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/student" 
+
+          <Route
+            path="/student"
             element={
               <ProtectedRoute userRole={userRole} allowedRole="student" loading={loading}>
                 <StudentDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
         </Routes>
       </div>
