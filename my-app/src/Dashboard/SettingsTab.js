@@ -3,13 +3,14 @@ import { FaLock, FaUnlock, FaDatabase, FaUserShield, FaSitemap, FaSignOutAlt, Fa
 import { auth, db } from '../firebase';
 import { signOut, updatePassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 
 const SettingsTab = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [newPassword, setNewPassword] = useState(""); 
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -66,17 +67,38 @@ const SettingsTab = () => {
   };
 
   const handleResetSystem = async () => {
-    if (!window.confirm("DANGER: This will delete ALL teams and matches. Students accounts will remain. Proceed?")) return;
-    try {
-      const teamsSnap = await getDocs(collection(db, "teams"));
-      const matchesSnap = await getDocs(collection(db, "matches"));
-      
-      for (let d of teamsSnap.docs) { await deleteDoc(doc(db, "teams", d.id)); }
+    if (!window.confirm("WARNING: This will wipe all Teams, Matches, AND reset all Player stats to zero. Continue?")) return;
     
-      for (let d of matchesSnap.docs) { await deleteDoc(doc(db, "matches", d.id)); }
+    setIsResetting(true);
+    try {
+      const batch = writeBatch(db);
       
-      alert("System Reset Successfully! You can start a new tournament.");
-    } catch (error) { console.error(error); }
+
+      const teamsSnap = await getDocs(collection(db, "teams"));
+      teamsSnap.docs.forEach(d => batch.delete(doc(db, "teams", d.id)));
+    
+      const matchesSnap = await getDocs(collection(db, "matches"));
+      matchesSnap.docs.forEach(d => batch.delete(doc(db, "matches", d.id)));
+      
+      const usersSnap = await getDocs(collection(db, "users"));
+      usersSnap.docs.forEach(d => {
+        batch.update(doc(db, "users", d.id), { 
+          goals: 0, 
+          yellowCards: 0, 
+          redCards: 0, 
+          hasTeam: false, 
+          teamId: "", 
+          assignedTeam: "" 
+        });
+      });
+
+      await batch.commit();
+      alert("System Reset Successfully! All stats cleared.");
+    } catch (error) { 
+        console.error(error); 
+        alert("Reset failed.");
+    }
+    setIsResetting(false);
   };
 
   return (
@@ -86,7 +108,6 @@ const SettingsTab = () => {
       </h2>
 
       <div className="flex flex-col gap-4">
-        
         <div className="glass p-6 rounded-[2rem] border border-white/5 space-y-4">
           <div className="flex items-center gap-3 mb-2">
             <FaKey className="text-yellow-500" />
@@ -109,6 +130,7 @@ const SettingsTab = () => {
             </button>
           </div>
         </div>
+        
         <button onClick={handleGenerateBrackets} disabled={isGenerating} className="glass p-6 rounded-[2rem] border border-blue-500/20 flex items-center justify-between group hover:bg-blue-600/10 transition-all text-left">
           <div>
             <p className="text-blue-400 font-bold">Generate Tournament Brackets</p>
@@ -132,10 +154,10 @@ const SettingsTab = () => {
         <div className="glass p-6 rounded-[2rem] border border-white/5 flex items-center justify-between group">
           <div>
             <p className="text-white font-bold">Reset Tournament</p>
-            <p className="text-red-500 text-[10px] uppercase font-black tracking-widest italic">Clear teams & matches only</p>
+            <p className="text-red-500 text-[10px] uppercase font-black tracking-widest italic">Clear all data & reset stats</p>
           </div>
-          <button onClick={handleResetSystem} className="bg-red-500/10 text-red-500 p-4 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-inner">
-            <FaDatabase />
+          <button onClick={handleResetSystem} disabled={isResetting} className="bg-red-500/10 text-red-500 p-4 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-inner">
+            {isResetting ? "Wait..." : <FaDatabase />}
           </button>
         </div>
 
@@ -147,7 +169,6 @@ const SettingsTab = () => {
             <FaSignOutAlt />
           </div>
         </button>
-
       </div>
     </div>
   );
