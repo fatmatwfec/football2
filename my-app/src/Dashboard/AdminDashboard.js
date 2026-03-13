@@ -7,7 +7,7 @@ import SettingsTab from "./SettingsTab";
 import TeamsTab from "./TeamsTab";
 import LeaderboardTab from "./LeaderboardTab";
 import AddActionModal from "./AddActionModal";
-import { FaUsers, FaUserPlus, FaCheck, FaTimes, FaRegCalendarAlt, FaCog, FaShieldAlt, FaTrophy } from 'react-icons/fa';
+import { FaUsers, FaUserPlus, FaCheck, FaTimes, FaRegCalendarAlt, FaCog, FaShieldAlt, FaTrophy, FaPlus } from 'react-icons/fa';
 import { BsGridFill } from 'react-icons/bs';
 
 const AdminDashboard = () => {
@@ -91,8 +91,13 @@ const AdminDashboard = () => {
             <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider">League Management</p>
           </div>
         </div>
-        <div className="size-10 rounded-full border-2 border-blue-500 bg-slate-800 flex items-center justify-center overflow-hidden">
-          <span className="material-symbols-outlined text-slate-300">person</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsModalOpen(true)} className="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-white rounded-xl text-xs font-bold transition">
+            <FaPlus className="inline mr-1" /> New
+          </button>
+          <div className="size-10 rounded-full border-2 border-blue-500 bg-slate-800 flex items-center justify-center overflow-hidden">
+            <span className="material-symbols-outlined text-slate-300">person</span>
+          </div>
         </div>
       </header>
 
@@ -149,6 +154,13 @@ const AdminDashboard = () => {
         <NavButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} icon={<FaRegCalendarAlt />} label="Matches" />
         <NavButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")} icon={<FaCog />} label="Settings" />
       </nav>
+
+      <AddActionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        currentTeamsCount={pendingTeams.length + approvedTeams.length}
+        freeAgents={freeAgents}
+      />
     </div>
   );
 };

@@ -1,29 +1,93 @@
-import React, { useState } from 'react';
-import { FaUsers, FaFutbol, FaTimes, FaArrowLeft, FaSave, FaCalendarAlt } from 'react-icons/fa';
+import React, { useState, useMemo } from 'react';
+import { FaUsers, FaFutbol, FaTimes, FaArrowLeft, FaCalendarAlt, FaUserPlus, FaUserMinus } from 'react-icons/fa';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 
-const AddActionModal = ({ isOpen, onClose, currentTeamsCount }) => {
-  const [view, setView] = useState('options'); 
+const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] }) => {
+  const [view, setView] = useState('options');
   const [loading, setLoading] = useState(false);
   const [teamData, setTeamData] = useState({ teamName: '', captainName: '', category: 'Under-19' });
   const [matchData, setMatchData] = useState({ team1: '', team2: '', date: '', time: '', pitch: 'Pitch 1' });
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState([]);
+  const [selectedDropdownPlayer, setSelectedDropdownPlayer] = useState('');
+
+  const selectedPlayers = useMemo(
+    () => freeAgents.filter((p) => selectedPlayerIds.includes(p.id)),
+    [freeAgents, selectedPlayerIds]
+  );
+
+  const availableFreeAgents = useMemo(
+    () => freeAgents.filter((p) => !selectedPlayerIds.includes(p.id)),
+    [freeAgents, selectedPlayerIds]
+  );
 
   if (!isOpen) return null;
+
+  const handleAddPlayerToRoster = () => {
+    if (!selectedDropdownPlayer) return;
+    if (selectedPlayerIds.length >= 7) {
+      alert('A team can have a maximum of 7 players.');
+      return;
+    }
+    setSelectedPlayerIds((prev) => [...prev, selectedDropdownPlayer]);
+    setSelectedDropdownPlayer('');
+  };
+
+  const handleRemovePlayerFromRoster = (id) => {
+    setSelectedPlayerIds((prev) => prev.filter((pid) => pid !== id));
+  };
 
   const handleSubmitTeam = async (e) => {
     e.preventDefault();
     if (currentTeamsCount >= 32) {
-      alert("Tournament Limit Reached! Cannot add more than 32 teams.");
+      alert('Tournament Limit Reached! Cannot add more than 32 teams.');
       return;
     }
+
+    if (!teamData.teamName.trim() || !teamData.captainName.trim()) {
+      alert('Please provide a team name and captain name.');
+      return;
+    }
+
+    if (selectedPlayerIds.length < 5) {
+      alert('A team must have at least 5 players.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await addDoc(collection(db, "teams"), { ...teamData, status: "approved", createdAt: new Date(), members: [] });
-      alert("Team Successfully Registered!");
+      const batch = writeBatch(db);
+      const teamRef = doc(collection(db, 'teams'));
+      const members = selectedPlayers.map((p) => p.name);
+      const memberIds = selectedPlayers.map((p) => p.id);
+
+      batch.set(teamRef, {
+        ...teamData,
+        status: 'approved',
+        createdAt: new Date(),
+        members,
+        memberIds,
+      });
+
+      selectedPlayers.forEach((player) => {
+        const userRef = doc(db, 'users', player.id);
+        batch.update(userRef, {
+          hasTeam: true,
+          teamId: teamRef.id,
+          assignedTeam: teamData.teamName,
+        });
+      });
+
+      await batch.commit();
+      alert('Team Successfully Registered!');
       onClose();
       setView('options');
-    } catch (e) { console.error(e); }
+      setSelectedPlayerIds([]);
+      setSelectedDropdownPlayer('');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create team. Please try again.');
+    }
     setLoading(false);
   };
 

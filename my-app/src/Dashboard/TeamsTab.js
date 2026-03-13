@@ -1,31 +1,54 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { FaUsers, FaUserPlus, FaShieldAlt, FaUserMinus, FaInfoCircle, FaTrashAlt, FaFutbol, FaSquare } from 'react-icons/fa';
 
 const TeamsTab = ({ teams, players }) => {
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2400);
+  };
 
   const freeAgents = players.filter(p => 
     (p.role === "student" || p.role === "player") && (p.hasTeam === false || p.hasTeam === undefined)
   );
   
-  const handleDeleteTeam = async (teamId, teamName, members) => {
+  const resolveTeamMembers = (team) => {
+    if (team.memberIds?.length) {
+      return team.memberIds.map((id) => {
+        const p = players.find((pl) => pl.id === id);
+        return { id, name: p?.name || 'Unknown' };
+      });
+    }
+    return (team.members || []).map((name) => {
+      const p = players.find((pl) => pl.name === name);
+      return { id: p?.id, name };
+    });
+  };
+
+  const handleDeleteTeam = async (teamId, teamName, members = [], memberIds = []) => {
     if (!window.confirm(`Are you sure you want to delete ${teamName}? All members will become Free Agents.`)) return;
 
     try {
-      const updatePromises = members.map(async (memberName) => {
-        const playerObj = players.find(p => p.name === memberName);
-        if (playerObj) {
-          const userRef = doc(db, "users", playerObj.id);
-          return updateDoc(userRef, {
-            hasTeam: false,
-            teamId: "",
-            assignedTeam: ""
-          });
-        }
+      const idsToReset = (memberIds && memberIds.length > 0)
+        ? memberIds
+        : members
+            .map((m) => (typeof m === 'string' ? players.find(p => p.name === m)?.id : m?.id))
+            .filter(Boolean);
+
+      const updatePromises = idsToReset.map(async (uid) => {
+        const userRef = doc(db, "users", uid);
+        return updateDoc(userRef, {
+          hasTeam: false,
+          teamId: "",
+          assignedTeam: ""
+        });
       });
+
       await Promise.all(updatePromises);
       await deleteDoc(doc(db, "teams", teamId));
       alert("Team deleted successfully.");
@@ -37,10 +60,11 @@ const TeamsTab = ({ teams, players }) => {
 
   const handleAddPlayer = async (teamId, teamName) => {
     if (!selectedPlayer) return alert("Please select a player first!");
-  
+
     const team = teams.find(t => t.id === teamId);
-    if ((team.members?.length || 0) >= 7) {
-        return alert("Team is already full (Max 7 players)!");
+    const currentCount = (team.memberIds?.length ?? team.members?.length ?? 0);
+    if (currentCount >= 7) {
+      return alert("Team is already full (Max 7 players)!");
     }
 
     const player = freeAgents.find(p => p.id === selectedPlayer);
@@ -49,22 +73,41 @@ const TeamsTab = ({ teams, players }) => {
 
     try {
       const teamRef = doc(db, "teams", teamId);
-      await updateDoc(teamRef, { members: arrayUnion(player.name) });
+      const teamSnap = await getDoc(teamRef);
+      const teamData = teamSnap.data() || {};
+
+      const existingMembers = Array.isArray(teamData.members) ? teamData.members : [];
+      const existingMemberIds = Array.isArray(teamData.memberIds) ? teamData.memberIds : [];
+
+      const updatedMembers = Array.from(new Set([...existingMembers, player.name]));
+      const updatedMemberIds = Array.from(new Set([...existingMemberIds, player.id]));
+
+      await updateDoc(teamRef, {
+        members: updatedMembers,
+        memberIds: updatedMemberIds
+      });
+
       const userRef = doc(db, "users", player.id);
       await updateDoc(userRef, { hasTeam: true, teamId: teamId, assignedTeam: teamName });
       alert("Player added!");
-      setSelectedPlayer(""); 
+      setSelectedPlayer("");
     } catch (error) { console.error(error); }
   };
 
-  const handleRemovePlayer = async (teamId, teamName, playerName) => {
+  const handleRemovePlayer = async (teamId, teamName, member) => {
+    const playerName = typeof member === 'string' ? member : member?.name;
+    const playerId = typeof member === 'string' ? players.find(p => p.name === member)?.id : member?.id;
+    if (!playerName) return;
     if (!window.confirm(`Remove ${playerName} from ${teamName}?`)) return;
+
     try {
       const teamRef = doc(db, "teams", teamId);
-      await updateDoc(teamRef, { members: arrayRemove(playerName) });
-      const userObj = players.find(u => u.name === playerName);
-      if (userObj) {
-        const userRef = doc(db, "users", userObj.id);
+      const updateData = { members: arrayRemove(playerName) };
+      if (playerId) updateData.memberIds = arrayRemove(playerId);
+      await updateDoc(teamRef, updateData);
+
+      if (playerId) {
+        const userRef = doc(db, "users", playerId);
         await updateDoc(userRef, { hasTeam: false, teamId: "", assignedTeam: "" });
       }
       alert("Player removed.");
@@ -89,7 +132,7 @@ const TeamsTab = ({ teams, players }) => {
           <div key={team.id} className="glass rounded-[2.5rem] p-6 border border-white/5 hover:border-emerald-500/30 transition-all shadow-2xl relative group overflow-hidden">
             
             <button 
-              onClick={() => handleDeleteTeam(team.id, team.teamName, team.members || [])}
+              onClick={() => handleDeleteTeam(team.id, team.teamName, team.members || [], team.memberIds || [])}
               className="absolute top-6 right-6 text-slate-700 hover:text-red-500 transition-colors z-20"
             >
               <FaTrashAlt size={14} />
@@ -108,11 +151,11 @@ const TeamsTab = ({ teams, players }) => {
             <div className="space-y-2 mb-8 relative z-10">
               <div className="flex justify-between items-center mb-3">
                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Squad Members</p>
-                 <span className="text-white text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded-md">{team.members?.length || 0} / 7</span>
+                 <span className="text-white text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded-md">{resolveTeamMembers(team).length} / 7</span>
               </div>
               
-              {team.members?.map((member, index) => {
-                const memberData = players.find(p => p.name === member);
+              {resolveTeamMembers(team).map((member, index) => {
+                const memberData = players.find(p => p.id === member.id);
                 return (
                   <div key={index} 
                     className="flex items-center justify-between bg-slate-900/40 p-3 rounded-2xl border border-white/5 group/member hover:bg-slate-900 transition-all cursor-pointer"
@@ -120,7 +163,7 @@ const TeamsTab = ({ teams, players }) => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="size-1.5 bg-emerald-500 rounded-full"></div>
-                      <span className="text-slate-200 text-xs font-semibold">{member}</span>
+                      <span className="text-slate-200 text-xs font-semibold">{member.name}</span>
                       <FaInfoCircle className="text-slate-600 group-hover/member:text-emerald-400 transition-colors" size={10} />
                     </div>
                     <button 
