@@ -236,3 +236,4 @@ const styles = StyleSheet.create({
   whiteText: { color: "#fff", fontSize: 14 },
   linkText: { color: "#fff", fontWeight: "600", textDecorationLine: "underline" }
 });
+
