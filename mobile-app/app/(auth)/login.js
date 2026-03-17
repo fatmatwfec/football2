@@ -51,12 +51,11 @@ const Login = () => {
               return;
             }
 
-      
-if (userData.role === "admin") {
-  router.replace("/(tabs)/admin");
-} else {
-  router.replace("/(tabs)");
-}
+      if (userData.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/dashboard");
+      }
 
     } catch (err) {
       console.error(err.code);
