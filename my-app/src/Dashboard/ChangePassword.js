@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
 import { updatePassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
-const ChangePassword = () => {
-
+function ChangePassword() {
+  const [yourPassword, setYourPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -20,12 +21,20 @@ const ChangePassword = () => {
     }
 
     try {
-      const user = auth.currentUser;
-      await updatePassword(user, password);
+      // const q = doc(db, "users", where("studentCode", "==", studentCode.trim()));
+      // const querySnapshot = await getDocs(q);
+      // const users = auth.currentUser;
+      await updatePassword(auth, password);
       setMessage("Password updated successfully ");
+      setYourPassword("");
       setPassword("");
       setConfirmPassword("");
-    } catch (error) {
+      if (yourPassword !== auth.password) {
+        setMessage("Wrong Current Password");
+
+        return;
+      }
+    } catch (err) {
       setMessage("Not Strong Password");
     }
   };
@@ -58,6 +67,18 @@ const ChangePassword = () => {
           </h2>
 
           <form onSubmit={handleChangePassword} className="space-y-4">
+
+            <div>
+              <label className="text-gray-400 text-sm">Current Password</label>
+              <input
+                type="password"
+                placeholder="Enter Your Password"
+                value={yourPassword}
+                onChange={(e) => setYourPassword(e.target.value)}
+                required
+                className="w-full mt-2 p-3 rounded-xl bg-white/10 border border-white/10 focus:outline-none focus:border-green-500"
+              />
+            </div>
 
             {/* New Password */}
             <div>
@@ -101,9 +122,7 @@ const ChangePassword = () => {
           )}
 
         </div>
-
       </div>
-
     </div>
   );
 };
