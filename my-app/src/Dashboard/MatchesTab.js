@@ -1,145 +1,211 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { FaRegCalendarAlt, FaBell, FaTrophy, FaEdit, FaPlus, FaTrash, FaClock, FaLocationArrow } from 'react-icons/fa';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, increment, getDoc } from 'firebase/firestore';
+import { FaTrophy, FaTrash, FaFutbol, FaTimes } from 'react-icons/fa';
 
 const MatchesTab = () => {
   const [matches, setMatches] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]); 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(null); 
   
   const [newMatch, setNewMatch] = useState({
-    team1: '',
-    team2: '',
-    date: '',
-    time: '',
-    pitch: 'Main Pitch',
+    team1: '', team2: '', date: '', time: '', pitch: 'Main Pitch',
   });
 
   useEffect(() => {
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
       setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-
-    const qTeams = query(collection(db, "teams"), where("status", "==", "approved"));
-    const unsubTeams = onSnapshot(qTeams, (snap) => {
+    const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
       setTeams(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-
-    return () => { unsubMatches(); unsubTeams(); };
+    const unsubPlayers = onSnapshot(collection(db, "users"), (snap) => {
+      setPlayers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => { unsubMatches(); unsubTeams(); unsubPlayers(); };
   }, []);
 
-  const handleEnterResult = async (matchId) => {
-    const score = prompt("Final Score (e.g., 3-1):");
-    if (!score) return;
-    const scorer = prompt("Goal Scorers:");
-    const yellow = prompt("Number of Yellow Cards:");
-    const red = prompt("Number of Red Cards:");
+  const updatePlayerStats = async (playerName, stats, isIncrement = true) => {
+    const playerObj = players.find(p => p.name === playerName);
+    if (!playerObj) return;
 
-    try {
-      const matchRef = doc(db, "matches", matchId);
-      await updateDoc(matchRef, {
-        score: score,
-        topScorer: scorer,
-        yellowCards: parseInt(yellow) || 0,
-        redCards: parseInt(red) || 0,
-        status: "completed"
-      });
-      alert("Results Recorded Successfully!");
-    } catch (e) { console.error(e); }
+    const userRef = doc(db, "users", playerObj.id);
+    const multiplier = isIncrement ? 1 : -1;
+    await updateDoc(userRef, {
+      goals: increment((stats.goals || 0) * multiplier),
+      yellowCards: increment((stats.yellow || 0) * multiplier),
+      redCards: increment((stats.red || 0) * multiplier)
+    });
   };
 
-  const handleCreateMatch = async (e) => {
+  const handleFinalizeMatch = async (e) => {
     e.preventDefault();
-    if (newMatch.team1 === newMatch.team2) return alert("Select two different teams!");
+    const formData = new FormData(e.target);
+    const score = formData.get('score');
+    const matchId = showResultModal.id;
+    const statsSnapshot = {};
 
     try {
-      await addDoc(collection(db, "matches"), {
-        ...newMatch,
-        score: "", 
-        status: "upcoming",
-        createdAt: new Date()
+      for (let player of getMatchPlayers()) {
+        const goals = parseInt(formData.get(`goals-${player.name}`)) || 0;
+        const yellow = parseInt(formData.get(`yellow-${player.name}`)) || 0;
+        const red = parseInt(formData.get(`red-${player.name}`)) || 0;
+
+        if (goals > 0 || yellow > 0 || red > 0) {
+          statsSnapshot[player.name] = { goals, yellow, red };
+          await updatePlayerStats(player.name, { goals, yellow, red }, true);
+        }
+      }
+
+      await updateDoc(doc(db, "matches", matchId), {
+        score: score,
+        status: "completed",
+        statsSnapshot: statsSnapshot
       });
-      setShowAddForm(false);
-      setNewMatch({ team1: '', team2: '', date: '', time: '', pitch: 'Main Pitch' });
+
+      alert("Match Result & Player Stats Updated!");
+      setShowResultModal(null);
     } catch (err) { console.error(err); }
   };
 
-  const deleteMatch = async (id) => {
-    if (window.confirm("Delete this match?")) await deleteDoc(doc(db, "matches", id));
+  const handleDeleteMatch = async (match) => {
+    if (!window.confirm("هل أنت متأكد؟ سيتم خصم إحصائيات هذا الماتش من اللاعبين إذا كان مكتملاً.")) return;
+    try {
+      if (match.status === 'completed' && match.statsSnapshot) {
+        for (const [playerName, stats] of Object.entries(match.statsSnapshot)) {
+          await updatePlayerStats(playerName, stats, false);
+        }
+      }
+      await deleteDoc(doc(db, "matches", match.id));
+      alert("تم الحذف بنجاح!");
+    } catch (err) { console.error(err); }
+  };
+
+  const getMatchPlayers = () => {
+    if (!showResultModal) return [];
+    const team1Data = teams.find(t => t.teamName === showResultModal.team1);
+    const team2Data = teams.find(t => t.teamName === showResultModal.team2);
+    const combinedMembers = [...(team1Data?.members || []), ...(team2Data?.members || [])];
+    return players.filter(p => combinedMembers.includes(p.name));
   };
 
   return (
-    <div className="animate-in fade-in duration-500 max-w-4xl mx-auto pb-40">
-      <div className="flex items-center justify-between mb-8 px-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <FaTrophy className="text-yellow-500" /> Match Schedule
-          </h2>
-          <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-widest font-bold">Manage tournament fixtures & results</p>
-        </div>
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all shadow-lg text-sm"
-        >
-          {showAddForm ? "Cancel" : <><FaPlus /> New Match</>}
+    <div className="animate-in fade-in duration-500 max-w-4xl mx-auto pb-40 px-4">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-3"><FaTrophy className="text-yellow-500" /> Match Center</h2>
+        <button onClick={() => setShowAddForm(!showAddForm)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase transition-all shadow-xl">
+          {showAddForm ? "Close" : "New Match"}
         </button>
       </div>
+
       {showAddForm && (
-        <div className="glass p-6 rounded-[2.5rem] border border-blue-500/30 mb-10 animate-in zoom-in duration-300 mx-4">
-          <form onSubmit={handleCreateMatch} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <select required className="bg-slate-900 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setNewMatch({...newMatch, team1: e.target.value})}>
-              <option value="">Select Team 1</option>
+        <div className="glass p-8 rounded-[2.5rem] border border-blue-500/30 mb-10 animate-in slide-in-from-top-4">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const t1 = teams.find(t => t.teamName === newMatch.team1);
+            const t2 = teams.find(t => t.teamName === newMatch.team2);
+            
+            if (newMatch.team1 === newMatch.team2) return alert("لا يمكن للفريق أن يلعب ضد نفسه!");
+            if ((t1?.members?.length || 0) < 7 || (t2?.members?.length || 0) < 7) return alert("يجب أن يحتوي كل فريق على 7 لاعبين على الأقل!");
+            
+            const isBusy = matches.some(m => 
+                m.status === 'upcoming' && 
+                (m.team1 === newMatch.team1 || m.team2 === newMatch.team1 || 
+                 m.team1 === newMatch.team2 || m.team2 === newMatch.team2) &&
+                m.date === newMatch.date
+            );
+            if (isBusy) return alert("أحد الفريقين لديه ماتش آخر في هذا اليوم!");
+
+            addDoc(collection(db, "matches"), { ...newMatch, score: "", status: "upcoming", createdAt: new Date() });
+            setShowAddForm(false);
+          }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <select required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setNewMatch({...newMatch, team1: e.target.value})}>
+              <option value="">Team A</option>
               {teams.map(t => <option key={t.id} value={t.teamName}>{t.teamName}</option>)}
             </select>
-            <select required className="bg-slate-900 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setNewMatch({...newMatch, team2: e.target.value})}>
-              <option value="">Select Team 2</option>
+            <select required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setNewMatch({...newMatch, team2: e.target.value})}>
+              <option value="">Team B</option>
               {teams.map(t => <option key={t.id} value={t.teamName}>{t.teamName}</option>)}
             </select>
-            <input type="date" required className="bg-slate-900 border border-white/10 rounded-2xl p-4 text-white" onChange={(e) => setNewMatch({...newMatch, date: e.target.value})} />
-            <input type="time" required className="bg-slate-900 border border-white/10 rounded-2xl p-4 text-white" onChange={(e) => setNewMatch({...newMatch, time: e.target.value})} />
-            <button type="submit" className="md:col-span-2 bg-[#bef264] text-slate-900 font-black h-14 rounded-2xl hover:bg-lime-400 transition-all uppercase tracking-tighter">Schedule Match</button>
+            <input type="date" required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setNewMatch({...newMatch, date: e.target.value})} />
+            <input type="time" required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setNewMatch({...newMatch, time: e.target.value})} />
+            <button type="submit" className="md:col-span-2 bg-[#bef264] text-slate-900 font-black h-14 rounded-2xl uppercase text-sm">Post Match</button>
           </form>
         </div>
       )}
-      <div className="flex flex-col gap-6 px-4">
-        {matches.length > 0 ? matches.map((m) => (
-          <div key={m.id} className="glass rounded-[2.5rem] p-6 border-l-8 border-blue-600 shadow-2xl relative overflow-hidden group">
-            
-            <button onClick={() => deleteMatch(m.id)} className="absolute top-4 right-4 text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><FaTrash size={12}/></button>
 
-            <div className="flex items-center justify-between mb-6">
-              <p className="flex-1 text-center font-black text-white uppercase text-sm tracking-tight">{m.team1}</p>
-              <div className="bg-blue-600/20 px-6 py-2 rounded-full border border-blue-500/30 mx-4">
-                <span className="text-2xl font-black text-blue-500">{m.score || "VS"}</span>
-              </div>
-              <p className="flex-1 text-center font-black text-white uppercase text-sm tracking-tight">{m.team2}</p>
-            </div>
-
-            {(m.yellowCards > 0 || m.redCards > 0) && (
-              <div className="flex justify-center gap-4 mb-4">
-                {m.yellowCards > 0 && <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-3 py-1 rounded-lg font-bold">🟨 {m.yellowCards} Yellows</span>}
-                {m.redCards > 0 && <span className="text-[10px] bg-red-500/20 text-red-500 px-3 py-1 rounded-lg font-bold">🟥 {m.redCards} Reds</span>}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
-              <div className="bg-slate-900/40 rounded-2xl p-3 flex items-center gap-3"><FaRegCalendarAlt className="text-blue-500" /><span className="text-slate-300 text-[11px] font-bold">{m.date}</span></div>
-              <div className="bg-slate-900/40 rounded-2xl p-3 flex items-center gap-3"><FaBell className="text-blue-500" /><span className="text-slate-300 text-[11px] font-bold">{m.time}</span></div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button className="flex-1 glass hover:bg-white/10 text-white py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"><FaEdit /> Edit</button>
-              <button onClick={() => handleEnterResult(m.id)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-blue-600/20">Enter Result</button>
-            </div>
+      <div className="flex flex-col gap-6">
+        {matches.map((m) => (
+          <div key={m.id} className={`glass rounded-[2.5rem] p-8 border-l-8 ${m.status === 'completed' ? 'border-emerald-500' : 'border-blue-600'} relative group`}>
+             <div className="flex items-center justify-between mb-8">
+                <p className="text-white font-black flex-1 text-center">{m.team1}</p>
+                <div className="bg-white/5 px-6 py-2 rounded-2xl font-black text-xl text-blue-500">{m.score || "VS"}</div>
+                <p className="text-white font-black flex-1 text-center">{m.team2}</p>
+             </div>
+             <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowResultModal(m)}
+                  disabled={m.status === 'completed'}
+                  className={`flex-1 py-4 rounded-2xl font-black uppercase text-[10px] ${m.status === 'completed' ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                >
+                  {m.status === 'completed' ? "Completed" : "Enter Stats"}
+                </button>
+                <button onClick={() => handleDeleteMatch(m)} className="bg-red-500/10 text-red-500 px-6 rounded-2xl transition-all"><FaTrash size={14} /></button>
+             </div>
           </div>
-        )) : (
-          <div className="text-center py-20 opacity-30">
-            <FaRegCalendarAlt size={40} className="mx-auto mb-4" />
-            <p className="italic">No matches scheduled.</p>
-          </div>
-        )}
+        ))}
       </div>
+
+      {showResultModal && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[3rem] p-8 relative">
+            <button onClick={() => setShowResultModal(null)} className="absolute top-8 right-8 text-slate-500 hover:text-white"><FaTimes /></button>
+            <h3 className="text-white text-xl font-black mb-2 flex items-center gap-2 uppercase tracking-tighter">
+              <FaFutbol className="text-lime-400" /> Match Report
+            </h3>
+            <p className="text-slate-500 text-[10px] uppercase font-bold mb-8 italic">{showResultModal.team1} vs {showResultModal.team2}</p>
+
+            <form onSubmit={handleFinalizeMatch}>
+              <div className="mb-10 text-center">
+                <label className="text-[10px] text-slate-500 font-black uppercase mb-3 block">Final Score</label>
+                <input name="score" placeholder="e.g. 2 - 1" required className="bg-slate-950 border border-white/10 rounded-2xl px-8 py-4 text-center text-2xl font-black text-white outline-none focus:border-lime-400" />
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-xs text-blue-400 font-black uppercase border-b border-white/5 pb-2">Squad Statistics</p>
+                {getMatchPlayers().map(player => (
+                  <div key={player.id} className="bg-slate-950/50 p-4 rounded-3xl border border-white/5 flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-xs truncate">{player.name}</p>
+                      <p className="text-slate-500 text-[8px] uppercase">{player.assignedTeam}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[7px] text-slate-600 uppercase font-black mb-1">Goals</span>
+                        <input name={`goals-${player.name}`} type="number" min="0" placeholder="0" className="w-10 bg-slate-900 border border-white/5 rounded-lg p-1 text-center text-xs text-white" />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[7px] text-yellow-600 uppercase font-black mb-1">Yellow</span>
+                        <input name={`yellow-${player.name}`} type="number" min="0" max="2" placeholder="0" className="w-10 bg-slate-900 border border-white/5 rounded-lg p-1 text-center text-xs text-white" />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[7px] text-red-600 uppercase font-black mb-1">Red</span>
+                        <input name={`red-${player.name}`} type="number" min="0" max="1" placeholder="0" className="w-10 bg-slate-900 border border-white/5 rounded-lg p-1 text-center text-xs text-white" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button type="submit" className="w-full bg-lime-400 text-slate-900 py-5 rounded-[2rem] font-black uppercase text-sm mt-10 shadow-xl shadow-lime-500/20 active:scale-95 transition-all">
+                Finalize & Save All Stats
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

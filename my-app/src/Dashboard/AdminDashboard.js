@@ -5,8 +5,9 @@ import PlayersTab from "./PlayersTab";
 import MatchesTab from "./MatchesTab";
 import SettingsTab from "./SettingsTab";
 import TeamsTab from "./TeamsTab";
+import LeaderboardTab from "./LeaderboardTab";
 import AddActionModal from "./AddActionModal";
-import { FaUsers, FaUserPlus, FaCheck, FaTimes, FaRegCalendarAlt, FaCog, FaShieldAlt } from 'react-icons/fa';
+import { FaUsers, FaUserPlus, FaCheck, FaTimes, FaRegCalendarAlt, FaCog, FaShieldAlt, FaTrophy, FaPlus } from 'react-icons/fa';
 import { BsGridFill } from 'react-icons/bs';
 
 const AdminDashboard = () => {
@@ -58,7 +59,7 @@ const AdminDashboard = () => {
     const selected = freeAgents.slice(0, 5);
     const teamName = `Elite-${Math.floor(Math.random() * 999)}`;
     try {
-      const teamRef = await addDoc(collection(db, "teams"), {
+      await addDoc(collection(db, "teams"), {
         teamName,
         status: "approved",
         members: selected.map(p => p.name),
@@ -90,8 +91,13 @@ const AdminDashboard = () => {
             <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider">League Management</p>
           </div>
         </div>
-        <div className="size-10 rounded-full border-2 border-blue-500 bg-slate-800 flex items-center justify-center overflow-hidden">
-          <span className="material-symbols-outlined text-slate-300">person</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsModalOpen(true)} className="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-white rounded-xl text-xs font-bold transition">
+            <FaPlus className="inline mr-1" /> New
+          </button>
+          <div className="size-10 rounded-full border-2 border-blue-500 bg-slate-800 flex items-center justify-center overflow-hidden">
+            <span className="material-symbols-outlined text-slate-300">person</span>
+          </div>
         </div>
       </header>
 
@@ -131,33 +137,34 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
-        {activeTab === "players" && <PlayersTab players={freeAgents} onAutoBuild={handleAutoBuild} />}
+        
+        {activeTab === "players" && <PlayersTab players={allUsers} onAutoBuild={handleAutoBuild} />}
+        
         {activeTab === "teams" && <TeamsTab teams={approvedTeams} players={allUsers} />}
         {activeTab === "schedule" && <MatchesTab matches={matches} />}
+        {activeTab === "leaderboard" && <LeaderboardTab players={allUsers} teams={approvedTeams} />}
         {activeTab === "settings" && <SettingsTab />}
       </main>
 
-      <AddActionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-
-
-      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 pl-[4rem] pr-[4rem] pb-8 pt-4 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 px-8 pb-8 pt-4 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <NavButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} icon={<BsGridFill />} label="Home" />
         <NavButton active={activeTab === "players"} onClick={() => setActiveTab("players")} icon={<FaUserPlus />} label="Players" />
-
-
-        <div className="relative -top-8">
-          <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 size-14 rounded-full shadow-lg shadow-blue-600/40 flex items-center justify-center border-4 border-slate-950 text-white text-2xl hover:scale-110 transition-transform active:scale-95">
-            +
-          </button>
-        </div>
-
         <NavButton active={activeTab === "teams"} onClick={() => setActiveTab("teams")} icon={<FaShieldAlt />} label="Teams" />
+        <NavButton active={activeTab === "leaderboard"} onClick={() => setActiveTab("leaderboard")} icon={<FaTrophy />} label="Rank" />
         <NavButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} icon={<FaRegCalendarAlt />} label="Matches" />
         <NavButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")} icon={<FaCog />} label="Settings" />
       </nav>
+
+      <AddActionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        currentTeamsCount={pendingTeams.length + approvedTeams.length}
+        freeAgents={freeAgents}
+      />
     </div>
   );
 };
+
 const StatCard = ({ icon, label, value, trend, color }) => (
   <div className="glass p-4 rounded-2xl flex flex-col gap-2 relative overflow-hidden group">
     <div className={`text-xl ${color}`}>{icon}</div>

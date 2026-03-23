@@ -43,18 +43,20 @@ const Login = () => {
 
       const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
       const user = userCredential.user;
+      const isManuallyVerified = userData.isVerified === true;
 
-      if (!user.emailVerified) {
-        setError("Please verify your university email first.");
-        await signOut(auth);
-        return;
-      }
+      if (!user.emailVerified && !isManuallyVerified) {
+              setError("Please verify your university email or contact admin for manual activation.");
+              await signOut(auth);
+              return;
+            }
 
-      if (userData.role === "admin") {
-        router.replace("/admin");
-      } else {
-        router.replace("/dashboard");
-      }
+  
+if (userData.role === "admin") {
+  router.replace("/(tabs)/admin");
+} else {
+  router.replace("/(tabs)");
+}
 
     } catch (err) {
       console.error(err.code);
