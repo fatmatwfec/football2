@@ -6,7 +6,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { FaUser, FaLock } from "react-icons/fa";
 import '../index.css';
 
-const Login = () => {
+function Login() {
   const [studentCode, setStudentCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

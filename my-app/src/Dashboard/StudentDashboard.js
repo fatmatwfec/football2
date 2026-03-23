@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 const StudentDashboard = () => {
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
+    // const [showTeamModel , setShowTeamModel] = useState(false);
+    // const [teamDetails , setTeamDetails] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
