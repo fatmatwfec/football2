@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc } from "firebase/firestore";
 import PlayersTab from "./PlayersTab";
 import MatchesTab from "./MatchesTab";
 import SettingsTab from "./SettingsTab";
@@ -41,6 +41,45 @@ const AdminDashboard = () => {
     return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
   }, []);
 
+  // وظيفة قبول الفريق
+  const handleApproveTeam = async (teamId) => {
+    try {
+      await updateDoc(doc(db, "teams", teamId), { status: "approved" });
+      alert("تم قبول الفريق بنجاح!");
+    } catch (error) {
+      console.error("Error approving team:", error);
+    }
+  };
+
+  // وظيفة رفض الفريق وتحرير اللاعبين
+  const handleRejectTeam = async (team) => {
+    if (!window.confirm(`هل أنت متأكد من رفض فريق ${team.teamName}؟ اللاعبين سيعودون Free Agents.`)) return;
+
+    try {
+      const batch = writeBatch(db);
+
+      // 1. تحرير كل اللاعبين الموجودين في المصفوفة memberIds
+      if (team.memberIds && team.memberIds.length > 0) {
+        team.memberIds.forEach((playerId) => {
+          const userRef = doc(db, "users", playerId);
+          batch.update(userRef, {
+            hasTeam: false,
+            teamId: null,
+            assignedTeam: null
+          });
+        });
+      }
+
+      batch.delete(doc(db, "teams", team.id));
+
+      await batch.commit();
+      alert("تم رفض الفريق وتحرير اللاعبين بنجاح.");
+    } catch (error) {
+      console.error("Error rejecting team:", error);
+      alert("حدث خطأ أثناء معالجة الطلب.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-slate-950 flex flex-col font-['Lexend'] text-slate-100">
       <style>{`
@@ -54,7 +93,6 @@ const AdminDashboard = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
       `}</style>
       
-      {/* Wrapper to apply the background image correctly */}
       <div className="flex-1 flex flex-col stadium-bg overflow-hidden relative">
         
         {/* Header */}
@@ -79,14 +117,12 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        {/* AI Sidebar Component */}
         <AIChatSidebar 
           isOpen={isAIChatOpen} 
           onClose={() => setIsAIChatOpen(false)} 
           stats={stats} players={allUsers} matches={matches} teams={approvedTeams} 
         />
 
-        {/* Content Area */}
         <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6 pb-40 custom-scrollbar relative z-10">
           {activeTab === "dashboard" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -100,16 +136,46 @@ const AdminDashboard = () => {
                <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
                  <span className="size-2 bg-blue-500 rounded-full animate-ping"></span> Team Requests
                </h2>
+               
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {pendingTeams.map(team => (
                     <div key={team.id} className="glass rounded-3xl p-6 border-l-4 border-l-blue-600 hover:scale-[1.02] transition-all">
-                      <h3 className="text-white font-black text-sm mb-4 uppercase tracking-tight">{team.teamName}</h3>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                           <h3 className="text-white font-black text-sm uppercase tracking-tight">{team.teamName}</h3>
+                           <p className="text-[10px] text-blue-500 font-bold">Captain: {team.captainName || "Unknown"}</p>
+                        </div>
+                        <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-1 rounded-lg border border-blue-500/20">
+                          {team.memberIds?.length || 0} Players
+                        </span>
+                      </div>
+
+                      {/* عرض قائمة اللاعبين في الفريق */}
+                      <div className="mb-6 flex flex-wrap gap-2">
+                        {team.members && team.members.map((name, i) => (
+                          <span key={i} className="text-[9px] bg-slate-900 text-slate-300 px-2 py-1 rounded-md border border-white/5">
+                            • {name}
+                          </span>
+                        ))}
+                      </div>
+
                       <div className="flex gap-2">
-                         <button onClick={() => updateDoc(doc(db, "teams", team.id), { status: "approved" })} className="flex-1 bg-blue-600 text-[10px] font-black uppercase py-3 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/10">Approve</button>
-                         <button onClick={() => updateDoc(doc(db, "teams", team.id), { status: "rejected" })} className="flex-1 bg-white/5 text-[10px] font-black uppercase py-3 rounded-xl hover:bg-white/10 transition-all border border-white/5">Reject</button>
+                         <button 
+                            onClick={() => handleApproveTeam(team.id)} 
+                            className="flex-1 bg-blue-600 text-[10px] font-black uppercase py-3 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/10"
+                         >
+                            Approve
+                         </button>
+                         <button 
+                            onClick={() => handleRejectTeam(team)} 
+                            className="flex-1 bg-white/5 text-[10px] font-black uppercase py-3 rounded-xl hover:bg-red-600 hover:text-white transition-all border border-white/5"
+                         >
+                            Reject
+                         </button>
                       </div>
                     </div>
                   ))}
+                  {pendingTeams.length === 0 && <p className="text-slate-500 text-xs italic">No pending requests at the moment.</p>}
                </div>
             </div>
           )}

@@ -9,6 +9,7 @@ const StudentDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [teamData, setTeamData] = useState(null);
     const [newMemberCode, setNewMemberCode] = useState("");
+    const [nextMatch, setNextMatch] = useState(null); 
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -50,6 +51,22 @@ const StudentDashboard = () => {
             unsubscribeTeam();
         };
     }, [navigate]);
+
+    // useEffect جديد لمتابعة الماتشات الخاصة بفريق الطالب
+    useEffect(() => {
+        if (userData?.teamId) {
+            const q = query(
+                collection(db, "matches"),
+                where("teams", "array-contains", userData.teamId)
+            );
+            const unsubMatch = onSnapshot(q, (snap) => {
+                const matches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                // بنعرض أول ماتش قادم
+                setNextMatch(matches[0] || null);
+            });
+            return () => unsubMatch();
+        }
+    }, [userData?.teamId]);
 
     // قبول الدعوة
     const acceptInvite = async (req) => {
@@ -130,7 +147,6 @@ const StudentDashboard = () => {
         if (!newMemberCode.trim()) return alert("Enter student code");
 
         try {
-            // البحث عن الطالب
             const q = query(
                 collection(db, "users"),
                 where("studentCode", "==", newMemberCode)
@@ -144,7 +160,6 @@ const StudentDashboard = () => {
 
             if (studentData.hasTeam) return alert("Student already in a team");
 
-            // تحديث الدعوة
             await updateDoc(doc(db, "users", studentDoc.id), {
                 teamRequests: arrayUnion({
                     teamId: teamData.id,
@@ -250,6 +265,72 @@ const StudentDashboard = () => {
 
                 {/* Main Content */}
                 <main className="lg:col-span-8 space-y-6">
+                    
+                    {/* --- FIXED SECTION: Stats & Next Match --- */}
+                    {userData?.hasTeam && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Statistics Card - تم تعديله ليقرأ من userData مباشرة */}
+                            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <span className="size-2 bg-green-500 rounded-full"></span>
+                                    Your Stats
+                                </h3>
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Score</p>
+                                        <p className="text-2xl font-black text-blue-400">{userData?.score || 0}</p>
+                                    </div>
+                                    <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Goals</p>
+                                        <p className="text-2xl font-black text-emerald-400">{userData?.goals || 0}</p>
+                                    </div>
+                                    <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Cards</p>
+                                        <div className="flex justify-center gap-2 mt-1">
+                                            <span className="w-3 h-4 bg-yellow-400 rounded-sm" title="Yellow Cards"></span>
+                                            <span className="text-xs font-bold">{userData?.yellowCards || 0}</span>
+                                            <span className="w-3 h-4 bg-red-600 rounded-sm" title="Red Cards"></span>
+                                            <span className="text-xs font-bold">{userData?.redCards || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* تنبيه في حالة الإيقاف */}
+                                {userData?.redCards > 0 && (
+                                    <p className="mt-3 text-[10px] text-red-500 font-bold text-center animate-pulse">
+                                        ⚠️ You are suspended due to a red card!
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Next Match Card */}
+                            <div className="bg-gradient-to-br from-blue-600/20 to-transparent backdrop-blur-xl rounded-3xl p-6 border border-blue-500/20 shadow-xl">
+                                <h3 className="text-lg font-bold mb-4 italic">Next Match</h3>
+                                {nextMatch ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
+                                            <span className="text-xs font-bold text-gray-400 uppercase">Opponent</span>
+                                            <span className="text-sm font-black text-white">{nextMatch.opponentName || "TBD"}</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-black/20 p-2 rounded-lg">
+                                                <p className="text-[9px] text-blue-400 uppercase font-bold">Pitch</p>
+                                                <p className="text-xs font-bold">{nextMatch.pitch || "N/A"}</p>
+                                            </div>
+                                            <div className="bg-black/20 p-2 rounded-lg">
+                                                <p className="text-[9px] text-blue-400 uppercase font-bold">Time</p>
+                                                <p className="text-xs font-bold">{nextMatch.time || "TBD"}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center h-24 italic text-gray-500 text-sm">
+                                        No matches scheduled
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Team Members */}
                     <div className="bg-gradient-to-br from-green-600/20 to-transparent rounded-3xl p-8 border border-green-500/20 shadow-xl">
                         <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
@@ -289,7 +370,6 @@ const StudentDashboard = () => {
                                 </>
                             )}
 
-                            {/* زر ترك الفريق */}
                             {userData?.hasTeam && (
                                 <button
                                     onClick={leaveTeam}
@@ -299,7 +379,6 @@ const StudentDashboard = () => {
                                 </button>
                             )}
 
-                            {/* زر Add Member للقائد */}
                             {userData.uid === teamData?.captainId && (
                                 <div className="mt-6 bg-white/5 p-4 rounded-xl border border-white/10">
                                     <h4 className="font-bold mb-2 text-left">Add Member (Send Invite)</h4>
@@ -333,7 +412,7 @@ const StudentDashboard = () => {
                         <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
                             <span className="text-gray-400 block mb-1">Your Role</span>
                             <span className="text-green-400 font-bold">
-                                {userData.uid === userData.captainId ? "Team Leader" : "Player"}
+                                {userData?.uid === teamData?.captainId ? "Team Leader" : "Player"}
                             </span>
                         </div>
                     </div>
