@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTimes, FaUserMinus } from 'react-icons/fa';
 import { db } from '../firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
 const PlayersTab = ({ players }) => {
   const [activeSubTab, setActiveSubTab] = useState("free");
@@ -9,7 +9,7 @@ const PlayersTab = ({ players }) => {
   const [showBuildModal, setShowBuildModal] = useState(false); 
   const [customTeamName, setCustomTeamName] = useState("");
   const [playerCount, setPlayerCount] = useState(5); 
-  
+
   const displayedPlayers = players.filter(p => {
     const isPlayer = (p.role === "student" || p.role === "player");
     const hasTeam = (p.hasTeam === true);
@@ -30,11 +30,19 @@ const PlayersTab = ({ players }) => {
     if (player.hasTeam) {
       if (window.confirm(`Remove ${player.name} from their team? They will become a Free Agent.`)) {
         try {
-          await updateDoc(doc(db, "users", player.id), { 
+          const batch = writeBatch(db);
+          
+          batch.update(doc(db, "users", player.id), { 
             hasTeam: false, 
             assignedTeam: null, 
             teamId: null 
           });
+
+          if (player.teamId) {
+            const teamRef = doc(db, "teams", player.teamId);
+          }
+
+          await batch.commit();
           alert(`${player.name} is now a Free Agent.`);
         } catch (e) { console.error(e); }
       }
@@ -52,29 +60,42 @@ const PlayersTab = ({ players }) => {
     if (freeAgents.length < playerCount) return alert("Not enough free agents.");
 
     setIsBuilding(true);
+    const batch = writeBatch(db);
+
     try {
       const selectedPlayers = freeAgents.slice(0, playerCount);
       const teamIdNumber = Math.floor(1000 + Math.random() * 9000);
       const teamName = customTeamName.trim() || `Alpha-${teamIdNumber}`;
       
-      const teamRef = await addDoc(collection(db, "teams"), {
+      const newTeamRef = doc(collection(db, "teams"));
+
+      batch.set(newTeamRef, {
         teamName,
         captainName: selectedPlayers[0].name, 
         status: "approved",
         createdAt: new Date(),
-        members: selectedPlayers.map(p => p.name)
+        members: selectedPlayers.map(p => p.name),
+        memberIds: selectedPlayers.map(p => p.id) 
       });
 
-      for (let player of selectedPlayers) {
-        await updateDoc(doc(db, "users", player.id), {
+      selectedPlayers.forEach(player => {
+        const userRef = doc(db, "users", player.id);
+        batch.update(userRef, {
           hasTeam: true,
-          teamId: teamRef.id,
+          teamId: newTeamRef.id,
           assignedTeam: teamName
         });
-      }
+      });
+
+      await batch.commit();
+      
       setShowBuildModal(false);
       setCustomTeamName(""); 
-    } catch (error) { console.error(error); }
+      alert(`Team ${teamName} created successfully!`);
+    } catch (error) { 
+      console.error(error); 
+      alert("Something went wrong during team building.");
+    }
     setIsBuilding(false);
   };
 
