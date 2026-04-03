@@ -8,7 +8,8 @@ import AdminDashboard from './Dashboard/AdminDashboard';
 import StudentDashboard from './Dashboard/StudentDashboard';
 import Forgetpassword from './components/Forgetpassword';
 import ProtectedRoute from './components/ProtectedRoute';
-import ChangePassword from './Dashboard/ChangePassword'
+import ChangePassword from './Dashboard/ChangePassword';
+import CreateTeam from './Dashboard/CreateTeam';
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -43,6 +44,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/Forgetpassword" element={<Forgetpassword />} />
           <Route path="/ChangePassword" element={<ChangePassword />} />
+          <Route path="/CreateTeam" element={<CreateTeam />} />
           <Route
             path="/admin"
             element={
