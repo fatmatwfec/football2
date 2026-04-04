@@ -9,7 +9,7 @@ const StudentDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [teamData, setTeamData] = useState(null);
     const [newMemberCode, setNewMemberCode] = useState("");
-    const [nextMatch, setNextMatch] = useState(null); 
+    const [nextMatch, setNextMatch] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -265,7 +265,7 @@ const StudentDashboard = () => {
 
                 {/* Main Content */}
                 <main className="lg:col-span-8 space-y-6">
-                    
+
                     {/* --- FIXED SECTION: Stats & Next Match --- */}
                     {userData?.hasTeam && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
