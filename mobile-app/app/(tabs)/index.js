@@ -1,37 +1,119 @@
 import React, { useEffect, useState } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ImageBackground
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, ImageBackground, TextInput, Alert
 } from "react-native";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, collection, query, where } from "firebase/firestore";
 import { useRouter } from "expo-router";
 
 export default function StudentDashboard() {
   const [userData, setUserData] = useState(null);
+  const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [newMemberCode, setNewMemberCode] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubUser = () => {};
+    let unsubTeam = () => {};
+
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setUserData({ ...userDoc.data(), email: user.email });
+        const userRef = doc(db, "users", user.uid);
+        unsubUser = onSnapshot(userRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setUserData({ ...data, email: user.email, uid: user.uid });
+
+            if (data.teamId) {
+              const teamRef = doc(db, "teams", data.teamId);
+              unsubTeam();
+              unsubTeam = onSnapshot(teamRef, (tSnap) => {
+                if (tSnap.exists()) setTeamData({ id: tSnap.id, ...tSnap.data() });
+              });
+            } else {
+              setTeamData(null);
+              unsubTeam();
+            }
           }
-        } catch (e) {
-          console.error(e);
-        } finally {
           setLoading(false);
-        }
+        });
       } else {
         router.replace("/(auth)/login");
       }
     });
-    return () => unsubscribe();
+
+    return () => { unsubAuth(); unsubUser(); unsubTeam(); };
   }, []);
+
+  const acceptInvite = async (req) => {
+    if (userData.hasTeam) return Alert.alert("You already have a team!");
+    try {
+      await updateDoc(doc(db, "teams", req.teamId), {
+        memberIds: arrayUnion(userData.uid),
+        members: arrayUnion(userData.name),
+      });
+      await updateDoc(doc(db, "users", userData.uid), {
+        hasTeam: true, teamId: req.teamId,
+        assignedTeam: req.teamName, teamRequests: [],
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  const rejectInvite = async (req) => {
+    const updated = userData.teamRequests.filter(r => r.teamId !== req.teamId);
+    await updateDoc(doc(db, "users", userData.uid), { teamRequests: updated });
+  };
+
+  const leaveTeam = async () => {
+    Alert.alert("Leave Team", "Are you sure?", [
+      { text: "Cancel" },
+      { text: "Leave", style: "destructive", onPress: async () => {
+        const idx = teamData.memberIds?.findIndex(id => id === userData.uid);
+        if (idx === -1) return;
+        const newIds = [...(teamData.memberIds || [])];
+        const newNames = [...(teamData.members || [])];
+        newIds.splice(idx, 1);
+        newNames.splice(idx, 1);
+        await updateDoc(doc(db, "teams", userData.teamId), { memberIds: newIds, members: newNames });
+        await updateDoc(doc(db, "users", userData.uid), { hasTeam: false, teamId: null, assignedTeam: null });
+      }}
+    ]);
+  };
+
+  const removePlayer = async (index) => {
+    Alert.alert("Remove Player", "Are you sure?", [
+      { text: "Cancel" },
+      { text: "Remove", style: "destructive", onPress: async () => {
+        const newIds = [...(teamData.memberIds || [])];
+        const newNames = [...(teamData.members || [])];
+        const removedId = newIds[index];
+        newIds.splice(index, 1);
+        newNames.splice(index, 1);
+        await updateDoc(doc(db, "teams", teamData.id), { memberIds: newIds, members: newNames });
+        await updateDoc(doc(db, "users", removedId), { hasTeam: false, teamId: null, assignedTeam: null });
+      }}
+    ]);
+  };
+
+  const sendInvite = async () => {
+    if (!newMemberCode.trim()) return Alert.alert("Enter student code");
+    try {
+      const q = query(collection(db, "users"), where("studentCode", "==", newMemberCode));
+      const snap = await getDocs(q);
+      if (snap.empty) return Alert.alert("Student not found");
+      const studentDoc = snap.docs[0];
+      const studentData = studentDoc.data();
+      if (studentData.hasTeam) return Alert.alert("Student already in a team");
+      await updateDoc(doc(db, "users", studentDoc.id), {
+        teamRequests: arrayUnion({ teamId: teamData.id, teamName: teamData.teamName, captainId: userData.uid }),
+      });
+      Alert.alert(`✅ ${studentData.name} has been invited!`);
+      setNewMemberCode("");
+    } catch (err) { console.error(err); }
+  };
 
   if (loading) {
     return (
@@ -41,19 +123,16 @@ export default function StudentDashboard() {
     );
   }
 
+  const isCaptain = userData?.uid === teamData?.captainId;
+
   return (
-    <ImageBackground
-      source={require("../../assets/images/background.jpg")}
-      style={styles.bg}
-    >
+    <ImageBackground source={require("../../assets/images/background.jpg")} style={styles.bg}>
       <ScrollView contentContainerStyle={styles.container}>
+
         {/* Navbar */}
         <View style={styles.navbar}>
           <Text style={styles.logo}>SCI-FOOTBALL</Text>
-          <TouchableOpacity
-            style={styles.signOutBtn}
-            onPress={() => signOut(auth)}
-          >
+          <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
@@ -67,16 +146,45 @@ export default function StudentDashboard() {
           <Text style={styles.studentId}>ID: {userData?.studentCode}</Text>
           <View style={[styles.badge, userData?.hasTeam ? styles.badgeGreen : styles.badgeOrange]}>
             <Text style={styles.badgeText}>
-              {userData?.hasTeam ? userData?.assignedTeam : "Under Review"}
+              {userData?.hasTeam ? `Team: ${userData?.assignedTeam}` : "No Team Yet"}
             </Text>
           </View>
         </View>
 
-        {/* Team Options */}
+        {/* Stats - لو في فريق */}
+        {userData?.hasTeam && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>⚡ Your Stats</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>SCORE</Text>
+                <Text style={[styles.statValue, { color: "#60a5fa" }]}>{userData?.score || 0}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>GOALS</Text>
+                <Text style={[styles.statValue, { color: "#34d399" }]}>{userData?.goals || 0}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>CARDS</Text>
+                <View style={styles.cardsRow}>
+                  <View style={styles.yellowCard} />
+                  <Text style={styles.cardCount}>{userData?.yellowCards || 0}</Text>
+                  <View style={styles.redCard} />
+                  <Text style={styles.cardCount}>{userData?.redCards || 0}</Text>
+                </View>
+              </View>
+            </View>
+            {userData?.redCards > 0 && (
+              <Text style={styles.suspendedText}>⚠️ You are suspended due to a red card!</Text>
+            )}
+          </View>
+        )}
+
+        {/* Team Options - لو مش في فريق */}
         {!userData?.hasTeam && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Team Options</Text>
-            <TouchableOpacity style={styles.primaryBtn}>
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/CreateTeam")}>
               <Text style={styles.primaryBtnText}>Create Team</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn}>
@@ -84,6 +192,71 @@ export default function StudentDashboard() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Invites - لو مش في فريق وعنده طلبات */}
+        {!userData?.hasTeam && userData?.teamRequests?.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>📩 Team Invites</Text>
+            {userData.teamRequests.map((req, i) => (
+              <View key={i} style={styles.inviteRow}>
+                <Text style={styles.inviteTeamName}>{req.teamName}</Text>
+                <View style={styles.inviteBtns}>
+                  <TouchableOpacity style={styles.acceptBtn} onPress={() => acceptInvite(req)}>
+                    <Text style={styles.acceptBtnText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.rejectBtn} onPress={() => rejectInvite(req)}>
+                    <Text style={styles.rejectBtnText}>Reject</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Team Members */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>👥 Team's Members</Text>
+          {userData?.hasTeam && teamData ? (
+            <>
+              {(teamData.members || []).map((playerName, i) => (
+                <View key={i} style={styles.memberRow}>
+                  <View style={styles.memberDot} />
+                  <Text style={styles.memberName}>{playerName}</Text>
+                  {isCaptain && playerName !== userData.name && (
+                    <TouchableOpacity onPress={() => removePlayer(i)}>
+                      <Text style={styles.removeBtn}>Remove</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+
+              {/* Send Invite - للكابتن بس */}
+              {isCaptain && (
+                <View style={styles.inviteSection}>
+                  <Text style={styles.inviteSectionTitle}>Add Member (Send Invite)</Text>
+                  <View style={styles.inviteInputRow}>
+                    <TextInput
+                      style={styles.inviteInput}
+                      placeholder="Enter student code"
+                      placeholderTextColor="#475569"
+                      value={newMemberCode}
+                      onChangeText={setNewMemberCode}
+                    />
+                    <TouchableOpacity style={styles.inviteSendBtn} onPress={sendInvite}>
+                      <Text style={styles.inviteSendBtnText}>Invite</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.leaveBtn} onPress={leaveTeam}>
+                <Text style={styles.leaveBtnText}>Leave Team</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.noTeamText}>No team requests yet</Text>
+          )}
+        </View>
 
         {/* Player Info */}
         <View style={styles.card}>
@@ -93,9 +266,9 @@ export default function StudentDashboard() {
             <Text style={styles.infoValue}>{userData?.email}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Position</Text>
-            <Text style={[styles.infoValue, { color: "#22c55e" }]}>
-              {userData?.position || "Not Selected"}
+            <Text style={styles.infoLabel}>Your Role</Text>
+            <Text style={[styles.infoValue, { color: "#34d399" }]}>
+              {isCaptain ? "Team Leader" : "Player"}
             </Text>
           </View>
         </View>
@@ -106,13 +279,11 @@ export default function StudentDashboard() {
           <TouchableOpacity style={styles.settingBtn}>
             <Text style={styles.settingBtnText}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.settingBtn}
-            onPress={() => router.push("/ChangePassword")}
-          >
+          <TouchableOpacity style={styles.settingBtn} onPress={() => router.push("/ChangePassword")}>
             <Text style={styles.settingBtnText}>Change Password</Text>
           </TouchableOpacity>
         </View>
+
       </ScrollView>
     </ImageBackground>
   );
@@ -123,8 +294,8 @@ const styles = StyleSheet.create({
   loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
   container: { padding: 16, paddingBottom: 40 },
   navbar: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", paddingVertical: 16, marginBottom: 16,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 16, marginBottom: 16,
     borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)"
   },
   logo: { fontSize: 20, fontWeight: "bold", color: "#22c55e" },
@@ -132,13 +303,11 @@ const styles = StyleSheet.create({
   signOutText: { color: "#f87171", fontWeight: "600" },
   card: {
     backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24,
-    padding: 20, marginBottom: 16, borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    padding: 20, marginBottom: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)"
   },
   avatar: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: "#16a34a", alignSelf: "center",
-    justifyContent: "center", alignItems: "center", marginBottom: 12
+    width: 80, height: 80, borderRadius: 40, backgroundColor: "#16a34a",
+    alignSelf: "center", justifyContent: "center", alignItems: "center", marginBottom: 12
   },
   avatarText: { fontSize: 32, fontWeight: "bold", color: "#fff" },
   name: { fontSize: 22, fontWeight: "bold", color: "#fff", textAlign: "center" },
@@ -148,23 +317,72 @@ const styles = StyleSheet.create({
   badgeOrange: { backgroundColor: "rgba(249,115,22,0.2)", borderWidth: 1, borderColor: "rgba(249,115,22,0.3)" },
   badgeText: { color: "#fff", fontWeight: "600" },
   sectionTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", marginBottom: 12 },
+
+  // Stats
+  statsRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  statBox: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 16,
+    padding: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)"
+  },
+  statLabel: { color: "#9ca3af", fontSize: 9, fontWeight: "bold", textTransform: "uppercase", marginBottom: 4 },
+  statValue: { fontSize: 24, fontWeight: "bold" },
+  cardsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  yellowCard: { width: 10, height: 14, backgroundColor: "#facc15", borderRadius: 2 },
+  redCard: { width: 10, height: 14, backgroundColor: "#ef4444", borderRadius: 2 },
+  cardCount: { color: "#fff", fontSize: 12, fontWeight: "bold" },
+  suspendedText: { color: "#ef4444", fontSize: 11, fontWeight: "bold", textAlign: "center", marginTop: 10 },
+
+  // Team Options
   primaryBtn: { backgroundColor: "#22c55e", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginBottom: 10 },
   primaryBtnText: { color: "#000", fontWeight: "bold", fontSize: 15 },
   secondaryBtn: {
-    backgroundColor: "rgba(59,130,246,0.2)", borderRadius: 14,
-    paddingVertical: 14, alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(59,130,246,0.3)"
+    backgroundColor: "rgba(59,130,246,0.2)", borderRadius: 14, paddingVertical: 14,
+    alignItems: "center", borderWidth: 1, borderColor: "rgba(59,130,246,0.3)"
   },
   secondaryBtnText: { color: "#60a5fa", fontWeight: "600" },
+
+  // Invites
+  inviteRow: {
+    backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 14, padding: 12,
+    marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)"
+  },
+  inviteTeamName: { color: "#fff", fontWeight: "bold", marginBottom: 8 },
+  inviteBtns: { flexDirection: "row", gap: 8 },
+  acceptBtn: { flex: 1, backgroundColor: "#22c55e", borderRadius: 10, padding: 8, alignItems: "center" },
+  acceptBtnText: { color: "#000", fontWeight: "bold", fontSize: 12 },
+  rejectBtn: { flex: 1, backgroundColor: "rgba(239,68,68,0.2)", borderRadius: 10, padding: 8, alignItems: "center" },
+  rejectBtnText: { color: "#f87171", fontWeight: "bold", fontSize: 12 },
+
+  // Members
+  memberRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 12,
+    padding: 12, marginBottom: 6
+  },
+  memberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22c55e" },
+  memberName: { color: "#e2e8f0", fontWeight: "600", flex: 1 },
+  removeBtn: { color: "#f87171", fontSize: 12, fontWeight: "bold" },
+  leaveBtn: { backgroundColor: "rgba(239,68,68,0.2)", borderRadius: 14, padding: 14, alignItems: "center", marginTop: 12, borderWidth: 1, borderColor: "rgba(239,68,68,0.3)" },
+  leaveBtnText: { color: "#f87171", fontWeight: "bold" },
+  noTeamText: { color: "#475569", fontStyle: "italic", textAlign: "center", padding: 20 },
+
+  // Captain Invite
+  inviteSection: { marginTop: 12, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  inviteSectionTitle: { color: "#fff", fontWeight: "bold", fontSize: 13, marginBottom: 8 },
+  inviteInputRow: { flexDirection: "row", gap: 8 },
+  inviteInput: { flex: 1, backgroundColor: "#0f172a", borderRadius: 10, padding: 10, color: "#fff", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  inviteSendBtn: { backgroundColor: "#22c55e", borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" },
+  inviteSendBtnText: { color: "#000", fontWeight: "bold" },
+
+  // Info
   infoRow: {
     flexDirection: "row", justifyContent: "space-between",
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)"
   },
   infoLabel: { color: "#9ca3af" },
   infoValue: { color: "#fff", fontWeight: "500" },
-  settingBtn: {
-    backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14,
-    padding: 14, marginBottom: 8
-  },
+
+  // Settings
+  settingBtn: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, padding: 14, marginBottom: 8 },
   settingBtnText: { color: "#fff" },
 });
