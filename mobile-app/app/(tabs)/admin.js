@@ -6,9 +6,9 @@ import {
 import { auth, db } from "../../firebase";
 import {
   collection, onSnapshot, doc, updateDoc, addDoc,
-  getDocs, deleteDoc, writeBatch, increment
+  getDocs, deleteDoc, writeBatch, getDoc
 } from "firebase/firestore";
-import { signOut, updatePassword } from "firebase/auth";
+import { signOut, updatePassword, onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "expo-router";
 
 export default function AdminDashboard() {
@@ -27,6 +27,19 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   useEffect(() => {
+    // ✅ حماية الصفحة
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/(auth)/login");
+        return;
+      }
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists() || userDoc.data().role !== "admin") {
+        router.replace("/(tabs)");
+        return;
+      }
+    });
+
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllUsers(all);
@@ -45,7 +58,8 @@ export default function AdminDashboard() {
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
       setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
+
+    return () => { unsubAuth(); unsubUsers(); unsubTeams(); unsubMatches(); };
   }, []);
 
   const handleApprove = async (id) => {
@@ -297,7 +311,9 @@ export default function AdminDashboard() {
               {displayedPlayers.map(p => (
                 <View key={p.id} style={styles.playerCard}>
                   <View style={styles.playerAvatar}>
-                    <Text style={styles.playerAvatarText}>{p.name?.[0]?.toUpperCase()}{p.name?.split(' ')[1]?.[0]?.toUpperCase()}</Text>
+                    <Text style={styles.playerAvatarText}>
+                      {p.name?.[0]?.toUpperCase()}{p.name?.split(' ')[1]?.[0]?.toUpperCase()}
+                    </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.playerName}>{p.name}</Text>
@@ -355,12 +371,10 @@ export default function AdminDashboard() {
                       <Text style={{ color: "#475569" }}>🗑</Text>
                     </TouchableOpacity>
                   </View>
-
                   <View style={styles.squadHeader}>
                     <Text style={styles.squadLabel}>SQUAD MEMBERS</Text>
                     <Text style={styles.squadCount}>{(team.members || []).length} / 7</Text>
                   </View>
-
                   {(team.members || []).map((member, i) => (
                     <View key={i} style={styles.memberRow}>
                       <View style={styles.memberDot} />
@@ -377,8 +391,6 @@ export default function AdminDashboard() {
             <View>
               <Text style={styles.leaderboardTitle}>🏆 TOURNAMENT STANDINGS</Text>
               <View style={styles.leaderboardGrid}>
-
-                {/* Top Scorers */}
                 <View style={styles.leaderCard}>
                   <Text style={styles.leaderCardTitle}>⚽ Top Scorers</Text>
                   {topScorers.map(p => (
@@ -388,8 +400,6 @@ export default function AdminDashboard() {
                     </View>
                   ))}
                 </View>
-
-                {/* Elite Teams */}
                 <View style={styles.leaderCard}>
                   <Text style={styles.leaderCardTitle}>🥇 Elite Teams</Text>
                   {rankedTeams.map((team, index) => (
@@ -412,7 +422,6 @@ export default function AdminDashboard() {
                     </View>
                   ))}
                 </View>
-
               </View>
             </View>
           )}
@@ -455,7 +464,6 @@ export default function AdminDashboard() {
             <View>
               <Text style={styles.pageTitleWithIcon}>👤 Admin Control Room</Text>
 
-              {/* Admin Security */}
               <View style={styles.settingCard}>
                 <Text style={styles.settingCardTitle}>🔑 Admin Security</Text>
                 <View style={styles.passwordRow}>
@@ -473,7 +481,6 @@ export default function AdminDashboard() {
                 </View>
               </View>
 
-              {/* Generate Brackets */}
               <TouchableOpacity style={styles.settingCard} onPress={handleGenerateBrackets}>
                 <View style={styles.settingCardRow}>
                   <View style={{ flex: 1 }}>
@@ -486,7 +493,6 @@ export default function AdminDashboard() {
                 </View>
               </TouchableOpacity>
 
-              {/* Registration Lock */}
               <View style={styles.settingCard}>
                 <View style={styles.settingCardRow}>
                   <View style={{ flex: 1 }}>
@@ -502,7 +508,6 @@ export default function AdminDashboard() {
                 </View>
               </View>
 
-              {/* Reset Tournament */}
               <TouchableOpacity style={styles.settingCard} onPress={handleResetSystem}>
                 <View style={styles.settingCardRow}>
                   <View style={{ flex: 1 }}>
@@ -515,7 +520,6 @@ export default function AdminDashboard() {
                 </View>
               </TouchableOpacity>
 
-              {/* Exit */}
               <TouchableOpacity style={[styles.settingCard, { marginTop: 8 }]} onPress={() => signOut(auth)}>
                 <View style={styles.settingCardRow}>
                   <Text style={[styles.settingCardTitle, { color: "#ef4444" }]}>EXIT ADMIN SESSION</Text>
@@ -524,7 +528,6 @@ export default function AdminDashboard() {
                   </View>
                 </View>
               </TouchableOpacity>
-
             </View>
           )}
 
@@ -535,7 +538,6 @@ export default function AdminDashboard() {
           <NavBtn icon="⊞" label="HOME" active={activeTab === "dashboard"} onPress={() => setActiveTab("dashboard")} />
           <NavBtn icon="👤+" label="PLAYERS" active={activeTab === "players"} onPress={() => setActiveTab("players")} />
           <NavBtn icon="🛡" label="TEAMS" active={activeTab === "teams"} onPress={() => setActiveTab("teams")} />
-          <NavBtn icon="🏆" label="RANK" active={activeTab === "leaderboard"} onPress={() => setActiveTab("leaderboard")} />
           <NavBtn icon="📅" label="MATCHES" active={activeTab === "matches"} onPress={() => setActiveTab("matches")} />
           <NavBtn icon="⚙️" label="SETTINGS" active={activeTab === "settings"} onPress={() => setActiveTab("settings")} />
         </View>
@@ -544,7 +546,6 @@ export default function AdminDashboard() {
   );
 }
 
-// ===== SUB COMPONENTS =====
 const StatCard = ({ label, value, icon, color, trend }) => (
   <View style={[styles.statCard, { borderTopColor: color, borderTopWidth: 3 }]}>
     <Text style={[styles.statIcon, { color }]}>{icon}</Text>
@@ -563,12 +564,9 @@ const NavBtn = ({ icon, label, active, onPress }) => (
   </TouchableOpacity>
 );
 
-// ===== STYLES =====
 const styles = StyleSheet.create({
   bg: { flex: 1 },
   overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.92)" },
-
-  // Header
   header: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: 16, paddingTop: 50, paddingBottom: 14,
@@ -595,11 +593,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: "#3b82f6",
     backgroundColor: "#1e293b", justifyContent: "center", alignItems: "center"
   },
-
-  // Content
   content: { flex: 1, padding: 16 },
-
-  // Stats
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 20 },
   statCard: {
     flex: 1, minWidth: "45%", backgroundColor: "rgba(255,255,255,0.05)",
@@ -610,14 +604,10 @@ const styles = StyleSheet.create({
   statBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 6 },
   statValue: { fontSize: 28, fontWeight: "bold" },
   statTrend: { color: "#a3e635", fontSize: 11, fontWeight: "bold" },
-
-  // Section
   sectionTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 12, marginTop: 4 },
   pageTitleWithIcon: { color: "#fff", fontSize: 22, fontWeight: "bold", marginBottom: 4 },
   pageSubTitle: { color: "#64748b", fontSize: 10, letterSpacing: 1, marginBottom: 16 },
   emptyText: { color: "#475569", fontStyle: "italic", textAlign: "center", padding: 30 },
-
-  // Pending Team Card
   pendingCard: {
     backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 16,
     marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
@@ -643,8 +633,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(239,68,68,0.3)"
   },
   rejectBtnText: { color: "#f87171", fontWeight: "bold" },
-
-  // Players
   subTabRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   subTab: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12,
@@ -667,9 +655,7 @@ const styles = StyleSheet.create({
   playerAvatarText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   playerName: { color: "#fff", fontWeight: "bold", fontSize: 14 },
   playerInfo: { color: "#94a3b8", fontSize: 11, marginTop: 2 },
-  passwordBox: {
-    backgroundColor: "#0f172a", borderRadius: 10, padding: 8, marginTop: 8
-  },
+  passwordBox: { backgroundColor: "#0f172a", borderRadius: 10, padding: 8, marginTop: 8 },
   passwordLabel: { color: "#64748b", fontSize: 9, fontWeight: "bold" },
   passwordValue: { color: "#eab308", fontSize: 12, fontStyle: "italic", fontWeight: "bold" },
   activateBtn: {
@@ -689,8 +675,6 @@ const styles = StyleSheet.create({
     alignItems: "center", marginTop: 16
   },
   createSquadText: { color: "#0f172a", fontWeight: "bold", fontSize: 14 },
-
-  // Teams
   teamCard: {
     backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 16,
     marginBottom: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)"
@@ -711,8 +695,6 @@ const styles = StyleSheet.create({
   },
   memberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#10b981" },
   memberName: { color: "#e2e8f0", fontWeight: "600", fontSize: 13 },
-
-  // Leaderboard
   leaderboardTitle: {
     color: "#eab308", fontSize: 22, fontWeight: "bold",
     textAlign: "center", marginBottom: 20
@@ -725,8 +707,7 @@ const styles = StyleSheet.create({
   leaderCardTitle: { color: "#fff", fontSize: 16, fontWeight: "bold", marginBottom: 12 },
   leaderRow: {
     flexDirection: "row", justifyContent: "space-between",
-    backgroundColor: "#0f172a", borderRadius: 12,
-    padding: 12, marginBottom: 6
+    backgroundColor: "#0f172a", borderRadius: 12, padding: 12, marginBottom: 6
   },
   leaderName: { color: "#fff", fontWeight: "bold" },
   leaderGoals: { color: "#22c55e", fontWeight: "bold" },
@@ -745,8 +726,6 @@ const styles = StyleSheet.create({
   eliteTeamStat: { color: "#94a3b8", fontSize: 11, fontWeight: "bold" },
   eliteTeamCards: { flexDirection: "row", gap: 16 },
   eliteTeamCardStat: { color: "#64748b", fontSize: 11 },
-
-  // Matches
   matchesHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   newMatchBtn: { backgroundColor: "#3b82f6", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
   newMatchBtnText: { color: "#fff", fontWeight: "bold", fontSize: 12 },
@@ -761,8 +740,6 @@ const styles = StyleSheet.create({
   matchFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   matchStatusBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10 },
   deleteMatchBtn: { padding: 8 },
-
-  // Settings
   settingCard: {
     backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 18,
     marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)"
@@ -786,8 +763,6 @@ const styles = StyleSheet.create({
     width: 48, height: 48, borderRadius: 12,
     backgroundColor: "rgba(239,68,68,0.2)", justifyContent: "center", alignItems: "center"
   },
-
-  // Bottom Nav
   bottomNav: {
     flexDirection: "row", justifyContent: "space-around",
     backgroundColor: "rgba(10,16,28,0.97)", borderTopWidth: 1,
