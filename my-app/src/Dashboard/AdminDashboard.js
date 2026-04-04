@@ -24,7 +24,7 @@ const AdminDashboard = () => {
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllUsers(all);
-      setStats(prev => ({ ...prev, total: all.length, free: all.filter(u => !u.hasTeam).length }));
+      setStats(prev => ({ ...prev, total: all.length, free: all.filter(u => !u.hasTeam&&u.role!=='admin').length }));
     });
 
     const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
