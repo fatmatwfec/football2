@@ -15,14 +15,16 @@ function App() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
+    const unsubscribe = auth.onAuthStateChanged(async (users) => {
+      if (users) {
         try {
-          const docRef = doc(db, "users", user.uid);
+          const docRef = doc(db, "users", users.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             setUserRole(docSnap.data().role);
+            // شيل أي navigate من هنا عشان ميتخانقش مع صفحة الـ Login
           }
         } catch (error) {
           console.error("Error fetching user role:", error);
@@ -48,7 +50,7 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute userRole={userRole} allowedRole="admin" loading={loading}>
+              <ProtectedRoute userRole={userRole} loading={loading} allowedRole="admin" >
                 <AdminDashboard />
               </ProtectedRoute>
             }
@@ -57,7 +59,7 @@ function App() {
           <Route
             path="/student"
             element={
-              <ProtectedRoute userRole={userRole} allowedRole="student" loading={loading}>
+              <ProtectedRoute userRole={userRole} loading={loading} allowedRole="student">
                 <StudentDashboard />
               </ProtectedRoute>
             }

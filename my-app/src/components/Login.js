@@ -10,40 +10,65 @@ function Login() {
   const [studentCode, setStudentCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setError("");
+    setLoading(true);
 
     try {
-      const q = query(collection(db, "users"), where("studentCode", "==", studentCode.trim()));
+      // 🔍 نجيب بيانات المستخدم من Firestore
+      const q = query(
+        collection(db, "users"),
+        where("studentCode", "==", studentCode.trim())
+      );
+
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
         setError("This Student ID is not registered.");
+        setLoading(false);
         return;
       }
 
       const userData = querySnapshot.docs[0].data();
       const userEmail = userData.email;
 
-      const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
+      // 🔐 تسجيل الدخول
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        userEmail,
+        password
+      );
+
       const user = userCredential.user;
 
       const isManuallyVerified = userData.isVerified === true;
 
+      // ❌ تحقق من التفعيل
       if (!user.emailVerified && !isManuallyVerified) {
-        setError("Please verify your university email or contact admin for manual activation.");
+        setError("Please verify your university email or contact admin.");
         await signOut(auth);
+        setLoading(false);
         return;
       }
 
+      // ✅ أهم جزء (حل المشكلة)
+      localStorage.setItem("role", userData.role);
+      localStorage.setItem("userId", user.uid);
+
+      // 👉 تحويل حسب الدور
       navigate(userData.role === "admin" ? "/admin" : "/student");
 
     } catch (err) {
       console.error(err.code);
       setError("Invalid ID or Password.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,24 +78,48 @@ function Login() {
         <div className="form-box login">
           <form onSubmit={handleSubmit}>
             <h1>Login</h1>
+
             <div className="input-box">
-              <input type="text" placeholder="Student ID" required onChange={(e) => setStudentCode(e.target.value)} />
+              <input
+                type="text"
+                placeholder="Student ID"
+                required
+                onChange={(e) => setStudentCode(e.target.value)}
+              />
               <FaUser className="icon" />
             </div>
+
             <div className="input-box">
-              <input type="password" placeholder="Password" required onChange={(e) => setPassword(e.target.value)} />
+              <input
+                type="password"
+                placeholder="Password"
+                required
+                onChange={(e) => setPassword(e.target.value)}
+              />
               <FaLock className="icon" />
-              <p> <Link to="/Forgetpassword"> <em className="Forgetpassword"> Forget Password ?</em> </Link> </p>
+              <p>
+                <Link to="/Forgetpassword">
+                  <em className="Forgetpassword">Forget Password ?</em>
+                </Link>
+              </p>
             </div>
+
             {error && <p className="error-message">{error}</p>}
-            <button type="submit">Login</button>
+
+            <button type="submit" disabled={loading}>
+              {loading ? "Logging..." : "Login"}
+            </button>
+
             <div className="register-link">
-              <p>Don't have an account? <Link to="/register">Register</Link></p>
+              <p>
+                Don't have an account? <Link to="/register">Register</Link>
+              </p>
             </div>
           </form>
         </div>
       </div>
     </div>
   );
-};
+}
+
 export default Login;
