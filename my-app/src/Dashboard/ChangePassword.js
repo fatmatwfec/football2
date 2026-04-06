@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { auth, db } from "../firebase";
-import { updatePassword } from "firebase/auth";
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
@@ -8,11 +8,17 @@ function ChangePassword() {
   const [yourPassword, setYourPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters!");
+      return;
+    }
 
     // التحقق من أن الباسوردين متطابقين
     if (password !== confirmPassword) {
@@ -20,22 +26,29 @@ function ChangePassword() {
       return;
     }
 
+    setIsUpdating(true);
+    setMessage("");
+
     try {
-      // const q = doc(db, "users", where("studentCode", "==", studentCode.trim()));
-      // const querySnapshot = await getDocs(q);
-      // const users = auth.currentUser;
-      await updatePassword(auth, password);
+      const user = auth.currentUser;
+      const credential = EmailAuthProvider.credential(user.email, yourPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, password);
       setMessage("Password updated successfully ");
       setYourPassword("");
       setPassword("");
       setConfirmPassword("");
-      if (yourPassword !== auth.password) {
-        setMessage("Wrong Current Password");
-
-        return;
-      }
     } catch (err) {
       setMessage("Not Strong Password");
+      if (err.code === "auth/too-many-requests") {
+        setMessage("too many trying");
+      } else if (err.code === "auth/wrong-password") {
+        setMessage("Your Current Password is Wrong ");
+      } else {
+        setMessage("Something is Wrong");
+      }
+    } finally {
+      setIsUpdating(false);
     }
   };
 
