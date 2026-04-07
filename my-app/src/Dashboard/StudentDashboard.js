@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, collection, query, where } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, collection, query, where, deleteDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 const StudentDashboard = () => {
@@ -119,6 +119,26 @@ const StudentDashboard = () => {
             teamId: null,
             assignedTeam: null,
         });
+    };
+
+    const deleteTeam = async () => {
+        if (!window.confirm("Are you sure you want to delete the team? All members will become Free Agents.")) return;
+
+        try {
+            // 1. نجلب كل الأعضاء الحاليين في الفريق لتحديث بياناتهم
+            const memberIds = teamData.memberIds;
+
+            // 2. تحديث كل لاعب في الفريق ليصبح Free Agent
+            const updatePromises = memberIds.map(id =>
+                updateDoc(doc(db, "users", id), { hasTeam: false, teamId: "", assignedTeam: "", teamRequests: [] })
+            );
+            await Promise.all(updatePromises);
+            await deleteDoc(doc(db, "teams", teamData.id));
+            alert("Team has been deleted successfully.");
+        } catch (err) {
+            console.error("Error deleting team:", err);
+            alert("Failed to delete team.");
+        }
     };
 
     // إزالة لاعب (من قبل القائد)
@@ -371,13 +391,17 @@ const StudentDashboard = () => {
                             )}
 
                             {userData?.hasTeam && (
-                                <button
-                                    onClick={leaveTeam}
-                                    className="mt-4 w-full bg-red-500 py-2 rounded"
-                                >
-                                    Leave Team
-                                </button>
-                            )}
+                                <div className="mt-4 space-y-2">
+                                    {userData.uid === teamData?.captainId ? (
+                                        <button onClick={deleteTeam} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl transition shadow-lg shadow-red-500/20" >
+                                            Delete Team
+                                        </button>
+                                    ) : (<button onClick={leaveTeam} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-xl transition">
+                                        Leave Team
+                                    </button>
+                                    )}
+                                </div>)}
+
 
                             {userData.uid === teamData?.captainId && (
                                 <div className="mt-6 bg-white/5 p-4 rounded-xl border border-white/10">
