@@ -8,15 +8,13 @@ const TeamsTab = ({ teams, players }) => {
   const [selectedMember, setSelectedMember] = useState(null);
 
   const getTeamMembers = (team) => {
-    return players.filter(p => 
-      (p.teamId && String(p.teamId).trim() === String(team.id).trim()) || 
+    return players.filter(p =>
+      (p.teamId && String(p.teamId).trim() === String(team.id).trim()) ||
       (p.assignedTeam && String(p.assignedTeam).trim() === String(team.teamName).trim())
     );
   };
 
-  const freeAgents = players.filter(p => 
-    (p.role === "student" || p.role === "player") && !p.hasTeam
-  );
+  const freeAgents = players.filter(p => (p.role === "student" || p.role === "player") && !p.hasTeam);
 
   const handleDeleteTeam = async (teamId, teamName) => {
     if (!window.confirm(`Are you sure you want to delete ${teamName}? All members will become Free Agents.`)) return;
@@ -56,10 +54,10 @@ const TeamsTab = ({ teams, players }) => {
         memberIds: arrayUnion(player.id),
         members: arrayUnion(player.name)
       });
-      batch.update(doc(db, "users", player.id), { 
-        hasTeam: true, 
-        teamId: teamId, 
-        assignedTeam: teamName 
+      batch.update(doc(db, "users", player.id), {
+        hasTeam: true,
+        teamId: teamId,
+        assignedTeam: teamName
       });
       await batch.commit();
       alert("Player added!");
@@ -75,10 +73,10 @@ const TeamsTab = ({ teams, players }) => {
         memberIds: arrayRemove(player.id),
         members: arrayRemove(player.name)
       });
-      batch.update(doc(db, "users", player.id), { 
-        hasTeam: false, 
-        teamId: "", 
-        assignedTeam: "" 
+      batch.update(doc(db, "users", player.id), {
+        hasTeam: false,
+        teamId: "",
+        assignedTeam: ""
       });
       await batch.commit();
       alert("Player removed.");
@@ -101,14 +99,14 @@ const TeamsTab = ({ teams, players }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teams.length > 0 ? teams.map((team) => {
           const currentMembers = getTeamMembers(team);
-          
+
           // --- Logic: Team Status Tracking ---
           const isFull = currentMembers.length === 7;
           const hasSuspended = currentMembers.some(m => Number(m.redCards || 0) > 0 || Number(m.yellowCards || 0) >= 2);
-          
+
           return (
             <div key={team.id} className={`glass rounded-[2.5rem] p-6 border transition-all shadow-2xl relative group overflow-hidden ${isFull ? 'border-emerald-500/30' : 'border-white/5'}`}>
-              
+
               {/* Status Badge */}
               <div className="absolute top-6 right-12 z-20">
                 {isFull ? (
@@ -141,16 +139,16 @@ const TeamsTab = ({ teams, players }) => {
 
               <div className="space-y-2 mb-8 relative z-10">
                 <div className="flex justify-between items-center mb-3">
-                   <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Squad Members</p>
-                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isFull ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white'}`}>
-                     {currentMembers.length} / 7
-                   </span>
+                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Squad Members</p>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isFull ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white'}`}>
+                    {currentMembers.length} / 7
+                  </span>
                 </div>
-                
+
                 {currentMembers.map((member) => {
                   const isSuspended = Number(member.redCards || 0) > 0 || Number(member.yellowCards || 0) >= 2;
                   return (
-                    <div key={member.id} 
+                    <div key={member.id}
                       className={`flex items-center justify-between bg-slate-900/40 p-3 rounded-2xl border ${isSuspended ? 'border-red-500/50' : 'border-white/5'} group/member hover:bg-slate-900 transition-all cursor-pointer`}
                       onClick={() => setSelectedMember(member)}
                     >
@@ -161,22 +159,22 @@ const TeamsTab = ({ teams, players }) => {
                             <span className="text-slate-200 text-xs font-semibold">{member.name}</span>
                             {/* Role Assignment Badge */}
                             <span className="text-[7px] px-1.5 py-0.5 bg-white/5 text-slate-500 rounded uppercase font-black tracking-tighter">
-                              {member.role || "Player"}
+                              {member.position}
                             </span>
                           </div>
                           {isSuspended && (
                             <span className="text-red-500 text-[7px] font-black uppercase flex items-center gap-1">
-                              <FaSquare size={6} className={Number(member.redCards || 0) > 0 ? "text-red-500" : "text-yellow-400"} /> 
+                              <FaSquare size={6} className={Number(member.redCards || 0) > 0 ? "text-red-500" : "text-yellow-400"} />
                               SUSPENDED
                             </span>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                         <FaInfoCircle className="text-slate-600 group-hover/member:text-emerald-400 transition-colors" size={10} />
-                         <button onClick={(e) => { e.stopPropagation(); handleRemovePlayer(team.id, team.teamName, member); }} className="text-slate-600 hover:text-red-500 opacity-0 group-hover/member:opacity-100 transition-opacity">
-                           <FaUserMinus size={12} />
-                         </button>
+                        <FaInfoCircle className="text-slate-600 group-hover/member:text-emerald-400 transition-colors" size={10} />
+                        <button onClick={(e) => { e.stopPropagation(); handleRemovePlayer(team.id, team.teamName, member); }} className="text-slate-600 hover:text-red-500 opacity-0 group-hover/member:opacity-100 transition-opacity">
+                          <FaUserMinus size={12} />
+                        </button>
                       </div>
                     </div>
                   );

@@ -77,7 +77,7 @@ const StudentDashboard = () => {
         try {
             await updateDoc(doc(db, "teams", req.teamId), {
                 memberIds: arrayUnion(user.uid),
-                members: arrayUnion(userData.name),
+                members: arrayUnion(userData.name)
             });
             await updateDoc(doc(db, "users", user.uid), {
                 hasTeam: true,
@@ -167,10 +167,7 @@ const StudentDashboard = () => {
         if (!newMemberCode.trim()) return alert("Enter student code");
 
         try {
-            const q = query(
-                collection(db, "users"),
-                where("studentCode", "==", newMemberCode)
-            );
+            const q = query(collection(db, "users"), where("studentCode", "==", newMemberCode));
             const snap = await getDocs(q);
 
             if (snap.empty) return alert("Student not found");
@@ -185,8 +182,17 @@ const StudentDashboard = () => {
                     teamId: teamData.id,
                     teamName: teamData.teamName,
                     captainId: userData.uid,
+                    captainName: userData.name // ضيفي اسم الكابتن عشان يظهر للطالب
                 }),
             });
+
+            // await updateDoc(doc(db, "users", studentDoc.id), {
+            //     teamRequests: arrayUnion({
+            //         teamId: teamData.id,
+            //         teamName: teamData.teamName,
+            //         captainId: userData.uid,
+            //     }),
+            // });
 
             alert(`${studentData.name} has been invited to the team`);
             setNewMemberCode("");
@@ -226,19 +232,35 @@ const StudentDashboard = () => {
                 <aside className="lg:col-span-4 space-y-6">
                     {/* Profile Card */}
                     <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10 text-center shadow-xl">
-                        <div className="w-28 h-28 bg-gradient-to-tr from-green-500 to-emerald-700 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl font-bold">
-                            {userData?.name?.[0]}
+                        {/* حاوية الصورة أو الحرف */}
+                        <div className="w-40 h-40 mx-auto mb-6 flex items-center justify-center rounded-full overflow-hidden shadow-lg border-2 border-white/10">
+                            {userData?.photo ? (
+                                // إذا كانت الصورة موجودة
+                                <img
+                                    src={userData.photo}
+                                    alt="Profile"
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                // إذا لم تكن الصورة موجودة، نظهر أول حرف مع الخلفية الملونة
+                                <div className="w-full h-full bg-gradient-to-tr from-green-500 to-emerald-700 flex items-center justify-center text-4xl font-bold text-white">
+                                    {userData?.name ? userData.name[0].toUpperCase() : "?"}
+                                </div>
+                            )}
                         </div>
-                        <h2 className="text-2xl font-bold">{userData?.name}</h2>
-                        <p className="text-gray-400 mt-1">ID : {userData?.studentCode}</p>
 
+                        {/* بيانات الطالب */}
+                        <h2 className="text-2xl font-bold">{userData?.name || "Student Name"}</h2>
+                        <p className="text-gray-400 mt-1">ID : {userData?.studentCode || "N/A"}</p>
+
+                        {/* حالة الفريق */}
                         <div className="mt-5">
                             {userData?.hasTeam ? (
-                                <span className="bg-green-500/20 text-green-400 px-5 py-2 rounded-xl border border-green-500/30">
+                                <span className="bg-green-500/20 text-green-400 px-5 py-2 rounded-xl border border-green-500/30 inline-block">
                                     Team Name : {userData?.assignedTeam}
                                 </span>
                             ) : (
-                                <span className="bg-orange-500/20 text-orange-400 px-5 py-2 rounded-xl border border-orange-500/30">
+                                <span className="bg-orange-500/20 text-orange-400 px-5 py-2 rounded-xl border border-orange-500/30 inline-block">
                                     No Team Yet
                                 </span>
                             )}
@@ -270,7 +292,7 @@ const StudentDashboard = () => {
                     <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                         <h3 className="text-lg font-bold mb-4 text-left">Settings</h3>
                         <div className="space-y-3">
-                            <button className="w-full bg-white/5 hover:bg-white/10 p-3 rounded-xl transition text-left">
+                            <button onClick={() => navigate("/EditProfile")} className="w-full bg-white/5 hover:bg-white/10 p-3 rounded-xl transition text-left">
                                 Edit Profile
                             </button>
                             <button
@@ -317,7 +339,7 @@ const StudentDashboard = () => {
                                 {/* تنبيه في حالة الإيقاف */}
                                 {userData?.redCards > 0 && (
                                     <p className="mt-3 text-[10px] text-red-500 font-bold text-center animate-pulse">
-                                        ⚠️ You are suspended due to a red card!
+                                        You are suspended due to a red card!
                                     </p>
                                 )}
                             </div>
@@ -351,6 +373,7 @@ const StudentDashboard = () => {
                         </div>
                     )}
 
+
                     {/* Team Members */}
                     <div className="bg-gradient-to-br from-green-600/20 to-transparent rounded-3xl p-8 border border-green-500/20 shadow-xl">
                         <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
@@ -359,15 +382,22 @@ const StudentDashboard = () => {
                                 <div className="space-y-3">
                                     {teamData?.members?.map((playerName, i) => (
                                         <div key={i} className="flex justify-between bg-black/40 p-2 rounded">
-                                            <span>{playerName}</span>
+                                            <span className="flex items-center gap-2">
+                                                <span className="size-2 bg-green-500 rounded-full"></span>
+                                                {playerName}
+                                                {teamData.memberIds[i] === teamData.captainId &&
+                                                    <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 rounded">Leader</span>
+                                                }
+                                            </span>
                                             {userData.uid === teamData.captainId && playerName !== userData.name && (
-                                                <button onClick={() => removePlayer(i)} className="text-red-400">
+                                                <button onClick={() => removePlayer(i)} className="text-red-400 text-sm hover:underline">
                                                     Remove
                                                 </button>
                                             )}
                                         </div>
                                     ))}
                                 </div>
+
                             ) : (
                                 <>
                                     {userData?.teamRequests?.length > 0 ? (
@@ -441,8 +471,8 @@ const StudentDashboard = () => {
                         </div>
                     </div>
                 </main>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

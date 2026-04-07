@@ -1,16 +1,6 @@
 import React, { useState } from "react";
 import { auth, db } from "../firebase";
-import {
-    collection,
-    addDoc,
-    serverTimestamp,
-    doc,
-    updateDoc,
-    query,
-    where,
-    getDocs,
-    getDoc
-} from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 const CreateTeam = () => {
@@ -33,7 +23,8 @@ const CreateTeam = () => {
         if (!teamName.trim()) return alert("Enter team name");
         const filteredCodes = codes.filter(c => c.trim() !== "");
         if (filteredCodes.length === 0) return alert("Please add at least one player code");
-        
+        if (filteredCodes.length === 6) return alert("The maximum number For Teams is 7 players");
+
         setLoading(true);
 
         try {
@@ -60,16 +51,16 @@ const CreateTeam = () => {
             // 🟢 prepare arrays
             const memberIds = [user.uid];
             const members = [captainData.name];
-            const playersToInvite = []; 
+            const playersToInvite = [];
 
             // 🔁 loop on codes for VALIDATION first
-           for (let inputCode of filteredCodes) {
+            for (let inputCode of filteredCodes) {
                 console.log("Checking code:", inputCode);
 
-                
+
                 const usersRef = collection(db, "users");
                 let snap = await getDocs(query(usersRef, where("studentCode", "==", inputCode)));
-                
+
                 if (snap.empty && !isNaN(inputCode)) {
                     snap = await getDocs(query(usersRef, where("studentCode", "==", Number(inputCode))));
                 }
@@ -90,9 +81,9 @@ const CreateTeam = () => {
 
                 // 3️⃣ منع التكرار في نفس القائمة
                 if (memberIds.includes(playerDoc.id)) continue;// {
-                   // setLoading(false);
-                    //return alert(`Student "${playerData.name}" is repeated in your list.`);
-               // }
+                // setLoading(false);
+                //return alert(`Student "${playerData.name}" is repeated in your list.`);
+                // }
 
                 memberIds.push(playerDoc.id);
                 members.push(playerData.name);

@@ -10,6 +10,7 @@ import Forgetpassword from './components/Forgetpassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChangePassword from './Dashboard/ChangePassword';
 import CreateTeam from './Dashboard/CreateTeam';
+import EditProfile from './Dashboard/EditProfile';
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -47,6 +48,7 @@ function App() {
           <Route path="/Forgetpassword" element={<Forgetpassword />} />
           <Route path="/ChangePassword" element={<ChangePassword />} />
           <Route path="/CreateTeam" element={<CreateTeam />} />
+          <Route path="/EditProfile" element={<EditProfile />} />
           <Route
             path="/admin"
             element={
@@ -55,6 +57,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
 
           <Route
             path="/student"
