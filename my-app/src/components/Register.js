@@ -21,16 +21,16 @@ function Register() {
     setError("");
 
     if (!email.endsWith("edu.eg")) {
-      setError("Please use your university email (ends with .edu.eg)");
+      setError("Please use your university email ");
       return;
     }
 
-    if (password !== confirmPassword) { 
-      setError("Passwords mismatch!"); 
-      return; 
+    if (password !== confirmPassword) {
+      setError("Passwords mismatch!");
+      return;
     }
 
-    if (phone.length < 11) {
+    if (phone.length == 11) {
       setError("Please enter a valid phone number.");
       return;
     }
@@ -38,9 +38,9 @@ function Register() {
     try {
       const q = query(collection(db, "users"), where("studentCode", "==", studentCode.trim()));
       const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) { 
-        setError("This Student ID is already registered!"); 
-        return; 
+      if (!querySnapshot.empty) {
+        setError("This Student ID is already registered!");
+        return;
       }
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -51,11 +51,11 @@ function Register() {
         studentCode: studentCode.trim(),
         phone: phone,
         email: email,
-        password: password, 
+        password: password,
         role: "student",
         uid: userCredential.user.uid,
-        hasTeam: false, 
-        isVerified: false, 
+        hasTeam: false,
+        isVerified: false,
         createdAt: new Date()
       });
 
@@ -79,7 +79,7 @@ function Register() {
   };
 
   return (
-    <div className="auth-container"> 
+    <div className="auth-container">
       <div className="wrapper register-wrapper">
         <div className="form-box register">
           <form onSubmit={handleRegister}>
@@ -111,7 +111,7 @@ function Register() {
             {error && <p className="error-message">{error}</p>}
             <button type="submit">Register</button>
             <div className="register-link">
-              <p>Already have an account? <span className="login-link" onClick={() => navigate('/Login')} style={{cursor: 'pointer', color: '#bef264', fontWeight: 'bold'}}> Login</span></p>
+              <p>Already have an account? <span className="login-link" onClick={() => navigate('/Login')} style={{ cursor: 'pointer', color: '#bef264', fontWeight: 'bold' }}> Login</span></p>
             </div>
           </form>
         </div>
