@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, Image, 
   StyleSheet, ScrollView, ActivityIndicator, Alert, SafeAreaView 
 } from "react-native";
-import * as ImagePicker from 'expo-image-picker';
+//import * as ImagePicker from 'expo-image-picker';
 import { auth, db } from "../firebase"; 
 import { updateProfile, updateEmail } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
