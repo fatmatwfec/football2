@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, increment, writeBatch } from 'firebase/firestore';
-import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCircle } from 'react-icons/fa';
 
 const MatchesTab = () => {
   const [matches, setMatches] = useState([]);
@@ -18,7 +18,10 @@ const MatchesTab = () => {
 
   useEffect(() => {
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
-      setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.createdAt - a.createdAt));
+    
+      const sortedMatches = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
+      setMatches(sortedMatches);
     });
     const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
       setTeams(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -33,57 +36,47 @@ const MatchesTab = () => {
     return players.filter(p => p.teamId === teamId).length;
   };
 
+
+  const isMatchFinished = (matchDate, matchTime) => {
+    const now = new Date();
+    const mDate = new Date(`${matchDate} ${matchTime}`);
+    return now >= mDate;
+  };
+
   const getAvailableTeams = (otherTeamId = null) => {
     return teams.filter(t => {
       const actualCount = getActualMemberCount(t.id);
-      const isFull = actualCount >= 7; 
-      
-      const isBusy = matches.some(m => 
-        m.status === 'upcoming' && 
-        m.date === newMatch.date && 
-        (m.team1Id === t.id || m.team2Id === t.id)
-      );
-
-      const isSelf = t.id === otherTeamId;
-      return isFull && !isBusy && !isSelf;
+      return actualCount >= 7 && t.id !== otherTeamId;
     });
-  };
-
-  const validateScores = (formData, match) => {
-    const totalScoreStr = formData.get('score');
-    if (!totalScoreStr.includes('-')) return "السكور لازم يكون بتنسيق (2-1) مثلاً";
-    
-    const [score1, score2] = totalScoreStr.split('-').map(s => parseInt(s.trim()));
-    let team1Goals = 0;
-    let team2Goals = 0;
-
-    const matchPlayers = players.filter(p => p.teamId === match.team1Id || p.teamId === match.team2Id);
-    
-    matchPlayers.forEach(player => {
-      const g = parseInt(formData.get(`goals-${player.id}`)) || 0;
-      if (player.teamId === match.team1Id) team1Goals += g;
-      if (player.teamId === match.team2Id) team2Goals += g;
-    });
-
-    if (team1Goals !== score1) return `أهداف لاعبي ${match.team1Name} (${team1Goals}) لا تساوي السكور (${score1})`;
-    if (team2Goals !== score2) return `أهداف لاعبي ${match.team2Name} (${team2Goals}) لا تساوي السكور (${score2})`;
-    
-    return null;
   };
 
   const handleFinalizeMatch = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const error = validateScores(formData, showResultModal);
-    if (error) return alert(error);
+    
+    const s1 = parseInt(formData.get('score1')) || 0;
+    const s2 = parseInt(formData.get('score2')) || 0;
+    const finalScore = `${s1}-${s2}`;
+
+    let team1Goals = 0;
+    let team2Goals = 0;
+
+    const matchPlayers = players.filter(p => p.teamId === showResultModal.team1Id || p.teamId === showResultModal.team2Id);
+    
+    matchPlayers.forEach(player => {
+      const g = parseInt(formData.get(`goals-${player.id}`)) || 0;
+      if (player.teamId === showResultModal.team1Id) team1Goals += g;
+      if (player.teamId === showResultModal.team2Id) team2Goals += g;
+    });
+
+    if (team1Goals !== s1) return alert(`أهداف لاعبي ${showResultModal.team1Name} (${team1Goals}) لا تساوي السكور (${s1})`);
+    if (team2Goals !== s2) return alert(`أهداف لاعبي ${showResultModal.team2Name} (${team2Goals}) لا تساوي السكور (${s2})`);
 
     setIsSubmitting(true);
-    const batch = writeBatch(batch.db || db);
+    const batch = writeBatch(db); 
 
     try {
       const statsSnapshot = {};
-      const matchPlayers = players.filter(p => p.teamId === showResultModal.team1Id || p.teamId === showResultModal.team2Id);
-
       matchPlayers.forEach(player => {
         const goals = parseInt(formData.get(`goals-${player.id}`)) || 0;
         const yellow = parseInt(formData.get(`yellow-${player.id}`)) || 0;
@@ -100,7 +93,7 @@ const MatchesTab = () => {
       });
 
       batch.update(doc(db, "matches", showResultModal.id), {
-        score: formData.get('score'),
+        score: finalScore,
         status: "completed",
         statsSnapshot,
         finalizedAt: new Date()
@@ -109,7 +102,10 @@ const MatchesTab = () => {
       await batch.commit();
       alert("Match stats updated successfully!");
       setShowResultModal(null);
-    } catch (err) { console.error(err); alert("Error saving results."); }
+    } catch (err) { 
+      console.error(err); 
+      alert("Error saving results: " + err.message); 
+    }
     setIsSubmitting(false);
   };
 
@@ -126,121 +122,169 @@ const MatchesTab = () => {
           });
         });
       }
-      batch.delete(doc(db, "matches", String(match.id)));
+      batch.delete(doc(db, "matches", match.id));
       await batch.commit();
       alert("Deleted.");
-    } catch (err) {
-      console.error(err);
-      await deleteDoc(doc(db, "matches", match.id));
-    }
+    } catch (err) { console.error(err); }
   };
 
   return (
-    <div className="animate-in fade-in duration-500 max-w-4xl mx-auto pb-40 px-4">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3"><FaTrophy className="text-yellow-500" /> Match Center</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase shadow-xl hover:bg-blue-500">
-          {showAddForm ? "Cancel" : "Schedule Match"}
+    <div className="animate-in fade-in duration-500 max-w-5xl mx-auto pb-40 px-4">
+      <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6 bg-slate-900/50 p-8 rounded-[3rem] border border-white/5">
+        <div>
+          <h2 className="text-4xl font-black text-white flex items-center gap-4">
+            <FaTrophy className="text-yellow-500" /> FIXTURES
+          </h2>
+          <p className="text-slate-400 text-xs font-black uppercase tracking-widest mt-2 italic">Official League Match Center</p>
+        </div>
+        <button onClick={() => setShowAddForm(!showAddForm)} className={`px-8 py-4 rounded-2xl font-black text-xs uppercase transition-all shadow-2xl ${showAddForm ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+          {showAddForm ? "Cancel Schedule" : "Schedule New Match"}
         </button>
       </div>
 
       {showAddForm && (
-        <div className="glass p-8 rounded-[2.5rem] border border-blue-500/30 mb-10">
+        <div className="glass p-10 rounded-[3rem] border-2 border-blue-500/20 mb-12 bg-slate-900/40">
           <form onSubmit={async (e) => {
             e.preventDefault();
             await addDoc(collection(db, "matches"), { ...newMatch, score: "", status: "upcoming", createdAt: new Date() });
             setShowAddForm(false);
-          }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <select required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs outline-none focus:border-blue-500" 
-                onChange={(e) => {
-                    const t = teams.find(x => x.id === e.target.value);
-                    setNewMatch({...newMatch, team1Id: t.id, team1Name: t.teamName});
-                }}>
-              <option value="">Home Team (Min 7 Players)</option>
-              {getAvailableTeams(newMatch.team2Id).map(t => (
-                <option key={t.id} value={t.id}>{t.teamName} ({getActualMemberCount(t.id)} active)</option>
-              ))}
-            </select>
-            <select required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs outline-none focus:border-blue-500" 
-                onChange={(e) => {
-                    const t = teams.find(x => x.id === e.target.value);
-                    setNewMatch({...newMatch, team2Id: t.id, team2Name: t.teamName});
-                }}>
-              <option value="">Away Team (Min 7 Players)</option>
-              {getAvailableTeams(newMatch.team1Id).map(t => (
-                <option key={t.id} value={t.id}>{t.teamName} ({getActualMemberCount(t.id)} active)</option>
-              ))}
-            </select>
-            <input type="date" required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setNewMatch({...newMatch, date: e.target.value})} />
-            <input type="time" required className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setNewMatch({...newMatch, time: e.target.value})} />
-            <button type="submit" className="md:col-span-2 bg-[#bef264] text-slate-900 font-black h-14 rounded-2xl uppercase text-sm">Post Fixture</button>
+          }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Home Team</label>
+                <select required className="w-full bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500 transition-all" 
+                    onChange={(e) => {
+                        const t = teams.find(x => x.id === e.target.value);
+                        setNewMatch({...newMatch, team1Id: t.id, team1Name: t.teamName});
+                    }}>
+                <option value="">Select Home</option>
+                {getAvailableTeams(newMatch.team2Id).map(t => (
+                    <option key={t.id} value={t.id}>{t.teamName} ({getActualMemberCount(t.id)} Players)</option>
+                ))}
+                </select>
+            </div>
+            <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Away Team</label>
+                <select required className="w-full bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500 transition-all" 
+                    onChange={(e) => {
+                        const t = teams.find(x => x.id === e.target.value);
+                        setNewMatch({...newMatch, team2Id: t.id, team2Name: t.teamName});
+                    }}>
+                <option value="">Select Away</option>
+                {getAvailableTeams(newMatch.team1Id).map(t => (
+                    <option key={t.id} value={t.id}>{t.teamName} ({getActualMemberCount(t.id)} Players)</option>
+                ))}
+                </select>
+            </div>
+            <input type="date" required className="bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500" onChange={(e) => setNewMatch({...newMatch, date: e.target.value})} />
+            <input type="time" required className="bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500" onChange={(e) => setNewMatch({...newMatch, time: e.target.value})} />
+            <button type="submit" className="md:col-span-2 bg-blue-600 text-white font-black h-16 rounded-[2rem] uppercase text-sm shadow-xl hover:bg-blue-500 transition-all active:scale-95">Confirm Fixture</button>
           </form>
         </div>
       )}
 
-      <div className="space-y-4">
-        {matches.map((m) => (
-          <div key={m.id} className="glass rounded-[2rem] p-6 border border-white/5">
-              <div className="flex items-center justify-between gap-4 mb-6">
-                <p className="text-white font-bold text-xs flex-1 text-center truncate">{m.team1Name}</p>
-                <div className={`px-4 py-2 rounded-xl font-black text-lg ${m.status === 'completed' ? 'text-emerald-500 bg-emerald-500/10' : 'text-blue-500 bg-white/5'}`}>{m.score || "VS"}</div>
-                <p className="text-white font-bold text-xs flex-1 text-center truncate">{m.team2Name}</p>
+      <div className="grid grid-cols-1 gap-6">
+        {matches.map((m) => {
+          const canFinalize = isMatchFinished(m.date, m.time);
+          return (
+            <div key={m.id} className={`glass rounded-[3rem] p-8 border-2 transition-all shadow-2xl bg-slate-900/40 ${m.status === 'completed' ? 'border-emerald-500/20' : 'border-white/5'}`}>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="flex-1 text-center md:text-right">
+                    <p className="text-white font-black text-2xl uppercase tracking-tighter">{m.team1Name}</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase mt-1">Home Team</p>
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                    <div className={`text-4xl font-black px-10 py-4 rounded-[2rem] shadow-inner ${m.status === 'completed' ? 'text-emerald-500 bg-emerald-500/10' : 'text-blue-500 bg-slate-950 border border-white/5'}`}>
+                        {m.score || "VS"}
+                    </div>
+                    <div className="flex items-center gap-3 text-slate-500 font-bold text-[10px] uppercase tracking-widest bg-slate-950 px-4 py-2 rounded-full border border-white/5">
+                        <FaCalendarAlt className="text-blue-500" /> {m.date} <FaClock className="text-blue-500 ml-2" /> {m.time}
+                    </div>
+                </div>
+
+                <div className="flex-1 text-center md:text-left">
+                    <p className="text-white font-black text-2xl uppercase tracking-tighter">{m.team2Name}</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase mt-1">Away Team</p>
+                </div>
               </div>
-              <div className="flex items-center justify-center gap-3 text-slate-500 text-[9px] font-bold mb-6">
-                <FaCalendarAlt className="text-blue-500/50" /> <span>{m.date} • {m.time}</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setShowResultModal(m)} disabled={m.status === 'completed'} className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] ${m.status === 'completed' ? 'bg-slate-800 text-slate-600' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
-                  {m.status === 'completed' ? "Completed" : "Enter Results"}
+
+              <div className="flex gap-4 mt-8 pt-8 border-t border-white/5">
+                <button 
+                  onClick={() => setShowResultModal(m)} 
+                  disabled={m.status === 'completed' || !canFinalize} 
+                  className={`flex-[4] py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
+                    m.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
+                    !canFinalize ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' : 
+                    'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xl shadow-emerald-900/20'
+                  }`}
+                >
+                  {m.status === 'completed' ? <span className="flex items-center justify-center gap-2"><FaCheckCircle /> Finalized</span> : 
+                   !canFinalize ? "Waiting for kick-off" : "Enter Results"}
                 </button>
-                <button onClick={() => handleDeleteMatch(m)} className="bg-red-500/10 text-red-500 px-4 rounded-xl hover:bg-red-500 hover:text-white transition-all"><FaTrash size={12} /></button>
+                <button onClick={() => handleDeleteMatch(m)} className="flex-1 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/10 flex items-center justify-center">
+                    <FaTrash size={18} />
+                </button>
               </div>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {showResultModal && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-white/10 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-8">
-            <div className="flex justify-between items-center mb-8">
-                <h3 className="text-white font-black uppercase text-sm flex items-center gap-2"><FaFutbol className="text-lime-400" /> Match Statistics</h3>
-                <button onClick={() => setShowResultModal(null)} className="text-slate-500 hover:text-white"><FaTimes /></button>
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="bg-slate-900 border-2 border-white/10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[4rem] p-12 relative shadow-2xl">
+            <button onClick={() => setShowResultModal(null)} className="absolute top-10 right-10 text-slate-500 hover:text-white transition-all scale-150"><FaTimes /></button>
+            
+            <div className="text-center mb-10">
+                <h3 className="text-white font-black uppercase text-2xl tracking-tighter flex items-center justify-center gap-3">
+                    <FaFutbol className="text-emerald-500" /> Post-Match Report
+                </h3>
+                <p className="text-slate-500 text-xs font-black uppercase mt-2">{showResultModal.team1Name} VS {showResultModal.team2Name}</p>
             </div>
             
-            <form onSubmit={handleFinalizeMatch} className="space-y-6">
-              <div className="bg-slate-950 p-6 rounded-3xl border border-white/5 text-center">
-                <span className="text-[10px] text-slate-500 font-bold uppercase block mb-2 tracking-widest">Final Score Line</span>
-                <input name="score" placeholder="0-0" required className="bg-transparent text-center text-4xl font-black text-white w-full outline-none placeholder:opacity-20" />
+            <form onSubmit={handleFinalizeMatch} className="space-y-10">
+              <div className="flex items-center justify-center gap-8 bg-slate-950 p-10 rounded-[3rem] border border-white/5 shadow-inner">
+                <div className="text-center space-y-3">
+                    <label className="text-[10px] text-slate-500 font-black uppercase">{showResultModal.team1Name}</label>
+                    <input name="score1" type="number" min="0" placeholder="0" required className="bg-slate-900 text-center text-5xl font-black text-white w-24 h-24 rounded-3xl outline-none focus:border-emerald-500 border-2 border-transparent transition-all" />
+                </div>
+                <div className="text-4xl font-black text-slate-700 mt-6">-</div>
+                <div className="text-center space-y-3">
+                    <label className="text-[10px] text-slate-500 font-black uppercase">{showResultModal.team2Name}</label>
+                    <input name="score2" type="number" min="0" placeholder="0" required className="bg-slate-900 text-center text-5xl font-black text-white w-24 h-24 rounded-3xl outline-none focus:border-emerald-500 border-2 border-transparent transition-all" />
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-[10px] text-blue-500 font-bold uppercase ml-2 tracking-widest">Individual Stats</p>
-                {players.filter(p => p.teamId === showResultModal.team1Id || p.teamId === showResultModal.team2Id).map(player => (
-                  <div key={player.id} className="bg-white/5 p-4 rounded-2xl flex items-center justify-between border border-white/5">
-                    <div className="min-w-0 flex-1">
-                        <p className="text-white text-xs font-bold truncate">{player.name}</p>
-                        <p className="text-[8px] text-slate-500 font-bold uppercase">{player.assignedTeam}</p>
+              <div className="space-y-4">
+                <p className="text-xs text-emerald-500 font-black uppercase ml-4 tracking-[0.2em]">Individual Player Statistics</p>
+                <div className="grid grid-cols-1 gap-3">
+                    {players.filter(p => p.teamId === showResultModal.team1Id || p.teamId === showResultModal.team2Id).map(player => (
+                    <div key={player.id} className="bg-slate-950/60 p-6 rounded-[2rem] flex items-center justify-between border border-white/5 hover:border-emerald-500/30 transition-all">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-white text-lg font-bold truncate tracking-tight">{player.name}</p>
+                            <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">{player.assignedTeam}</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="text-center">
+                                <span className="text-[8px] text-slate-500 font-black block mb-1">GOALS</span>
+                                <input name={`goals-${player.id}`} type="number" min="0" defaultValue="0" className="w-12 bg-slate-900 rounded-xl p-3 text-center text-sm font-black text-white border border-white/5" />
+                            </div>
+                            <div className="text-center">
+                                <span className="text-[8px] text-yellow-500 font-black block mb-1">YEL</span>
+                                <input name={`yellow-${player.id}`} type="number" min="0" max="2" defaultValue="0" className="w-12 bg-slate-900 rounded-xl p-3 text-center text-sm font-black text-white border border-white/5" />
+                            </div>
+                            <div className="text-center">
+                                <span className="text-[8px] text-red-500 font-black block mb-1">RED</span>
+                                <input name={`red-${player.id}`} type="number" min="0" max="1" defaultValue="0" className="w-12 bg-slate-900 rounded-xl p-3 text-center text-sm font-black text-white border border-white/5" />
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <div className="text-center">
-                            <span className="text-[7px] text-slate-600 font-bold block">GOALS</span>
-                            <input name={`goals-${player.id}`} type="number" min="0" defaultValue="0" className="w-8 bg-slate-900 rounded p-1 text-center text-[10px] text-white" />
-                        </div>
-                        <div className="text-center">
-                            <span className="text-[7px] text-yellow-600 font-bold block">YEL</span>
-                            <input name={`yellow-${player.id}`} type="number" min="0" max="2" defaultValue="0" className="w-8 bg-slate-900 rounded p-1 text-center text-[10px] text-white" />
-                        </div>
-                        <div className="text-center">
-                            <span className="text-[7px] text-red-600 font-bold block">RED</span>
-                            <input name={`red-${player.id}`} type="number" min="0" max="1" defaultValue="0" className="w-8 bg-slate-900 rounded p-1 text-center text-[10px] text-white" />
-                        </div>
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                </div>
               </div>
 
-              <button type="submit" disabled={isSubmitting} className="w-full bg-lime-400 text-slate-900 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">
-                {isSubmitting ? "Processing..." : "Confirm & Save Results"}
+              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-6 rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl shadow-emerald-900/40 transition-all active:scale-95">
+                {isSubmitting ? "Syncing with Database..." : "Publish Match Results"}
               </button>
             </form>
           </div>
