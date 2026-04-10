@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, collection, query, where, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, getDoc, collection, query, where, deleteDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 const StudentDashboard = () => {
@@ -55,10 +55,7 @@ const StudentDashboard = () => {
     // useEffect جديد لمتابعة الماتشات الخاصة بفريق الطالب
     useEffect(() => {
         if (userData?.teamId) {
-            const q = query(
-                collection(db, "matches"),
-                where("teams", "array-contains", userData.teamId)
-            );
+            const q = query(collection(db, "matches"), where("teams", "array-contains", userData.teamId));
             const unsubMatch = onSnapshot(q, (snap) => {
                 const matches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 // بنعرض أول ماتش قادم
@@ -68,25 +65,42 @@ const StudentDashboard = () => {
         }
     }, [userData?.teamId]);
 
-    // قبول الدعوة
     const acceptInvite = async (req) => {
         const user = auth.currentUser;
+
         if (userData.hasTeam) {
             return alert("You already in a team");
         }
+
         try {
-            await updateDoc(doc(db, "teams", req.teamId), {
+            const teamRef = doc(db, "teams", req.teamId);
+
+            // ✅ تحقق إن التيم موجود
+            const teamSnap = await getDoc(teamRef);
+
+            if (!teamSnap.exists()) {
+                return alert("Team not found ");
+            }
+
+            // ✅ ضيف اللاعب للتيم
+            await updateDoc(teamRef, {
                 memberIds: arrayUnion(user.uid),
-                members: arrayUnion(userData.name)
+                members: arrayUnion(userData.name),
             });
+
+            // ✅ تحديث بيانات المستخدم
             await updateDoc(doc(db, "users", user.uid), {
                 hasTeam: true,
                 teamId: req.teamId,
                 assignedTeam: req.teamName,
                 teamRequests: [],
             });
+
+            alert("Joined team successfully ✅");
+
         } catch (err) {
             console.error(err);
+            alert(err.message);
         }
     };
 
@@ -116,8 +130,8 @@ const StudentDashboard = () => {
         });
         await updateDoc(doc(db, "users", user.uid), {
             hasTeam: false,
-            teamId: null,
-            assignedTeam: null,
+            teamId: "",
+            assignedTeam: "",
         });
     };
 
@@ -157,16 +171,33 @@ const StudentDashboard = () => {
 
         await updateDoc(doc(db, "users", removedId), {
             hasTeam: false,
-            teamId: null,
-            assignedTeam: null,
+            teamId: "",
+            assignedTeam: "",
         });
     };
 
-    // إرسال Invite لعضو جديد
+
+    const MAX_PLAYERS = 7;
+
     const sendInvite = async () => {
         if (!newMemberCode.trim()) return alert("Enter student code");
 
         try {
+            // ✅ هات بيانات التيم
+            const teamRef = doc(db, "teams", userData.teamId);
+            const teamSnap = await getDoc(teamRef);
+
+            if (!teamSnap.exists()) return alert("Team not found");
+
+            const team = teamSnap.data();
+            const players = team.members || [];
+
+            // ✅ تحقق من العدد
+            if (players.length >= MAX_PLAYERS) {
+                return alert("Team is full! Remove a player first.");
+            }
+
+            // ✅ دور على الطالب
             const q = query(collection(db, "users"), where("studentCode", "==", newMemberCode));
             const snap = await getDocs(q);
 
@@ -175,30 +206,34 @@ const StudentDashboard = () => {
             const studentDoc = snap.docs[0];
             const studentData = studentDoc.data();
 
-            if (studentData.hasTeam) return alert("Student already in a team");
+            if (studentData.hasTeam) {
+                return alert("Student already in a team");
+            }
 
+            // ✅ منع تكرار الدعوة
+            const existingRequests = studentData.teamRequests || [];
+            const alreadyInvited = existingRequests.some((req) => req.teamId === teamData.id);
+
+            if (alreadyInvited) {
+                return alert("Invite already sent to this student");
+            }
+
+            // ✅ إرسال الدعوة
             await updateDoc(doc(db, "users", studentDoc.id), {
                 teamRequests: arrayUnion({
                     teamId: teamData.id,
                     teamName: teamData.teamName,
                     captainId: userData.uid,
-                    captainName: userData.name // ضيفي اسم الكابتن عشان يظهر للطالب
+                    captainName: userData.name,
                 }),
             });
 
-            // await updateDoc(doc(db, "users", studentDoc.id), {
-            //     teamRequests: arrayUnion({
-            //         teamId: teamData.id,
-            //         teamName: teamData.teamName,
-            //         captainId: userData.uid,
-            //     }),
-            // });
-
             alert(`${studentData.name} has been invited to the team`);
             setNewMemberCode("");
+
         } catch (err) {
             console.error(err);
-            alert("Error sending invite");
+            alert(err.code);
         }
     };
 
@@ -236,11 +271,7 @@ const StudentDashboard = () => {
                         <div className="w-40 h-40 mx-auto mb-6 flex items-center justify-center rounded-full overflow-hidden shadow-lg border-2 border-white/10">
                             {userData?.photo ? (
                                 // إذا كانت الصورة موجودة
-                                <img
-                                    src={userData.photo}
-                                    alt="Profile"
-                                    className="w-full h-full object-cover"
-                                />
+                                <img src={userData.photo} alt="Profile" className="w-full h-full object-cover" />
                             ) : (
                                 // إذا لم تكن الصورة موجودة، نظهر أول حرف مع الخلفية الملونة
                                 <div className="w-full h-full bg-gradient-to-tr from-green-500 to-emerald-700 flex items-center justify-center text-4xl font-bold text-white">

@@ -18,38 +18,39 @@ const EditProfile = () => {
   const [preview, setPreview] = useState("https://via.placeholder.com/150");
   const [loading, setLoading] = useState(false);
 
-  // تحميل بيانات المستخدم
+  const [errors, setErrors] = useState({});
+
+  // تحميل البيانات
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
-      try {
-        const docRef = doc(db, "users", user.uid);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = snap.data();
-          setName(data.name || "");
-          setPhone(data.phone || "");
-          setPreview(data.photo || preview);
-        }
-        setEmail(user.email || "");
-      } catch (err) {
-        console.log(err);
+      const docRef = doc(db, "users", user.uid);
+      const snap = await getDoc(docRef);
+
+      if (snap.exists()) {
+        const data = snap.data();
+        setName(data.name || "");
+        setPhone(data.phone || "");
+        setPreview(data.photo || preview);
       }
+
+      setEmail(user.email || "");
     };
 
     fetchData();
   }, [user]);
 
-  // اختيار صورة جديدة
+  // اختيار صورة
   const handleImageChange = (e) => {
-    const file = e.target.files && e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+
     setImage(file);
     setPreview(URL.createObjectURL(file));
   };
 
-  // رفع الصورة على Cloudinary
+  // رفع الصورة
   const uploadToCloudinary = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -59,39 +60,77 @@ const EditProfile = () => {
       method: "POST",
       body: formData,
     });
+
     const data = await res.json();
     return data.secure_url;
+  };
+
+  // Validation
+  const validate = () => {
+    let newErrors = {};
+
+    if (name.trim() === "") {
+      newErrors.name = "Name cannot be empty";
+    }
+
+    if (email.trim() === "") {
+      newErrors.email = "Email cannot be empty";
+    }
+
+    if (phone.trim() === "") {
+      newErrors.phone = "Phone cannot be empty";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   // حفظ البيانات
   const handleUpdate = async () => {
     if (!user) return alert("User not logged in");
+
+    if (!validate()) return;
+
     setLoading(true);
 
     try {
-      // رفع الصورة لو موجودة
-      let imageUrl = preview;
+      const docRef = doc(db, "users", user.uid);
+      const snap = await getDoc(docRef);
+
+      if (!snap.exists()) return;
+
+      const oldData = snap.data();
+
+      // fallback للقيم القديمة
+      const updatedName = name.trim() === "" ? oldData.name : name;
+      const updatedPhone = phone.trim() === "" ? oldData.phone : phone;
+      const updatedEmail = email.trim() === "" ? user.email : email;
+
+      let imageUrl = oldData.photo;
       if (image) {
         imageUrl = await uploadToCloudinary(image);
       }
 
-      // تحديث الاسم والصورة في Auth
+      // Auth
       await updateProfile(user, {
-        displayName: name,
+        displayName: updatedName,
         photoURL: imageUrl,
       });
 
-      // تحديث الإيميل
-      if (email !== user.email) {
-        await updateEmail(user, email);
+      if (updatedEmail !== user.email) {
+        await updateEmail(user, updatedEmail);
       }
 
-      // تحديث Firestore
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, { name, phone, photo: imageUrl });
+      // Firestore
+      await updateDoc(docRef, {
+        name: updatedName,
+        phone: updatedPhone,
+        photo: imageUrl,
+      });
 
-      alert("✅ Profile updated successfully!");
-      navigate("/student"); // ارجاع للـ Dashboard
+      alert("Profile updated successfully!");
+      navigate("/student");
+
     } catch (err) {
       console.log(err);
       alert(err.message);
@@ -100,18 +139,18 @@ const EditProfile = () => {
     }
   };
 
+  const isDisabled = loading;
+
   return (
     <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 px-4">
 
       {/* Navbar */}
       <nav className="w-full border-b border-white/20 backdrop-blur-lg bg-white/5 fixed top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center p-4">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-700 text-transparent bg-clip-text">
-            SCI-FOOTBALL
-          </h1>
+          <h1 className="text-2xl font-bold text-white">SCI-FOOTBALL</h1>
           <button
             onClick={() => navigate("/student")}
-            className="bg-blue-600/20 hover:bg-blue-600/40 px-4 py-2 rounded-full transition text-white font-medium"
+            className="bg-blue-600/20 hover:bg-blue-600/40 px-4 py-2 rounded-full text-white"
           >
             Back
           </button>
@@ -119,81 +158,70 @@ const EditProfile = () => {
       </nav>
 
       {/* Form */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-3xl shadow-xl text-center mt-20">
+      <div className="w-full max-w-md bg-white/10 p-8 rounded-3xl mt-20">
 
-        <h2 className="text-white text-2xl font-bold mb-4">
+        <h2 className="text-white text-2xl font-bold mb-4 text-center">
           Edit Profile
         </h2>
 
-        {/* صورة البروفايل */}
+        {/* الصورة */}
         <div className="relative w-fit mx-auto">
           <img
             src={preview}
             alt="profile"
-            className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+            className="w-32 h-32 rounded-full"
           />
-          <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer">
+          <label className="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full cursor-pointer text-white">
             +
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleImageChange}
-            />
+            <input type="file" className="hidden" onChange={handleImageChange} />
           </label>
         </div>
 
-        <div className="space-y-5 mt-6 text-left">
-          {/* الاسم */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-300 ml-1">Full Name</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full p-4 pl-12 rounded-2xl bg-white/10 border border-white/10 text-white placeholder-green-200 outline-none focus:border-green-500/50 focus:bg-white/15 transition-all shadow-inner"
-              />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">👤</span>
-            </div>
+        <div className="space-y-4 mt-6">
+
+          {/* Name */}
+          <div>
+            <input
+              type="text"
+              value={name}
+              placeholder="Name"
+              onChange={(e) => setName(e.target.value)}
+              className="w-full p-3 rounded bg-white/10 text-white"
+            />
+            {errors.name && <p className="text-red-400 text-sm">{errors.name}</p>}
           </div>
 
-          {/* الإيميل */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-300 ml-1">Email Address</label>
-            <div className="relative">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@edu.eg"
-                className="w-full p-4 pl-12 rounded-2xl bg-white/10 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-green-500/50 focus:bg-white/15 transition-all shadow-inner"
-              />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">📧</span>
-            </div>
+          {/* Email */}
+          <div>
+            <input
+              type="email"
+              value={email}
+              placeholder="Email"
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 rounded bg-white/10 text-white"
+            />
+            {errors.email && <p className="text-red-400 text-sm">{errors.email}</p>}
           </div>
 
-          {/* رقم الموبايل */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-300 ml-1">Phone Number</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="01xxxxxxxxx"
-                className="w-full p-4 pl-12 rounded-2xl bg-white/10 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-green-500/50 focus:bg-white/15 transition-all shadow-inner"
-              />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg">📞</span>
-            </div>
+          {/* Phone */}
+          <div>
+            <input
+              type="text"
+              value={phone}
+              placeholder="Phone"
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full p-3 rounded bg-white/10 text-white"
+            />
+            {errors.phone && <p className="text-red-400 text-sm">{errors.phone}</p>}
           </div>
+
         </div>
 
-        {/* زرار حفظ */}
         <button
           onClick={handleUpdate}
-          disabled={loading}
-          className={`mt-6 w-full py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+          disabled={isDisabled}
+          className={`mt-6 w-full py-3 rounded bg-blue-600 text-white ${isDisabled ? "opacity-50" : ""
+            }`}
         >
           {loading ? "Saving..." : "Save Changes"}
         </button>
