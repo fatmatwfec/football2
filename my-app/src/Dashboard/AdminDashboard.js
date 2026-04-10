@@ -5,8 +5,10 @@ import PlayersTab from "./PlayersTab";
 import MatchesTab from "./MatchesTab";
 import SettingsTab from "./SettingsTab";
 import TeamsTab from "./TeamsTab";
+import TournamentTab from "./TournamentTab";
 import AIChatSidebar from "./AIChatSidebar";
-import { FaUsers, FaUserPlus, FaCheck, FaRegCalendarAlt, FaCog, FaShieldAlt, FaPlus, FaRobot } from 'react-icons/fa';
+import AddActionModal from "./AddActionModal";
+import { FaUsers, FaUserPlus, FaCheck, FaRegCalendarAlt, FaCog, FaShieldAlt, FaPlus, FaRobot, FaSitemap } from 'react-icons/fa';
 import { BsGridFill } from 'react-icons/bs';
 
 const AdminDashboard = () => {
@@ -84,9 +86,9 @@ const AdminDashboard = () => {
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
       `}</style>
-      
+
       <div className="flex-1 flex flex-col stadium-bg overflow-hidden relative">
-        
+
 
         <header className="w-full flex items-center p-6 md:p-8 justify-between z-[60] glass shadow-2xl shrink-0">
           <div className="flex items-center gap-4">
@@ -109,72 +111,80 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        <AIChatSidebar 
-          isOpen={isAIChatOpen} 
-          onClose={() => setIsAIChatOpen(false)} 
-          stats={stats} players={filteredPlayers} matches={matches} teams={approvedTeams} 
+        <AIChatSidebar
+          isOpen={isAIChatOpen}
+          onClose={() => setIsAIChatOpen(false)}
+          stats={stats} players={filteredPlayers} matches={matches} teams={approvedTeams}
+        />
+
+        <AddActionModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          currentTeamsCount={pendingTeams.length + approvedTeams.length} 
+          freeAgents={filteredPlayers.filter(p => !p.hasTeam)} 
         />
 
         <main className="flex-1 overflow-y-auto px-6 md:px-12 py-10 pb-48 custom-scrollbar relative z-10">
           {activeTab === "dashboard" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-               <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                  <StatCard label="Total Players" value={stats.total} icon={<FaUsers />} color="text-blue-500" />
-                  <StatCard label="Pending Approval" value={stats.pending} icon={<FaRegCalendarAlt />} color="text-yellow-500" />
-                  <StatCard label="Free Agents" value={stats.free} icon={<FaUserPlus />} color="text-green-500" />
-                  <StatCard label="Matches" value={matches.length} icon={<FaCheck />} color="text-purple-500" />
-               </section>
+              <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <StatCard label="Total Players" value={stats.total} icon={<FaUsers />} color="text-blue-500" />
+                <StatCard label="Pending Approval" value={stats.pending} icon={<FaRegCalendarAlt />} color="text-yellow-500" />
+                <StatCard label="Free Agents" value={stats.free} icon={<FaUserPlus />} color="text-green-500" />
+                <StatCard label="Matches" value={matches.length} icon={<FaCheck />} color="text-purple-500" />
+              </section>
 
-               <h2 className="text-xl font-black uppercase tracking-widest text-white mb-8 flex items-center gap-3">
-                 <span className="size-3 bg-blue-500 rounded-full animate-ping shadow-[0_0_10px_rgba(59,130,246,1)]"></span> 
-                 Team Requests
-               </h2>
-               
-               <div className="grid grid-cols-1 gap-6">
-                  {pendingTeams.map(team => (
-                    <div key={team.id} className="glass rounded-[2rem] p-8 border-l-8 border-l-blue-600 hover:scale-[1.01] transition-all">
-                      <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
-                        <div>
-                           <h3 className="text-white font-black text-3xl uppercase tracking-tight mb-2">{team.teamName}</h3>
-                           <p className="text-lg text-blue-400 font-bold italic">Captain: {team.captainName || "Unknown"}</p>
-                        </div>
-                        <span className="text-lg bg-blue-500/20 text-blue-400 px-6 py-2 rounded-xl border border-blue-500/30 font-black">
-                          {team.memberIds?.length || 0} Players
-                        </span>
-                      </div>
+              <h2 className="text-xl font-black uppercase tracking-widest text-white mb-8 flex items-center gap-3">
+                <span className="size-3 bg-blue-500 rounded-full animate-ping shadow-[0_0_10px_rgba(59,130,246,1)]"></span>
+                Team Requests
+              </h2>
 
-                      <div className="mb-8 flex flex-wrap gap-3 bg-black/30 p-4 rounded-2xl">
-                        {team.members && team.members.map((name, i) => (
-                          <span key={i} className="text-sm font-bold bg-slate-900 text-slate-200 px-4 py-2 rounded-lg border border-white/5">
-                            • {name}
-                          </span>
-                        ))}
+              <div className="grid grid-cols-1 gap-6">
+                {pendingTeams.map(team => (
+                  <div key={team.id} className="glass rounded-[2rem] p-8 border-l-8 border-l-blue-600 hover:scale-[1.01] transition-all">
+                    <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+                      <div>
+                        <h3 className="text-white font-black text-3xl uppercase tracking-tight mb-2">{team.teamName}</h3>
+                        <p className="text-lg text-blue-400 font-bold italic">Captain: {team.captainName || "Unknown"}</p>
                       </div>
-
-                      <div className="flex gap-4">
-                         <button 
-                            onClick={() => handleApproveTeam(team.id)} 
-                            className="flex-1 bg-blue-600 text-sm font-black uppercase py-5 rounded-2xl hover:bg-blue-500 transition-all shadow-lg"
-                         >
-                            Approve Team
-                         </button>
-                         <button 
-                            onClick={() => handleRejectTeam(team)} 
-                            className="flex-1 bg-white/5 text-sm font-black uppercase py-5 rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-white/10"
-                         >
-                            Reject
-                         </button>
-                      </div>
+                      <span className="text-lg bg-blue-500/20 text-blue-400 px-6 py-2 rounded-xl border border-blue-500/30 font-black">
+                        {team.memberIds?.length || 0} Players
+                      </span>
                     </div>
-                  ))}
-                  {pendingTeams.length === 0 && <p className="text-slate-400 text-xl italic text-center py-10">No pending requests at the moment.</p>}
-               </div>
+
+                    <div className="mb-8 flex flex-wrap gap-3 bg-black/30 p-4 rounded-2xl">
+                      {team.members && team.members.map((name, i) => (
+                        <span key={i} className="text-sm font-bold bg-slate-900 text-slate-200 px-4 py-2 rounded-lg border border-white/5">
+                          • {name}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => handleApproveTeam(team.id)}
+                        className="flex-1 bg-blue-600 text-sm font-black uppercase py-5 rounded-2xl hover:bg-blue-500 transition-all shadow-lg"
+                      >
+                        Approve Team
+                      </button>
+                      <button
+                        onClick={() => handleRejectTeam(team)}
+                        className="flex-1 bg-white/5 text-sm font-black uppercase py-5 rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-white/10"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {pendingTeams.length === 0 && <p className="text-slate-400 text-xl italic text-center py-10">No pending requests at the moment.</p>}
+              </div>
             </div>
           )}
-          
-      
+
+
           {activeTab === "players" && <PlayersTab players={filteredPlayers} />}
           {activeTab === "teams" && <TeamsTab teams={approvedTeams} players={filteredPlayers} />}
+          {activeTab === "tournament" && <TournamentTab teams={approvedTeams} />}
           {activeTab === "schedule" && <MatchesTab matches={matches} teams={approvedTeams} players={filteredPlayers} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
@@ -183,6 +193,7 @@ const AdminDashboard = () => {
           <NavButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} icon={<BsGridFill />} label="HOME" />
           <NavButton active={activeTab === "players"} onClick={() => setActiveTab("players")} icon={<FaUserPlus />} label="PLAYERS" />
           <NavButton active={activeTab === "teams"} onClick={() => setActiveTab("teams")} icon={<FaShieldAlt />} label="TEAMS" />
+          <NavButton active={activeTab === "tournament"} onClick={() => setActiveTab("tournament")} icon={<FaSitemap />} label="DRAW" />
           <NavButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} icon={<FaRegCalendarAlt />} label="MATCHES" />
           <NavButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")} icon={<FaCog />} label="SETTINGS" />
         </nav>
@@ -192,18 +203,18 @@ const AdminDashboard = () => {
 };
 
 const StatCard = ({ icon, label, value, color }) => (
-    <div className="glass p-8 rounded-[2rem] flex flex-col gap-4 border border-white/10 group hover:border-blue-500/50 hover:bg-white/5 transition-all duration-300 shadow-xl">
-      <div className={`text-4xl ${color} group-hover:scale-110 transition-transform`}>{icon}</div>
-      <p className="text-slate-400 text-xs font-black uppercase tracking-[0.2em]">{label}</p>
-      <p className="text-white text-5xl font-black leading-none">{value}</p>
-    </div>
+  <div className="glass p-8 rounded-[2rem] flex flex-col gap-4 border border-white/10 group hover:border-blue-500/50 hover:bg-white/5 transition-all duration-300 shadow-xl">
+    <div className={`text-4xl ${color} group-hover:scale-110 transition-transform`}>{icon}</div>
+    <p className="text-slate-400 text-xs font-black uppercase tracking-[0.2em]">{label}</p>
+    <p className="text-white text-5xl font-black leading-none">{value}</p>
+  </div>
 );
 
 const NavButton = ({ icon, label, active, onClick }) => (
-    <button onClick={onClick} className={`flex flex-col items-center gap-2 transition-all ${active ? 'text-blue-500 scale-125' : 'text-slate-500 hover:text-white'}`}>
-      <div className="text-3xl">{icon}</div>
-      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
-    </button>
+  <button onClick={onClick} className={`flex flex-col items-center gap-2 transition-all ${active ? 'text-blue-500 scale-125' : 'text-slate-500 hover:text-white'}`}>
+    <div className="text-3xl">{icon}</div>
+    <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+  </button>
 );
 
 export default AdminDashboard;

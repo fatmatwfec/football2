@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FaUsers, FaFutbol, FaTimes, FaArrowLeft, FaCalendarAlt, FaUserPlus, FaUserMinus } from 'react-icons/fa';
+import { FaUsers, FaFutbol, FaTimes, FaArrowLeft, FaCalendarAlt, FaUserPlus, FaUserMinus, FaPlus } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 
@@ -46,11 +46,6 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
 
     if (!teamData.teamName.trim() || !teamData.captainName.trim()) {
       alert('Please provide a team name and captain name.');
-      return;
-    }
-
-    if (selectedPlayerIds.length < 5) {
-      alert('A team must have at least 5 players.');
       return;
     }
 
@@ -129,7 +124,26 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
           <form onSubmit={handleSubmitTeam} className="flex flex-col gap-4 animate-in slide-in-from-right-4">
             <input required placeholder="Team Name" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setTeamData({...teamData, teamName: e.target.value})}/>
             <input required placeholder="Captain Name" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setTeamData({...teamData, captainName: e.target.value})}/>
-            <button disabled={loading} className="w-full bg-blue-600 text-white h-14 rounded-2xl font-bold mt-4">{loading ? 'Saving...' : 'Create Team'}</button>
+            
+            <div className="flex gap-3">
+               <select className="flex-1 bg-slate-900 border border-white/10 rounded-2xl p-4 text-white outline-none" value={selectedDropdownPlayer} onChange={e => setSelectedDropdownPlayer(e.target.value)}>
+                   <option value="">Select Players (Optional)</option>
+                   {availableFreeAgents.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
+               </select>
+               <button type="button" onClick={handleAddPlayerToRoster} className="bg-blue-600/20 text-blue-500 border border-blue-500/30 font-black px-6 rounded-2xl hover:bg-blue-500 hover:text-white transition-all text-xl"><FaPlus /></button>
+            </div>
+
+            {selectedPlayers.length > 0 && (
+                <div className="flex flex-wrap gap-2 bg-black/20 p-4 rounded-2xl border border-white/5">
+                    {selectedPlayers.map(p => (
+                        <div key={p.id} className="bg-slate-800 text-xs px-4 py-2 text-white font-bold rounded-xl flex items-center gap-3">
+                            {p.name} <FaTimes className="cursor-pointer text-red-500 hover:scale-125 transition-all" onClick={() => handleRemovePlayerFromRoster(p.id)} />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <button disabled={loading} className="w-full bg-blue-600 text-white h-14 rounded-2xl font-bold mt-4 shadow-xl hover:bg-blue-500 active:scale-95 transition-all">{loading ? 'Saving...' : 'Create Team'}</button>
           </form>
         )}
 
