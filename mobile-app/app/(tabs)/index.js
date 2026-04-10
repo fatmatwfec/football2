@@ -7,6 +7,7 @@ import { auth, db } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, collection, query, where } from "firebase/firestore";
 import { useRouter } from "expo-router";
+import { deleteDoc } from "firebase/firestore";
 
 export default function StudentDashboard() {
   const [userData, setUserData] = useState(null);
@@ -14,6 +15,7 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [newMemberCode, setNewMemberCode] = useState("");
   const router = useRouter();
+  const [nextMatch, setNextMatch] = useState(null);
 
   useEffect(() => {
     let unsubUser = () => {};
@@ -29,7 +31,7 @@ export default function StudentDashboard() {
 
             if (data.teamId) {
               const teamRef = doc(db, "teams", data.teamId);
-              unsubTeam();
+              if(unsubTeam)unsubTeam();
               unsubTeam = onSnapshot(teamRef, (tSnap) => {
                 if (tSnap.exists()) setTeamData({ id: tSnap.id, ...tSnap.data() });
               });
@@ -48,40 +50,106 @@ export default function StudentDashboard() {
     return () => { unsubAuth(); unsubUser(); unsubTeam(); };
   }, []);
 
-  const acceptInvite = async (req) => {
-    if (userData.hasTeam) return Alert.alert("You already have a team!");
-    try {
-      await updateDoc(doc(db, "teams", req.teamId), {
-        memberIds: arrayUnion(userData.uid),
-        members: arrayUnion(userData.name),
-      });
-      await updateDoc(doc(db, "users", userData.uid), {
-        hasTeam: true, teamId: req.teamId,
-        assignedTeam: req.teamName, teamRequests: [],
-      });
-    } catch (err) { console.error(err); }
-  };
+  useEffect(() => {
+  if (!userData?.teamId) return; 
+
+    const q = query(
+      collection(db, "matches"),
+      where("teams", "array-contains", userData.teamId)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const matches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setNextMatch(matches[0] || null);
+    });
+
+    return () => unsub();
+  
+}, [userData?.teamId]);
+
+
+
+ const acceptInvite = async (req) => {
+  if (userData.hasTeam) {
+    return Alert.alert("You already have a team!");
+  }
+
+  try {
+    const user = auth.currentUser;
+    await updateDoc(doc(db, "teams", req.teamId), {
+      memberIds: arrayUnion(user.uid),
+      members: arrayUnion(userData.name),
+    });
+
+    await updateDoc(doc(db, "users", user.uid), {
+      hasTeam: true,
+      teamId: req.teamId,
+      assignedTeam: req.teamName,
+      teamRequests: [],
+    });
+
+    Alert.alert(" Joined Team Successfully!");
+  } catch (err) {
+    console.error(err);
+    Alert.alert("Error joining team");
+  }
+};
 
   const rejectInvite = async (req) => {
     const updated = userData.teamRequests.filter(r => r.teamId !== req.teamId);
     await updateDoc(doc(db, "users", userData.uid), { teamRequests: updated });
   };
 
-  const leaveTeam = async () => {
-    Alert.alert("Leave Team", "Are you sure?", [
-      { text: "Cancel" },
-      { text: "Leave", style: "destructive", onPress: async () => {
-        const idx = teamData.memberIds?.findIndex(id => id === userData.uid);
-        if (idx === -1) return;
-        const newIds = [...(teamData.memberIds || [])];
-        const newNames = [...(teamData.members || [])];
-        newIds.splice(idx, 1);
-        newNames.splice(idx, 1);
-        await updateDoc(doc(db, "teams", userData.teamId), { memberIds: newIds, members: newNames });
-        await updateDoc(doc(db, "users", userData.uid), { hasTeam: false, teamId: null, assignedTeam: null });
-      }}
-    ]);
-  };
+ const leaveTeam = async () => {
+  try {
+    const user = auth.currentUser;
+
+    if (!user || !teamData) return;
+
+    const index = teamData.memberIds.findIndex(
+      (id) => id === user.uid
+    );
+
+    if (index === -1) return;
+
+    const newMemberIds = [...teamData.memberIds];
+    const newMembers = [...teamData.members];
+
+    newMemberIds.splice(index, 1);
+    newMembers.splice(index, 1);
+
+  
+    await updateDoc(doc(db, "teams", userData.teamId), {
+      memberIds: newMemberIds,
+      members: newMembers,
+    });
+
+    
+    await updateDoc(doc(db, "users", user.uid), {
+      hasTeam: false,
+      teamId: null,
+      assignedTeam: null,
+    });
+
+  
+    setTeamData(prev => ({
+      ...prev,
+      memberIds: newMemberIds,
+      members: newMembers,
+    }));
+
+    setUserData(prev => ({
+      ...prev,
+      hasTeam: false,
+      teamId: null,
+      assignedTeam: null,
+    }));
+
+    console.log("LEFT TEAM SUCCESS");
+  } catch (err) {
+    console.log("LEAVE ERROR:", err);
+  }
+};
 
   const removePlayer = async (index) => {
     Alert.alert("Remove Player", "Are you sure?", [
@@ -98,6 +166,39 @@ export default function StudentDashboard() {
     ]);
   };
 
+  const deleteTeam = async () => {
+  try {
+    console.log("START DELETE");
+
+    const memberIds = teamData?.memberIds || [];
+
+    for (let id of memberIds) {
+      await updateDoc(doc(db, "users", id), {
+        hasTeam: false,
+        teamId: null,
+        assignedTeam: null,
+      });
+    }
+
+    await deleteDoc(doc(db, "teams", teamData.id));
+
+    console.log("DELETED SUCCESS");
+
+    setTeamData(null);
+    setUserData(prev => ({
+      ...prev,
+      hasTeam: false,
+      teamId: null,
+      assignedTeam: null,
+    }));
+
+    Alert.alert("Deleted ✅");
+  } catch (err) {
+    console.log("ERROR:", err);
+    Alert.alert(err.message);
+  }
+};
+
   const sendInvite = async () => {
     if (!newMemberCode.trim()) return Alert.alert("Enter student code");
     try {
@@ -107,9 +208,14 @@ export default function StudentDashboard() {
       const studentDoc = snap.docs[0];
       const studentData = studentDoc.data();
       if (studentData.hasTeam) return Alert.alert("Student already in a team");
-      await updateDoc(doc(db, "users", studentDoc.id), {
-        teamRequests: arrayUnion({ teamId: teamData.id, teamName: teamData.teamName, captainId: userData.uid }),
-      });
+    await updateDoc(doc(db, "users", studentDoc.id), {
+      teamRequests: arrayUnion({
+        teamId: teamData.id,
+        teamName: teamData.teamName,
+        captainId: userData.uid,
+        captainName: userData.name
+      }),
+    });
       Alert.alert(`✅ ${studentData.name} has been invited!`);
       setNewMemberCode("");
     } catch (err) { console.error(err); }
@@ -123,7 +229,8 @@ export default function StudentDashboard() {
     );
   }
 
-  const isCaptain = userData?.uid === teamData?.captainId;
+  const isCaptain =teamData && userData?.uid === teamData?.captainId;
+  
 
   return (
     <ImageBackground source={require("../../assets/images/background.jpg")} style={styles.bg}>
@@ -150,6 +257,40 @@ export default function StudentDashboard() {
             </Text>
           </View>
         </View>
+
+        {/* Next Match */}
+        {userData?.hasTeam && (
+          <View style={styles.card}>
+          <Text style={styles.sectionTitle}>🏟️ Next Match</Text>
+
+          {nextMatch ? (
+            <>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Opponent</Text>
+            <Text style={styles.infoValue}>
+              {nextMatch.opponentName || "TBD"}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Pitch</Text>
+            <Text style={styles.infoValue}>
+              {nextMatch.pitch || "N/A"}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Time</Text>
+            <Text style={styles.infoValue}>
+              {nextMatch.time || "TBD"}
+            </Text>
+          </View>
+        </>
+      ) : (
+        <Text style={styles.noTeamText}>No matches scheduled</Text>
+      )}
+    </View>
+    )}
 
         {/* Stats - لو في فريق */}
         {userData?.hasTeam && (
@@ -179,6 +320,7 @@ export default function StudentDashboard() {
             )}
           </View>
         )}
+        
 
         {/* Team Options - لو مش في فريق */}
         {!userData?.hasTeam && (
@@ -249,9 +391,15 @@ export default function StudentDashboard() {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.leaveBtn} onPress={leaveTeam}>
-                <Text style={styles.leaveBtnText}>Leave Team</Text>
-              </TouchableOpacity>
+              {isCaptain ? (
+                <TouchableOpacity style={styles.leaveBtn} onPress={deleteTeam}>
+                  <Text style={styles.leaveBtnText}>Delete Team</Text>
+                </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.leaveBtn} onPress={leaveTeam}>
+                    <Text style={styles.leaveBtnText}>Leave Team</Text>
+                  </TouchableOpacity>
+                )}
             </>
           ) : (
             <Text style={styles.noTeamText}>No team requests yet</Text>
@@ -276,8 +424,8 @@ export default function StudentDashboard() {
         {/* Settings */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          <TouchableOpacity style={styles.settingBtn}>
-            <Text style={styles.settingBtnText}>Edit Profile</Text>
+          <TouchableOpacity style={styles.settingBtn} onPress={() => router.push("/EditProfile")}>
+            <Text style={styles.settingBtnText }>Edit Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingBtn} onPress={() => router.push("/ChangePassword")}>
             <Text style={styles.settingBtnText}>Change Password</Text>

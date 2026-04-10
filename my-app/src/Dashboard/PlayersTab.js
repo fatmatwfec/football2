@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTimes, FaUserMinus } from 'react-icons/fa';
+import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaStar } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -8,10 +8,19 @@ const PlayersTab = ({ players }) => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [showBuildModal, setShowBuildModal] = useState(false); 
   const [customTeamName, setCustomTeamName] = useState("");
-  const [playerCount, setPlayerCount] = useState(5); 
+  const [playerCount, setPlayerCount] = useState(5);
+  const [searchTerm, setSearchTerm] = useState(""); 
+
+
+  const sortedAllPlayers = [...players]
+    .filter(p => p.role === "student" || p.role === "player")
+    .sort((a, b) => (Number(b.goals) || 0) - (Number(a.goals) || 0));
 
   const displayedPlayers = players.filter(p => {
     const isPlayer = (p.role === "student" || p.role === "player");
+    if (searchTerm.trim() !== "") {
+      return isPlayer && p.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    }
     const hasTeam = (p.hasTeam === true);
     return activeSubTab === "free" ? (isPlayer && !hasTeam) : (isPlayer && hasTeam);
   });
@@ -28,26 +37,15 @@ const PlayersTab = ({ players }) => {
 
   const handleAction = async (player) => {
     if (player.hasTeam) {
-      if (window.confirm(`Remove ${player.name} from their team? They will become a Free Agent.`)) {
+      if (window.confirm(`Remove ${player.name} from their team?`)) {
         try {
           const batch = writeBatch(db);
-          
-          batch.update(doc(db, "users", player.id), { 
-            hasTeam: false, 
-            assignedTeam: null, 
-            teamId: null 
-          });
-
-          if (player.teamId) {
-            const teamRef = doc(db, "teams", player.teamId);
-          }
-
+          batch.update(doc(db, "users", player.id), { hasTeam: false, assignedTeam: null, teamId: null });
           await batch.commit();
-          alert(`${player.name} is now a Free Agent.`);
         } catch (e) { console.error(e); }
       }
     } else {
-      if (window.confirm(`Are you sure you want to delete ${player.name} permanently?`)) {
+      if (window.confirm(`Delete ${player.name} permanently?`)) {
         try {
           await deleteDoc(doc(db, "users", player.id));
         } catch (e) { console.error(e); }
@@ -58,17 +56,13 @@ const PlayersTab = ({ players }) => {
   const handleAutoBuild = async () => {
     const freeAgents = players.filter(p => (p.role === "student" || p.role === "player") && !p.hasTeam);
     if (freeAgents.length < playerCount) return alert("Not enough free agents.");
-
     setIsBuilding(true);
     const batch = writeBatch(db);
-
     try {
       const selectedPlayers = freeAgents.slice(0, playerCount);
       const teamIdNumber = Math.floor(1000 + Math.random() * 9000);
       const teamName = customTeamName.trim() || `Alpha-${teamIdNumber}`;
-      
       const newTeamRef = doc(collection(db, "teams"));
-
       batch.set(newTeamRef, {
         teamName,
         captainName: selectedPlayers[0].name, 
@@ -77,111 +71,130 @@ const PlayersTab = ({ players }) => {
         members: selectedPlayers.map(p => p.name),
         memberIds: selectedPlayers.map(p => p.id) 
       });
-
       selectedPlayers.forEach(player => {
-        const userRef = doc(db, "users", player.id);
-        batch.update(userRef, {
-          hasTeam: true,
-          teamId: newTeamRef.id,
-          assignedTeam: teamName
-        });
+        batch.update(doc(db, "users", player.id), { hasTeam: true, teamId: newTeamRef.id, assignedTeam: teamName });
       });
-
       await batch.commit();
-      
       setShowBuildModal(false);
       setCustomTeamName(""); 
-      alert(`Team ${teamName} created successfully!`);
-    } catch (error) { 
-      console.error(error); 
-      alert("Something went wrong during team building.");
-    }
+    } catch (error) { console.error(error); }
     setIsBuilding(false);
   };
 
   return (
-    <div className="animate-in slide-in-from-right duration-500 w-full pb-40 px-2">
-      <div className="flex items-center justify-between mb-8 px-2">
+    <div className="animate-in slide-in-from-right duration-500 w-full pb-40 px-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 px-2 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <FaRunning className="text-blue-500" /> Players Management
+          <h2 className="text-3xl font-black text-white flex items-center gap-3">
+            <FaRunning className="text-blue-500" /> PLAYERS
           </h2>
-          <div className="flex gap-2 mt-4">
-            <button onClick={() => setActiveSubTab("free")} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${activeSubTab === 'free' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-white/10 text-slate-500'}`}>
-              Free Agents ({freeAgentsCount})
-            </button>
-            <button onClick={() => setActiveSubTab("team")} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${activeSubTab === 'team' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-white/10 text-slate-500'}`}>
-              In Teams ({players.filter(p => p.hasTeam).length})
-            </button>
-          </div>
+          {!searchTerm && (
+            <div className="flex gap-2 mt-4">
+                <button onClick={() => setActiveSubTab("free")} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${activeSubTab === 'free' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-900 border-white/10 text-slate-500'}`}>
+                   Free Agents ({freeAgentsCount})
+                </button>
+                <button onClick={() => setActiveSubTab("team")} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${activeSubTab === 'team' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-900 border-white/10 text-slate-500'}`}>
+                   In Teams ({players.filter(p => p.hasTeam).length})
+                </button>
+            </div>
+          )}
+        </div>
+
+        <div className="relative w-full md:w-80">
+          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input 
+            type="text" 
+            placeholder="Find player..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-all shadow-2xl"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {displayedPlayers.length > 0 ? displayedPlayers.map((p) => (
-          <div key={p.id} className="glass rounded-[2.5rem] p-6 border border-white/5 group relative transition-all hover:border-blue-500/30 shadow-2xl">
-            
-            <button onClick={() => handleAction(p)} className="absolute top-4 right-4 text-slate-700 hover:text-red-500 transition-colors">
-              {p.hasTeam ? <FaUserMinus size={14} title="Kick from Team" /> : <FaTrashAlt size={12} title="Delete Permanent" />}
-            </button>
-            
-            <div className="flex items-center gap-4 mb-4">
-              <div className="size-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-900 border border-white/10 p-0.5 shadow-lg overflow-hidden">
-                <img 
-                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${p.name}&backgroundColor=1e293b,3b82f6,0ea5e9&fontSize=45&bold=true`} 
-                  alt="avatar" 
-                  className="w-full h-full rounded-xl"
-                />
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-white font-bold text-sm truncate">{p.name || "Unknown"}</p>
-                <p className="text-slate-500 text-[10px] font-mono">ID: {p.studentCode}</p>
-                {p.assignedTeam && <p className="text-blue-500 text-[8px] font-bold uppercase truncate mt-0.5">Team: {p.assignedTeam}</p>}
-              </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+        {displayedPlayers.length > 0 ? displayedPlayers.map((p) => {
+          const playerGoals = Number(p.goals) || 0;
+          const playerRank = playerGoals > 0 ? sortedAllPlayers.findIndex(s => s.id === p.id) + 1 : "--";
 
-            <div className="bg-slate-950/50 rounded-2xl p-3 border border-white/5 mb-4">
-              <span className="text-[9px] text-slate-500 font-bold uppercase flex items-center gap-1"><FaKey className="text-blue-500" /> Password</span>
-              <p className="text-xs text-yellow-500 font-mono font-bold italic">{p.password || "No pass"}</p>
-            </div>
-
-            {!p.isVerified ? (
-              <button onClick={() => handleManualVerify(p.id, p.name)} className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 transition-all">
-                <FaUserCheck /> Manual Activate
+          return (
+            <div key={p.id} className="glass rounded-[3rem] p-8 border border-white/5 group relative transition-all hover:border-blue-500/30 shadow-2xl bg-slate-900/40">
+              
+              <button onClick={() => handleAction(p)} className="absolute top-6 right-6 text-slate-700 hover:text-red-500 transition-colors scale-110">
+                {p.hasTeam ? <FaUserMinus size={18} /> : <FaTrashAlt size={16} />}
               </button>
-            ) : (
-              <div className="w-full py-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-500 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2">
-                <FaCheckCircle /> Account Verified
+              
+              <div className="flex items-center gap-6 mb-6">
+                <div className="size-24 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-900 border border-white/10 p-1 shadow-xl overflow-hidden shrink-0">
+                  <img 
+                    src={p.profilePic || p.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}`} 
+                    alt="avatar" 
+                    className="w-full h-full rounded-2xl object-cover"
+                  />
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-white font-black text-xl truncate tracking-tight uppercase">{p.name || "Unknown"}</p>
+                  <p className="text-slate-500 text-xs font-mono mb-2 tracking-widest">ID: {p.studentCode}</p>
+                  <div className={`inline-block px-4 py-1 rounded-full text-[10px] font-black uppercase ${p.hasTeam ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-500'}`}>
+                     {p.hasTeam ? `Team: ${p.assignedTeam}` : 'Free Agent'}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        )) : (
-          <div className="col-span-full py-20 text-center opacity-30 italic text-sm text-white">No players in this section.</div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-blue-600/10 rounded-[2rem] p-5 border border-blue-500/20 text-center">
+                      <p className="text-[10px] text-blue-400 uppercase font-black mb-1">Goals</p>
+                      <p className="text-3xl text-white font-black tracking-tighter">{playerGoals}</p>
+                  </div>
+                  <div className="bg-slate-950/50 rounded-[2rem] p-5 border border-white/5 text-center">
+                      <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Rank</p>
+                      <p className="text-3xl text-yellow-500 font-black italic"># {playerRank}</p>
+                  </div>
+              </div>
+
+              <div className="bg-slate-950/50 rounded-2xl p-5 border border-white/5 mb-6">
+                <span className="text-[10px] text-slate-500 font-black uppercase flex items-center gap-2 mb-1"><FaKey className="text-blue-500" /> Access Key</span>
+                <p className="text-xl text-yellow-500 font-mono font-black italic tracking-wider">{p.password || "********"}</p>
+              </div>
+
+              {!p.isVerified ? (
+                <button onClick={() => handleManualVerify(p.id, p.name)} className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-3 transition-all shadow-lg shadow-orange-900/20">
+                  <FaUserCheck size={18} /> Manual Activate
+                </button>
+              ) : (
+                <div className="w-full py-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-3">
+                  <FaCheckCircle size={18} /> Active Player
+                </div>
+              )}
+            </div>
+          );
+        }) : (
+          <div className="col-span-full py-32 text-center opacity-20 italic text-xl text-white font-black uppercase tracking-widest">No players found</div>
         )}
       </div>
 
-      {activeSubTab === "free" && (
+      {activeSubTab === "free" && !searchTerm && (
         <div className="fixed bottom-28 left-0 right-0 px-6 flex justify-center z-40 pointer-events-none">
-            <button onClick={() => setShowBuildModal(true)} disabled={freeAgentsCount < 2} className="pointer-events-auto w-full max-w-sm bg-[#bef264] hover:bg-lime-400 text-slate-900 h-14 rounded-2xl flex items-center justify-center gap-3 font-black shadow-xl shadow-lime-500/20 transition-all active:scale-95 disabled:opacity-50">
-            <FaMagic /> <span className="uppercase text-sm">Create Custom Squad</span>
+            <button onClick={() => setShowBuildModal(true)} disabled={freeAgentsCount < 2} className="pointer-events-auto w-full max-w-md bg-[#bef264] hover:bg-lime-400 text-slate-900 h-16 rounded-[2rem] flex items-center justify-center gap-4 font-black shadow-2xl shadow-lime-500/30 transition-all active:scale-95 disabled:opacity-50">
+            <FaMagic size={20} /> <span className="uppercase text-base tracking-tighter">Auto-Build Squad</span>
             </button>
         </div>
       )}
 
       {showBuildModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-[2.5rem] p-8 relative animate-in zoom-in duration-300">
-            <button onClick={() => setShowBuildModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white"><FaTimes /></button>
-            <h3 className="text-white text-xl font-bold mb-6 flex items-center gap-2"><FaMagic className="text-lime-400" /> Build New Team</h3>
-            <div className="space-y-6">
-              <input type="text" value={customTeamName} onChange={(e) => setCustomTeamName(e.target.value)} placeholder="Team Name (Optional)" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-lime-400 transition-all"/>
-              <div className="grid grid-cols-6 gap-2">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-lg rounded-[3rem] p-10 relative animate-in zoom-in duration-300">
+            <button onClick={() => setShowBuildModal(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white scale-125"><FaTimes /></button>
+            <h3 className="text-white text-2xl font-black mb-8 flex items-center gap-3 tracking-tighter uppercase"><FaMagic className="text-lime-400" /> New Team</h3>
+            <div className="space-y-8">
+              <input type="text" value={customTeamName} onChange={(e) => setCustomTeamName(e.target.value)} placeholder="Team Name" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-white text-base outline-none focus:border-lime-400 transition-all shadow-inner"/>
+              <div className="grid grid-cols-6 gap-3">
                 {[2, 3, 4, 5, 6, 7].map(num => (
-                  <button key={num} onClick={() => setPlayerCount(num)} className={`h-10 rounded-xl text-xs font-bold transition-all ${playerCount === num ? 'bg-lime-400 text-slate-900' : 'bg-slate-800 text-slate-400'}`}>{num}</button>
+                  <button key={num} onClick={() => setPlayerCount(num)} className={`h-12 rounded-xl text-sm font-black transition-all ${playerCount === num ? 'bg-lime-400 text-slate-900 shadow-lg shadow-lime-500/20' : 'bg-slate-800 text-slate-500'}`}>{num}</button>
                 ))}
               </div>
-              <button onClick={handleAutoBuild} disabled={isBuilding || freeAgentsCount < playerCount} className="w-full bg-lime-400 text-slate-900 py-4 rounded-2xl font-black uppercase text-sm shadow-lg shadow-lime-500/20 active:scale-95 transition-all">
-                {isBuilding ? "Processing..." : `Form Team with ${playerCount} Players`}
+              <button onClick={handleAutoBuild} disabled={isBuilding || freeAgentsCount < playerCount} className="w-full bg-lime-400 text-slate-900 py-5 rounded-2xl font-black uppercase text-base shadow-xl shadow-lime-500/20 active:scale-95 transition-all">
+                {isBuilding ? "Processing..." : `Confirm Build (${playerCount})`}
               </button>
             </div>
           </div>
