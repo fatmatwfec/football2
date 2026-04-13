@@ -11,6 +11,9 @@ const StudentDashboard = () => {
     const [newMemberCode, setNewMemberCode] = useState("");
     const [nextMatch, setNextMatch] = useState(null);
     const navigate = useNavigate();
+    const [matches, setMatches] = useState([]);
+    const [liveMatches, setLiveMatches] = useState([]);
+    const [finishedMatches, setFinishedMatches] = useState([]);
 
     useEffect(() => {
         let unsubscribeUser = () => { };
@@ -64,6 +67,24 @@ const StudentDashboard = () => {
             return () => unsubMatch();
         }
     }, [userData?.teamId]);
+
+    useEffect(() => {
+    const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
+        const data = snap.docs.map(d => ({id: d.id,...d.data()}));
+
+            setMatches(data);
+
+            setLiveMatches(
+                data.filter(m => (m.status || "").trim().toLowerCase() !== "completed")
+            );
+
+            setFinishedMatches(
+                data.filter(m => (m.status || "").trim().toLowerCase() === "completed")
+            );
+        });
+
+        return () => unsubMatches();
+    }, []);
 
     const acceptInvite = async (req) => {
         const user = auth.currentUser;
@@ -404,6 +425,45 @@ const StudentDashboard = () => {
                         </div>
                     )}
 
+                    <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
+                        <h3 className="text-lg font-bold mb-4 text-red-400">Live Matches</h3>
+
+                        {liveMatches.length === 0 ? (
+                            <p className="text-gray-400 text-sm">No live matches</p>
+                        ) : (
+                            liveMatches.map(match => (
+                                <div key={match.id} className="mb-3 p-3 bg-black/40 rounded-xl">
+                                    <p className="font-bold">
+                                        {match.team1Name} vs {match.team2Name}
+                                    </p>
+                                    <p className="text-blue-400 text-xl font-black">
+                                        {match.score || "0-0"}
+                                    </p>
+                                    <span className="text-green-400 text-xs">LIVE</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mt-6">
+                        <h3 className="text-lg font-bold mb-4 text-yellow-400">Match History</h3>
+
+                        {finishedMatches.length === 0 ? (
+                            <p className="text-gray-400 text-sm">No finished matches</p>
+                        ) : (
+                            finishedMatches.map(match => (
+                                <div key={match.id} className="mb-3 p-3 bg-black/40 rounded-xl">
+                                    <p className="font-bold">
+                                        {match.team1Name} vs {match.team2Name}
+                                    </p>
+                                    <p className="text-lg">
+                                        {match.score || "0-0"}
+                                    </p>
+                                    <span className="text-yellow-400 text-xs">Finished</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
 
                     {/* Team Members */}
                     <div className="bg-gradient-to-br from-green-600/20 to-transparent rounded-3xl p-8 border border-green-500/20 shadow-xl">

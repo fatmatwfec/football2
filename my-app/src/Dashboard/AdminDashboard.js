@@ -23,6 +23,8 @@ const AdminDashboard = () => {
   const [approvedTeams, setApprovedTeams] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [liveMatches, setLiveMatches] = useState([]);
+  const [finishedMatches, setFinishedMatches] = useState([]);
 
   useEffect(() => {
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
@@ -39,7 +41,10 @@ const AdminDashboard = () => {
     });
 
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
-      setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMatches(data);
+      setLiveMatches(data.filter(m => m.status !== "completed"));
+      setFinishedMatches(data.filter(m => (m.status || "").trim().toLowerCase() === "completed"));
     });
 
     return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
@@ -139,6 +144,40 @@ const AdminDashboard = () => {
               </section>
 
 
+
+              <h2 className="text-xs font-black uppercase text-slate-400 mb-4">
+                🔴 Live Matches
+              </h2>
+
+              {liveMatches.map(match => (
+                <div key={match.id} className="glass p-4 rounded-2xl mb-3">
+                  <h3 className="text-white font-bold">
+                    {match.team1Name} vs {match.team2Name}
+                  </h3>
+                  <p className="text-2xl font-black text-blue-500">
+                    {match.score || "0-0"}
+                  </p>
+                  <p className="text-[10px] text-green-400">LIVE</p>
+                </div>
+              ))}
+
+              <h2 className="text-xs font-black uppercase text-slate-400 mt-8 mb-4">
+                📜 Match History
+              </h2>
+
+              {finishedMatches.map(match => (
+                <div key={match.id} className="glass p-4 rounded-2xl mb-3 opacity-80">
+                  <h3 className="text-white font-bold">
+                    {match.team1Name} vs {match.team2Name}
+                  </h3>
+                  <p className="text-lg">
+                    {match.score || "0-0"}
+                  </p>
+                  <p className="text-[10px] text-yellow-400">
+                    Finished
+                  </p>
+                </div>
+              ))}
 
               <h2 className="text-xl font-black uppercase tracking-widest text-white mb-8 flex items-center gap-3">
                 <span className="size-3 bg-blue-500 rounded-full animate-ping shadow-[0_0_10px_rgba(59,130,246,1)]"></span>
