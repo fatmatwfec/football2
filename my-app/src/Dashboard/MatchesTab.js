@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-import { FaTrophy, FaTrash, FaFutbol, FaTimes,FaCalendarAlt, FaClock, FaCheckCircle, FaBan, FaFire, FaFilter,} from 'react-icons/fa';
-import { scheduleMatch, prepareMatchForResult, finalizeMatch, deleteMatch, syncMatchStatuses,} from '../services/matchService';
-import { getRoundLabel, buildMatchCache, getMatchRoundFromCache,} from '../services/tournamentService';
+import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCircle, FaBan, FaFire, FaFilter } from 'react-icons/fa';
+import { scheduleMatch, prepareMatchForResult, finalizeMatch, deleteMatch, syncMatchStatuses } from '../services/matchService';
+import { getRoundLabel, buildMatchCache, getMatchRoundFromCache } from '../services/tournamentService';
 
 const MatchesTab = () => {
   const [matches,    setMatches]    = useState([]);
@@ -88,9 +88,26 @@ const MatchesTab = () => {
     [roundFilter, tournament, matchCache],
   );
 
-  const scheduledMatches = filterByRound(matches.filter((m) => m.status === 'scheduled'));
-  const liveMatches      = filterByRound(matches.filter((m) => m.status === 'live'));
-  const completedMatches = filterByRound(matches.filter((m) => m.status === 'completed'));
+  const resolveTeamName = useCallback(
+    (teamId, fallback) => {
+      const found = teams.find(t => t.id === teamId);
+      return found?.teamName || fallback;
+    },
+    [teams],
+  );
+
+  const enrichedMatches = useMemo(() =>
+    matches.map(m => ({
+      ...m,
+      team1Name: resolveTeamName(m.team1Id, m.team1Name),
+      team2Name: resolveTeamName(m.team2Id, m.team2Name),
+    })),
+    [matches, resolveTeamName],
+  );
+
+  const scheduledMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'scheduled'));
+  const liveMatches      = filterByRound(enrichedMatches.filter((m) => m.status === 'live'));
+  const completedMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'completed'));
 
   // ── Handlers ─────────────────────────────────────────────
   const handleSchedule = async (e) => {
@@ -555,7 +572,6 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-10">
-
           <div
             className="flex items-center justify-center gap-8 bg-slate-950 p-10 rounded-[3rem] border border-white/5 shadow-inner"
             onChange={handleScoreChange}
