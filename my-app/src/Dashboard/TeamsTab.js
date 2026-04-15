@@ -8,6 +8,7 @@ import {
   FaUserPlus, FaShieldAlt, FaUserMinus, FaTrashAlt, FaFutbol, FaSquare,
   FaCheckCircle, FaExclamationTriangle, FaSearch, FaTimes, FaBan, FaPen, FaCheck,
 } from 'react-icons/fa';
+import { updateTeamNameInTournament } from '../services/tournamentService'; 
 
 const getSuspensionType = (player) => {
   if (!player.suspendedForNextMatch) return null;
@@ -20,7 +21,6 @@ const getSuspensionType = (player) => {
 
 const isSuspended = (player) => !!player.suspendedForNextMatch;
 
-// ─────────────────────────────────────────────────────────────
 const TeamsTab = ({ teams, players }) => {
 
   const [selectedPlayers, setSelectedPlayers] = useState({});
@@ -42,7 +42,6 @@ const TeamsTab = ({ teams, players }) => {
     t.teamName?.toLowerCase().includes(teamSearch.toLowerCase())
   );
 
-  // ── Delete Team ───────────────────────────────────────────
   const handleDeleteTeam = async (teamId, teamName) => {
     if (!window.confirm(`Are you sure you want to delete ${teamName}? All members will become Free Agents.`)) return;
     try {
@@ -58,7 +57,6 @@ const TeamsTab = ({ teams, players }) => {
     } catch (error) { console.error(error); }
   };
 
-  // ── Add Player ────────────────────────────────────────────
   const handleAddPlayer = async (teamId, teamName) => {
     const currentPlayerId = selectedPlayers[teamId];
     if (!currentPlayerId) return alert('Please select a player first!');
@@ -84,7 +82,6 @@ const TeamsTab = ({ teams, players }) => {
     } catch (error) { console.error(error); }
   };
 
-  // ── Remove Player ─────────────────────────────────────────
   const handleRemovePlayer = async (teamId, teamName, player) => {
     if (!window.confirm(`Remove ${player.name} from ${teamName}?`)) return;
     try {
@@ -99,6 +96,7 @@ const TeamsTab = ({ teams, players }) => {
       await batch.commit();
     } catch (error) { console.error(error); }
   };
+
   const handleRenameTeam = async (teamId, e) => {
     e?.stopPropagation();
     const newName = renameValue.trim();
@@ -108,7 +106,7 @@ const TeamsTab = ({ teams, players }) => {
     const oldName = teamObj.teamName;
     if (newName === oldName) { cancelRename(); return; }
 
-    if (!window.confirm(`Rename "${oldName}" to "${newName}"?\nسيتم تحديث الاسم في الفرق والمباريات والطلاب.`)) return;
+    if (!window.confirm(`Rename "${oldName}" to "${newName}"?\nسيتم تحديث الاسم في الفرق والمباريات والطلاب والبراكيت.`)) return;
 
     try {
       const batch = writeBatch(db);
@@ -130,6 +128,9 @@ const TeamsTab = ({ teams, players }) => {
       snap2.forEach(d => batch.update(d.ref, { team2Name: newName }));
 
       await batch.commit();
+
+      await updateTeamNameInTournament(teamId, newName);
+
       cancelRename();
     } catch (error) {
       console.error(error);
@@ -149,7 +150,6 @@ const TeamsTab = ({ teams, players }) => {
     setRenameValue('');
   };
 
-  // ── Render ───────────────────────────────────────────────
   return (
     <div className="animate-in fade-in duration-500 pb-20 px-4 max-w-7xl mx-auto">
 
@@ -192,7 +192,6 @@ const TeamsTab = ({ teams, players }) => {
                 isFull ? 'border-emerald-500/30' : 'border-white/5'
               }`}
             >
-              {/* Status Badge */}
               <div className="absolute -top-3 left-8">
                 {isFull ? (
                   <span className="flex items-center gap-1.5 text-[9px] font-black bg-emerald-500 text-slate-900 px-4 py-1.5 rounded-full uppercase shadow-md">
@@ -212,7 +211,6 @@ const TeamsTab = ({ teams, players }) => {
                 <FaTrashAlt size={14} />
               </button>
 
-              {/* Team Header */}
               <div className="flex items-center gap-5 mb-6">
                 <div className="size-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-900 flex items-center justify-center text-white text-2xl font-black border border-white/10 shadow-lg flex-shrink-0">
                   {(isRenaming ? renameValue : team.teamName)?.[0]?.toUpperCase() || 'T'}
@@ -264,7 +262,6 @@ const TeamsTab = ({ teams, players }) => {
                 </div>
               </div>
 
-              {/* Roster */}
               <div className="space-y-2 mb-6 flex-grow">
                 <div className="flex justify-between items-end px-1 mb-2">
                   <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Roster</h4>
@@ -335,7 +332,6 @@ const TeamsTab = ({ teams, players }) => {
                 )}
               </div>
 
-              {/* Add Player */}
               <div className="pt-4 border-t border-white/5 flex gap-2 mt-auto">
                 <select
                   value={selectedPlayers[team.id] || ''}
@@ -365,7 +361,6 @@ const TeamsTab = ({ teams, players }) => {
         )}
       </div>
 
-      {/* Player Profile Modal */}
       {selectedMember && (
         <PlayerModal player={selectedMember} onClose={() => setSelectedMember(null)} />
       )}
@@ -373,7 +368,6 @@ const TeamsTab = ({ teams, players }) => {
   );
 };
 
-// ─── Player Profile Modal ─────────────────────────────────────
 const PlayerModal = ({ player, onClose }) => {
   const suspended = isSuspended(player);
   const suspType  = getSuspensionType(player);
@@ -438,7 +432,6 @@ const PlayerModal = ({ player, onClose }) => {
   );
 };
 
-// ─── Stat Box ─────────────────────────────────────────────────
 const StatBox = ({ icon, value, label, highlight = false, highlightColor = 'emerald' }) => {
   const borderClass = highlight
     ? highlightColor === 'red'    ? 'border-red-500/40 bg-red-500/10'

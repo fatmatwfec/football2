@@ -71,6 +71,36 @@ export const generateBracket = async (teams) => {
   });
 };
 
+export const updateTeamNameInTournament = async (teamId, newName) => {
+  const snap = await getDoc(doc(db, 'tournaments', 'main'));
+  if (!snap.exists()) return; 
+
+  const tData     = snap.data();
+  const newRounds = JSON.parse(JSON.stringify(tData.rounds));
+  let   changed   = false;
+
+  for (const rKey of Object.keys(newRounds)) {
+    for (const match of newRounds[rKey]) {
+      if (match.team1?.id === teamId) {
+        match.team1.name = newName;
+        changed = true;
+      }
+      if (match.team2?.id === teamId) {
+        match.team2.name = newName;
+        changed = true;
+      }
+      if (match.winner?.id === teamId) {
+        match.winner.name = newName;
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) {
+    await setDoc(doc(db, 'tournaments', 'main'), { ...tData, rounds: newRounds });
+  }
+};
+
 export const advanceBracketWinner = async (winnerId, winnerName, team1Id, team2Id) => {
   const snap = await getDoc(doc(db, 'tournaments', 'main'));
   if (!snap.exists()) return;
