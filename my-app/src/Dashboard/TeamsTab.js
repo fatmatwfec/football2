@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { doc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 import {
-  FaUsers, FaUserPlus, FaShieldAlt, FaUserMinus,FaTrashAlt, FaFutbol, FaSquare, FaCheckCircle, FaExclamationTriangle, FaSearch, FaTimes, FaBan,
+  doc, writeBatch, arrayUnion, arrayRemove,
+  collection, getDocs, query, where,
+} from 'firebase/firestore';
+import {
+  FaUserPlus, FaShieldAlt, FaUserMinus, FaTrashAlt, FaFutbol, FaSquare,
+  FaCheckCircle, FaExclamationTriangle, FaSearch, FaTimes, FaBan, FaPen, FaCheck,
 } from 'react-icons/fa';
+import { updateTeamNameInTournament } from '../services/tournamentService'; 
 
 const getSuspensionType = (player) => {
   if (!player.suspendedForNextMatch) return null;
@@ -16,20 +21,20 @@ const getSuspensionType = (player) => {
 
 const isSuspended = (player) => !!player.suspendedForNextMatch;
 
-// ─────────────────────────────────────────────────────────────
 const TeamsTab = ({ teams, players }) => {
 
   const [selectedPlayers, setSelectedPlayers] = useState({});
   const [selectedMember,  setSelectedMember]  = useState(null);
   const [teamSearch,      setTeamSearch]      = useState('');
+  const [renamingTeamId,  setRenamingTeamId]  = useState(null);
+  const [renameValue,     setRenameValue]     = useState('');
 
   const getTeamMembers = (team) =>
     players.filter(p =>
-      (p.teamId      && String(p.teamId).trim()      === String(team.id).trim()) ||
-      (p.assignedTeam && String(p.assignedTeam).trim() === String(team.teamName).trim())
+      p.teamId && String(p.teamId).trim() === String(team.id).trim()
     );
 
-  const freeAgents    = players.filter(p =>
+  const freeAgents = players.filter(p =>
     (p.role === 'student' || p.role === 'player') && !p.hasTeam
   );
 
@@ -37,11 +42,10 @@ const TeamsTab = ({ teams, players }) => {
     t.teamName?.toLowerCase().includes(teamSearch.toLowerCase())
   );
 
-  // ── Handlers ─────────────────────────────────────────────
   const handleDeleteTeam = async (teamId, teamName) => {
     if (!window.confirm(`Are you sure you want to delete ${teamName}? All members will become Free Agents.`)) return;
     try {
-      const batch  = writeBatch(db);
+      const batch   = writeBatch(db);
       const teamObj = teams.find(t => t.id === teamId);
       getTeamMembers(teamObj).forEach(member => {
         batch.update(doc(db, 'users', member.id), {
@@ -57,7 +61,7 @@ const TeamsTab = ({ teams, players }) => {
     const currentPlayerId = selectedPlayers[teamId];
     if (!currentPlayerId) return alert('Please select a player first!');
 
-    const teamObj    = teams.find(t => t.id === teamId);
+    const teamObj     = teams.find(t => t.id === teamId);
     const teamMembers = getTeamMembers(teamObj);
     if (teamMembers.length >= 7) return alert('Team is full!');
 
@@ -93,7 +97,59 @@ const TeamsTab = ({ teams, players }) => {
     } catch (error) { console.error(error); }
   };
 
-  // ── Render ───────────────────────────────────────────────
+  const handleRenameTeam = async (teamId, e) => {
+    e?.stopPropagation();
+    const newName = renameValue.trim();
+    if (!newName) return alert('Team name cannot be empty!');
+
+    const teamObj = teams.find(t => t.id === teamId);
+    const oldName = teamObj.teamName;
+    if (newName === oldName) { cancelRename(); return; }
+
+    if (!window.confirm(`Rename "${oldName}" to "${newName}"?\nسيتم تحديث الاسم في الفرق والمباريات والطلاب والبراكيت.`)) return;
+
+    try {
+      const batch = writeBatch(db);
+
+      batch.update(doc(db, 'teams', teamId), { teamName: newName });
+
+      getTeamMembers(teamObj).forEach(member => {
+        batch.update(doc(db, 'users', member.id), { assignedTeam: newName });
+      });
+
+      const snap1 = await getDocs(
+        query(collection(db, 'matches'), where('team1Name', '==', oldName))
+      );
+      snap1.forEach(d => batch.update(d.ref, { team1Name: newName }));
+
+      const snap2 = await getDocs(
+        query(collection(db, 'matches'), where('team2Name', '==', oldName))
+      );
+      snap2.forEach(d => batch.update(d.ref, { team2Name: newName }));
+
+      await batch.commit();
+
+      await updateTeamNameInTournament(teamId, newName);
+
+      cancelRename();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to rename team. Please try again.');
+    }
+  };
+
+  const startRename = (team, e) => {
+    e.stopPropagation();
+    setRenamingTeamId(team.id);
+    setRenameValue(team.teamName);
+  };
+
+  const cancelRename = (e) => {
+    e?.stopPropagation();
+    setRenamingTeamId(null);
+    setRenameValue('');
+  };
+
   return (
     <div className="animate-in fade-in duration-500 pb-20 px-4 max-w-7xl mx-auto">
 
@@ -105,7 +161,6 @@ const TeamsTab = ({ teams, players }) => {
           </h2>
           <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase italic">Tournament Management</p>
         </div>
-
         <div className="relative w-full md:w-80">
           <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-sm" />
           <input
@@ -128,6 +183,7 @@ const TeamsTab = ({ teams, players }) => {
         {filteredTeams.length > 0 ? filteredTeams.map((team) => {
           const currentMembers = getTeamMembers(team);
           const isFull         = currentMembers.length === 7;
+          const isRenaming     = renamingTeamId === team.id;
 
           return (
             <div
@@ -136,7 +192,6 @@ const TeamsTab = ({ teams, players }) => {
                 isFull ? 'border-emerald-500/30' : 'border-white/5'
               }`}
             >
-              {/* Status Badge */}
               <div className="absolute -top-3 left-8">
                 {isFull ? (
                   <span className="flex items-center gap-1.5 text-[9px] font-black bg-emerald-500 text-slate-900 px-4 py-1.5 rounded-full uppercase shadow-md">
@@ -156,18 +211,57 @@ const TeamsTab = ({ teams, players }) => {
                 <FaTrashAlt size={14} />
               </button>
 
-              {/* Team Header */}
               <div className="flex items-center gap-5 mb-6">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-900 flex items-center justify-center text-white text-2xl font-black border border-white/10 shadow-lg">
-                  {team.teamName?.[0] || 'T'}
+                <div className="size-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-900 flex items-center justify-center text-white text-2xl font-black border border-white/10 shadow-lg flex-shrink-0">
+                  {(isRenaming ? renameValue : team.teamName)?.[0]?.toUpperCase() || 'T'}
                 </div>
-                <div>
-                  <h3 className="text-white font-black text-xl uppercase leading-none mb-1">{team.teamName}</h3>
+                <div className="flex-1 min-w-0">
+                  {isRenaming ? (
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter')  handleRenameTeam(team.id, e);
+                          if (e.key === 'Escape') cancelRename(e);
+                        }}
+                        className="flex-1 bg-slate-950 border border-emerald-500/50 rounded-xl px-3 py-2 text-white text-sm font-black uppercase outline-none focus:border-emerald-400 transition-all"
+                      />
+                      <button
+                        onClick={(e) => handleRenameTeam(team.id, e)}
+                        className="text-emerald-500 hover:text-emerald-400 transition-all p-1"
+                        title="Confirm rename"
+                      >
+                        <FaCheck size={14} />
+                      </button>
+                      <button
+                        onClick={cancelRename}
+                        className="text-slate-500 hover:text-white transition-all p-1"
+                        title="Cancel"
+                      >
+                        <FaTimes size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group/rename">
+                      <h3 className="text-white font-black text-xl uppercase leading-none truncate">
+                        {team.teamName}
+                      </h3>
+                      <button
+                        onClick={(e) => startRename(team, e)}
+                        className="text-slate-600 hover:text-emerald-400 transition-all opacity-0 group-hover/rename:opacity-100 flex-shrink-0"
+                        title="Rename team"
+                      >
+                        <FaPen size={11} />
+                      </button>
+                    </div>
+                  )}
                   <span className="text-emerald-500/70 text-[9px] font-black uppercase tracking-wider">Official Squad</span>
                 </div>
               </div>
 
-              {/* Roster */}
               <div className="space-y-2 mb-6 flex-grow">
                 <div className="flex justify-between items-end px-1 mb-2">
                   <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Roster</h4>
@@ -195,33 +289,22 @@ const TeamsTab = ({ teams, players }) => {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Status dot */}
                         <div className={`size-2 rounded-full flex-shrink-0 ${
-                          isRedSusp
-                            ? 'bg-red-500 animate-pulse'
-                            : isYellowSusp
-                            ? 'bg-yellow-500 animate-pulse'
-                            : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                          isRedSusp    ? 'bg-red-500 animate-pulse'
+                          : isYellowSusp ? 'bg-yellow-500 animate-pulse'
+                          : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
                         }`} />
-
                         <div className="flex flex-col min-w-0">
-                          <span className="text-white text-sm font-bold truncate max-w-[150px]">
-                            {member.name}
-                          </span>
-
+                          <span className="text-white text-sm font-bold truncate max-w-[150px]">{member.name}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] text-slate-500 font-black uppercase tracking-tighter">
                               {member.position || 'Player'}
                             </span>
-
-                            {/* Red card suspension label */}
                             {isRedSusp && (
                               <span className="flex items-center gap-1 text-red-400 text-[8px] font-black uppercase bg-red-500/20 px-2 py-0.5 rounded-full border border-red-500/30">
                                 🟥 RED CARD — BANNED
                               </span>
                             )}
-
-                            {/* Yellow card suspension label */}
                             {isYellowSusp && (
                               <span className="flex items-center gap-1 text-yellow-400 text-[8px] font-black uppercase bg-yellow-500/20 px-2 py-0.5 rounded-full border border-yellow-500/30">
                                 🟨 YELLOW — SUSPENDED
@@ -230,7 +313,6 @@ const TeamsTab = ({ teams, players }) => {
                           </div>
                         </div>
                       </div>
-
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRemovePlayer(team.id, team.teamName, member); }}
                         className="text-slate-700 hover:text-red-500 transition-all flex-shrink-0"
@@ -250,7 +332,6 @@ const TeamsTab = ({ teams, players }) => {
                 )}
               </div>
 
-              {/* Add Player */}
               <div className="pt-4 border-t border-white/5 flex gap-2 mt-auto">
                 <select
                   value={selectedPlayers[team.id] || ''}
@@ -261,11 +342,7 @@ const TeamsTab = ({ teams, players }) => {
                   {freeAgents.map(p => {
                     const susp = getSuspensionType(p);
                     const tag  = susp === 'red' ? ' 🟥' : susp === 'yellow' ? ' 🟨' : '';
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {p.name}{tag}
-                      </option>
-                    );
+                    return <option key={p.id} value={p.id}>{p.name}{tag}</option>;
                   })}
                 </select>
                 <button
@@ -284,18 +361,13 @@ const TeamsTab = ({ teams, players }) => {
         )}
       </div>
 
-      {/* Player Profile Modal */}
       {selectedMember && (
-        <PlayerModal
-          player={selectedMember}
-          onClose={() => setSelectedMember(null)}
-        />
+        <PlayerModal player={selectedMember} onClose={() => setSelectedMember(null)} />
       )}
     </div>
   );
 };
 
-// ─── Player Profile Modal ─────────────────────────────────────
 const PlayerModal = ({ player, onClose }) => {
   const suspended = isSuspended(player);
   const suspType  = getSuspensionType(player);
@@ -312,14 +384,10 @@ const PlayerModal = ({ player, onClose }) => {
         <button onClick={onClose} className="absolute top-6 right-6 text-slate-500 hover:text-white">
           <FaTimes size={20} />
         </button>
-
-        {/* Avatar + name */}
         <div className="text-center mb-6">
           <div className={`size-20 rounded-2xl flex items-center justify-center mx-auto mb-4 border shadow-xl ${
             suspended
-              ? suspType === 'red'
-                ? 'bg-red-500/10 border-red-500/30'
-                : 'bg-yellow-500/10 border-yellow-500/30'
+              ? suspType === 'red' ? 'bg-red-500/10 border-red-500/30' : 'bg-yellow-500/10 border-yellow-500/30'
               : 'bg-emerald-500/10 border-emerald-500/20'
           }`}>
             {suspended
@@ -327,11 +395,8 @@ const PlayerModal = ({ player, onClose }) => {
               : <FaShieldAlt className="text-emerald-500" size={36} />
             }
           </div>
-
           <h3 className="text-white font-black text-2xl uppercase tracking-tighter">{player.name}</h3>
           <p className="text-emerald-500 font-black uppercase tracking-widest mt-1 text-[10px] italic">Squad Member</p>
-
-          {/* Suspension badge */}
           {suspended && (
             <div className={`mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase border ${
               suspType === 'red'
@@ -343,26 +408,19 @@ const PlayerModal = ({ player, onClose }) => {
             </div>
           )}
         </div>
-
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           <StatBox icon={<FaFutbol className="text-emerald-500" size={16} />} value={player.goals || 0} label="Goals" />
           <StatBox
             icon={<FaSquare className="text-yellow-400" size={16} />}
-            value={player.yellowCards || 0}
-            label="Yellow"
-            highlight={Number(player.yellowCards || 0) >= 2}
-            highlightColor="yellow"
+            value={player.yellowCards || 0} label="Yellow"
+            highlight={Number(player.yellowCards || 0) >= 2} highlightColor="yellow"
           />
           <StatBox
             icon={<FaSquare className="text-red-500" size={16} />}
-            value={player.redCards || 0}
-            label="Red"
-            highlight={Number(player.redCards || 0) > 0}
-            highlightColor="red"
+            value={player.redCards || 0} label="Red"
+            highlight={Number(player.redCards || 0) > 0} highlightColor="red"
           />
         </div>
-
         <button
           onClick={onClose}
           className="mt-8 w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-black uppercase transition-all shadow-lg"
@@ -374,7 +432,6 @@ const PlayerModal = ({ player, onClose }) => {
   );
 };
 
-// ─── Stat Box ─────────────────────────────────────────────────
 const StatBox = ({ icon, value, label, highlight = false, highlightColor = 'emerald' }) => {
   const borderClass = highlight
     ? highlightColor === 'red'    ? 'border-red-500/40 bg-red-500/10'
