@@ -125,8 +125,25 @@ export default function AdminDashboard() {
   // ─── Derived data ────────────────────────────────────────────
   const players = allUsers.filter(u => u.role !== "admin");
   const freeAgents = players.filter(p => !p.hasTeam);
-  const liveMatches = matches.filter(m => m.status === "live");
-  const scheduledMatches = matches.filter(m => m.status === "scheduled" || m.status === "upcoming");
+  const now = Date.now();
+
+const liveMatches = matches.filter(m => {
+  if (!m.startTime) return false;
+
+  const start = m.startTime;
+
+  const isInTimeWindow =
+    now >= start &&
+    now <= start + 2 * 60 * 60 * 1000;
+
+  const notFinished = m.status !== "completed";
+
+  return isInTimeWindow && notFinished;
+});
+ const scheduledMatches = matches.filter(m =>
+  m.status === "scheduled" &&
+  m.startTime > Date.now()
+);
   const completedMatches = matches.filter(m => (m.status || "").toLowerCase() === "completed");
 
   const topScorers = [...players]
@@ -360,6 +377,7 @@ const getWinner = (match) => {
         team2Name: newMatchTeam2.teamName,
         date: newMatchDate,
         time: newMatchTime,
+        startTime: new Date(`${newMatchDate} ${newMatchTime}`).getTime(),
         pitch: newMatchPitch,
         status: "scheduled",
         score: null,
@@ -376,7 +394,7 @@ const getWinner = (match) => {
   // ─── Result modal ────────────────────────────────────────────
   const openResultModal = async (match) => {
     // Set to live
-    await updateDoc(doc(db, "matches", match.id), { status: "live" });
+    
     const matchPlayers = players.filter(
       p => p.teamId === match.team1Id || p.teamId === match.team2Id
     );
