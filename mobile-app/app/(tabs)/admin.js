@@ -16,10 +16,10 @@ const { width } = Dimensions.get("window");
 
 // ─── Helpers ───────────────────────────────────────────────────
 const getRoundLabel = (roundIndex, totalRounds) => {
-  const fromEnd = totalRounds - roundIndex;
-  if (fromEnd === 1) return "FINAL";
-  if (fromEnd === 2) return "SEMI-FINAL";
-  if (fromEnd === 3) return "QUARTER-FINAL";
+   if (roundIndex === 0) return "ROUND 1";
+  if (roundIndex === 1) return "ROUND 2";
+  if (roundIndex === 2) return "SEMI FINAL";
+  if (roundIndex === 3) return "FINAL";
   return `ROUND ${roundIndex + 1}`;
 };
 
@@ -160,76 +160,79 @@ export default function AdminDashboard() {
     .sort((a, b) => b.stats.points - a.stats.points);
 
   // ─── Tournament draw ─────────────────────────────────────────
-  const handleGenerateDraw = async () => {
-    if (approvedTeams.length < 2) {
-      Alert.alert("Need at least 2 approved teams!");
+const handleGenerateDraw = async () => {
+  try {
+    if (!approvedTeams || approvedTeams.length < 2) {
+      Alert.alert("Need at least 2 teams");
       return;
     }
-    Alert.alert("Generate Draw", `Generate tournament bracket for ${approvedTeams.length} teams?`, [
-      { text: "Cancel" },
-      {
-        text: "Generate", onPress: async () => {
-          setIsGenerating(true);
-          try {
-            const shuffled = shuffle(approvedTeams);
-            const rounds = {};
-            let currentRound = shuffled;
-            let roundIndex = 0;
 
-            while (currentRound.length > 1) {
-              const roundMatches = [];
-              const nextRound = [];
-              for (let i = 0; i < currentRound.length; i += 2) {
-                if (currentRound[i + 1]) {
-                  roundMatches.push({
-                    team1Id: currentRound[i].id,
-                    team1Name: currentRound[i].teamName,
-                    team2Id: currentRound[i + 1].id,
-                    team2Name: currentRound[i + 1].teamName,
-                  });
-                  nextRound.push(currentRound[i]);
-                } else {
-                  nextRound.push(currentRound[i]);
-                }
-              }
-              rounds[roundIndex] = roundMatches;
-              currentRound = nextRound;
-              roundIndex++;
-            }
+    setIsGenerating(true);
 
-            // Save tournament doc
-            await setDoc(doc(db, "tournaments", "main"), {
-              rounds,
-              totalRounds: roundIndex,
-              teams: shuffled.map(t => ({ id: t.id, name: t.teamName })),
-              createdAt: new Date(),
-            });
+    const shuffled = [...approvedTeams].sort(() => Math.random() - 0.5);
 
-            // Create first round matches in Firestore
-            const firstRound = rounds[0] || [];
-            for (const m of firstRound) {
-              await addDoc(collection(db, "matches"), {
-                team1Id: m.team1Id,
-                team1Name: m.team1Name,
-                team2Id: m.team2Id,
-                team2Name: m.team2Name,
-                status: "scheduled",
-                round: getRoundLabel(0, roundIndex),
-                score: null,
-                date: "",
-                time: "",
-                pitch: "Main Pitch",
-                createdAt: new Date(),
-              });
-            }
+    const firstRound = [];
 
-            Alert.alert("✅ Draw Generated!", `${firstRound.length} matches created for Round 1`);
-          } catch (e) { console.error(e); Alert.alert("Error generating draw"); }
-          setIsGenerating(false);
-        }
+    for (let i = 0; i < shuffled.length; i += 2) {
+      if (shuffled[i + 1]) {
+        firstRound.push({
+          team1Id: shuffled[i].id,
+          team1Name: shuffled[i].teamName,
+          team2Id: shuffled[i + 1].id,
+          team2Name: shuffled[i + 1].teamName,
+        });
       }
-    ]);
+    }
+
+  
+    await setDoc(doc(db, "tournaments", "main"), {
+      rounds: {
+        0: firstRound
+      },
+      createdAt: serverTimestamp(),
+    });
+
+    // create matches
+    for (const m of firstRound) {
+      await addDoc(collection(db, "matches"), {
+        ...m,
+        status: "scheduled",
+        round: 0,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    Alert.alert("Tournament started (Round 1 only)");
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setIsGenerating(false);
+  }
+};
+
+const getWinner = (match) => {
+  const [s1, s2] = (match.score || "0-0").split("-").map(Number);
+
+  if (s1 > s2) return {
+    id: match.team1Id,
+    name: match.team1Name
   };
+
+  if (s2 > s1) return {
+    id: match.team2Id,
+    name: match.team2Name
+  };
+
+  
+  if (match.penalties) {
+    const [p1, p2] = match.penalties.split("-").map(Number);
+    return p1 > p2
+      ? { id: match.team1Id, name: match.team1Name }
+      : { id: match.team2Id, name: match.team2Name };
+  }
+
+  return null;
+};
 
   // ─── Team actions ────────────────────────────────────────────
   const handleApprove = async (id) => {
@@ -424,11 +427,44 @@ export default function AdminDashboard() {
       });
 
       await batch.commit();
+
+      await advanceTournament(resultMatch);
+      
       Alert.alert("✅ Result Saved!");
       setResultMatch(null);
     } catch (e) { console.error(e); Alert.alert("Error saving result"); }
     setIsSubmitting(false);
   };
+  const advanceTournament = async (match) => {
+  const winner = getWinner(match);
+  if (!winner) return;
+
+  const tournamentRef = doc(db, "tournaments", "main");
+  const snap = await getDoc(tournamentRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const rounds = data.rounds || {};
+
+  const currentRound = match.round; 
+
+  const nextRound = currentRound + 1;
+
+  if (!rounds[nextRound]) {
+    rounds[nextRound] = [];
+  }
+
+  rounds[nextRound].push({
+    team1Id: winner.id,
+    team1Name: winner.name,
+    team2Id: null,
+    team2Name: null,
+  });
+
+  await updateDoc(tournamentRef, { rounds });
+
+  console.log(`🏆 ${winner.name} advanced to round ${nextRound}`);
+};
 
   const handleDeleteMatch = async (match) => {
     Alert.alert("Delete Match", "Are you sure?", [
