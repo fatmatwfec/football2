@@ -430,7 +430,7 @@ shrink-0">
               <NavButton active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }} icon={<BsGridFill />} label="HOME" />
               <NavButton active={activeTab === "players"} onClick={() => { setActiveTab("players"); setIsSidebarOpen(false); }} icon={<FaUserPlus />} label="PLAYERS" />
               <NavButton active={activeTab === "teams"} onClick={() => { setActiveTab("teams"); setIsSidebarOpen(false); }} icon={<FaShieldAlt />} label="TEAMS" />
-              <NavButton active={activeTab === "tournament"} onClick={() => { setActiveTab("tournament"); setIsSidebarOpen(false); }} icon={<FaSitemap />} label="DRAW" />
+              <NavButton active={activeTab === "tournament"} onClick={() => { setActiveTab("tournament"); setIsSidebarOpen(false); }} icon={<FaSitemap />} label="TOURNAMENT" />
               <NavButton active={activeTab === "schedule"} onClick={() => { setActiveTab("schedule"); setIsSidebarOpen(false); }} icon={<FaRegCalendarAlt />} label="MATCHES" />
               <NavButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} icon={<FaCog />} label="SETTINGS" />
             </div>
