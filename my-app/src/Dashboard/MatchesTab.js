@@ -6,15 +6,17 @@ import { scheduleMatch, prepareMatchForResult, finalizeMatch, deleteMatch, syncM
 import { getRoundLabel, buildMatchCache, getMatchRoundFromCache } from '../services/tournamentService';
 
 const MatchesTab = () => {
-  const [matches,    setMatches]    = useState([]);
-  const [teams,      setTeams]      = useState([]);
-  const [players,    setPlayers]    = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]);
   const [tournament, setTournament] = useState(null);
 
-  const [showAddForm,     setShowAddForm]     = useState(false);
+  const [activeClick, setActiveClick] = useState("live");
+
+  const [showAddForm, setShowAddForm] = useState(false);
   const [showResultModal, setShowResultModal] = useState(null);
-  const [isSubmitting,    setIsSubmitting]    = useState(false);
-  const [roundFilter,     setRoundFilter]     = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [roundFilter, setRoundFilter] = useState(null);
 
   const [newMatch, setNewMatch] = useState({
     team1Id: '', team2Id: '', team1Name: '', team2Name: '',
@@ -58,7 +60,7 @@ const MatchesTab = () => {
     return Object.keys(tournament.rounds)
       .sort((a, b) => parseInt(a) - parseInt(b))
       .map((rKey) => ({
-        key:   parseInt(rKey),
+        key: parseInt(rKey),
         label: getRoundLabel(parseInt(rKey), Object.keys(tournament.rounds).length),
       }));
   }, [tournament]);
@@ -106,7 +108,7 @@ const MatchesTab = () => {
   );
 
   const scheduledMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'scheduled'));
-  const liveMatches      = filterByRound(enrichedMatches.filter((m) => m.status === 'live'));
+  const liveMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'live'));
   const completedMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'completed'));
 
   // ── Handlers ─────────────────────────────────────────────
@@ -134,7 +136,7 @@ const MatchesTab = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const fd  = new FormData(e.target);
+    const fd = new FormData(e.target);
     const raw = Object.fromEntries(fd.entries());
 
     const activePlayers = players.filter(
@@ -190,11 +192,10 @@ const MatchesTab = () => {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className={`px-8 py-4 rounded-2xl font-black text-xs uppercase transition-all shadow-2xl ${
-            showAddForm
-              ? 'bg-red-500/10 text-red-500 border border-red-500/20'
-              : 'bg-blue-600 text-white hover:bg-blue-500'
-          }`}
+          className={`px-8 py-4 rounded-2xl font-black text-xs uppercase transition-all shadow-2xl ${showAddForm
+            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+            : 'bg-blue-600 text-white hover:bg-blue-500'
+            }`}
         >
           {showAddForm ? 'Cancel Schedule' : 'Schedule New Match'}
         </button>
@@ -206,11 +207,10 @@ const MatchesTab = () => {
           <FaFilter className="text-slate-500 text-sm" />
           <button
             onClick={() => setRoundFilter(null)}
-            className={`px-4 py-2 rounded-xl font-black text-xs uppercase transition-all border ${
-              roundFilter === null
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-transparent text-slate-500 border-white/10 hover:border-white/20'
-            }`}
+            className={`px-4 py-2 rounded-xl font-black text-xs uppercase transition-all border ${roundFilter === null
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-transparent text-slate-500 border-white/10 hover:border-white/20'
+              }`}
           >
             All Rounds
           </button>
@@ -218,11 +218,10 @@ const MatchesTab = () => {
             <button
               key={r.key}
               onClick={() => setRoundFilter(r.key)}
-              className={`px-4 py-2 rounded-xl font-black text-xs uppercase transition-all border ${
-                roundFilter === r.key
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-transparent text-slate-500 border-white/10 hover:border-white/20'
-              }`}
+              className={`px-4 py-2 rounded-xl font-black text-xs uppercase transition-all border ${roundFilter === r.key
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-transparent text-slate-500 border-white/10 hover:border-white/20'
+                }`}
             >
               {r.label}
             </button>
@@ -306,8 +305,41 @@ const MatchesTab = () => {
         </div>
       )}
 
+      <div className="flex gap-10 border-b pb-2 mb-3 mt-3">
+        <button
+          onClick={() => setActiveClick("live")}
+          className={`font-bold text-3xl tracking-wide ${activeClick === "live"
+            ? "text-red-500 border-b-4 border-red-500 pb-1"
+            : "text-gray-300"
+            }`}
+        >
+          Live
+        </button>
+
+        <button
+          onClick={() => setActiveClick("upcoming")}
+          className={`font-bold text-3xl tracking-wide ${activeClick === "upcoming"
+            ? "text-green-500 border-b-4 border-green-500 pb-1"
+            : "text-gray-300"
+            }`}
+        >
+          Upcoming Matches
+        </button>
+
+        <button
+          onClick={() => setActiveClick("history")}
+          className={`font-bold text-3xl tracking-wide ${activeClick === "history"
+            ? "text-orange-700 border-b-4 border-orange-500 pb-1"
+            : "text-gray-300"
+            }`}
+        >
+          Match History
+        </button>
+      </div>
+
       {/* ── Live Matches ── */}
-      {liveMatches.length > 0 && (
+
+      {activeClick === "live" && liveMatches.length > 0 && (
         <Section
           label="🔴 Live Now"
           labelColor="text-red-500"
@@ -326,33 +358,35 @@ const MatchesTab = () => {
         />
       )}
 
-      {/* ── Scheduled Matches ── */}
-      <Section
-        label="Upcoming Fixtures"
-        labelColor="text-slate-500"
-        matches={scheduledMatches}
-        emptyText="No upcoming matches scheduled."
-        renderMatch={(m) => {
-          const canFinalize = isMatchFinished(m.date, m.time);
-          return (
-            <UpcomingMatchCard
-              key={m.id}
-              match={m}
-              roundLabel={getMatchRoundLabel(m)}
-              canFinalize={canFinalize}
-              isLive={false}
-              onEnterResult={() => handleOpenResult(m)}
-              onDelete={() => handleDelete(m)}
-            />
-          );
-        }}
-      />
 
+      {/* ── Scheduled Matches ── */}
+      {activeClick === "upcoming" && (
+        <Section
+          label="Upcoming Fixtures"
+          labelColor="text-emerald-500"
+          matches={scheduledMatches}
+          emptyText="No upcoming matches scheduled."
+          renderMatch={(m) => {
+            const canFinalize = isMatchFinished(m.date, m.time);
+            return (
+              <UpcomingMatchCard
+                key={m.id}
+                match={m}
+                roundLabel={getMatchRoundLabel(m)}
+                canFinalize={canFinalize}
+                isLive={false}
+                onEnterResult={() => handleOpenResult(m)}
+                onDelete={() => handleDelete(m)}
+              />
+            );
+          }}
+        />
+      )}
       {/* ── Match History ── */}
-      {completedMatches.length > 0 && (
+      {activeClick === "history" && completedMatches.length > 0 && (
         <Section
           label="Match History — Completed Fixtures"
-          labelColor="text-emerald-500"
+          labelColor="text-orange-500"
           matches={completedMatches}
           renderMatch={(m) => (
             <CompletedMatchCard
@@ -396,9 +430,8 @@ const Section = ({ label, labelColor, matches, emptyText, renderMatch }) => (
 
 // ─── Upcoming / Live Match Card ───────────────────────────────
 const UpcomingMatchCard = ({ match, roundLabel, canFinalize, isLive, onEnterResult, onDelete }) => (
-  <div className={`glass rounded-[3rem] p-8 border-2 transition-all shadow-2xl bg-slate-900/40 ${
-    isLive ? 'border-red-500/30' : 'border-white/5'
-  }`}>
+  <div className={`glass rounded-[3rem] p-8 border-2 transition-all shadow-2xl bg-slate-900/40 ${isLive ? 'border-red-500/30' : 'border-white/5'
+    }`}>
     <div className="flex items-center gap-3 mb-4">
       {roundLabel && (
         <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
@@ -423,11 +456,10 @@ const UpcomingMatchCard = ({ match, roundLabel, canFinalize, isLive, onEnterResu
       <button
         onClick={onEnterResult}
         disabled={!canFinalize}
-        className={`flex-[4] py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${
-          !canFinalize
-            ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
-            : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xl shadow-emerald-900/20'
-        }`}
+        className={`flex-[4] py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${!canFinalize
+          ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+          : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xl shadow-emerald-900/20'
+          }`}
       >
         {!canFinalize ? 'Waiting for kick-off' : 'Enter Results'}
       </button>
@@ -472,9 +504,9 @@ const CompletedMatchCard = ({ match, roundLabel, onDelete }) => (
             <div key={pId} className="bg-slate-950/60 rounded-2xl p-3 border border-white/5 flex items-center justify-between">
               <span className="text-white text-xs font-bold truncate">{stats.name}</span>
               <div className="flex gap-2 text-[10px] font-black ml-2 flex-shrink-0">
-                {stats.goals  > 0 && <span className="text-emerald-400">⚽ {stats.goals}</span>}
+                {stats.goals > 0 && <span className="text-emerald-400">⚽ {stats.goals}</span>}
                 {stats.yellow > 0 && <span className="text-yellow-400">🟨 {stats.yellow}</span>}
-                {stats.red    > 0 && <span className="text-red-400">🟥 {stats.red}</span>}
+                {stats.red > 0 && <span className="text-red-400">🟥 {stats.red}</span>}
               </div>
             </div>
           ))}
@@ -495,15 +527,14 @@ const CompletedMatchCard = ({ match, roundLabel, onDelete }) => (
 const MatchTeamsRow = ({ match, scoreColor, completed }) => (
   <div className="flex flex-col md:flex-row items-center justify-between gap-8">
     <div className="flex-1 text-center md:text-right">
-      <p className="text-white font-black text-2xl uppercase tracking-tighter">{match.team1Name}</p>
+      <p className="text-black font-black text-2xl uppercase tracking-tighter">{match.team1Name}</p>
       <p className="text-slate-500 text-[10px] font-black uppercase mt-1">Home Team</p>
     </div>
     <div className="flex flex-col items-center gap-2">
-      <div className={`text-4xl font-black px-10 py-4 rounded-[2rem] shadow-inner ${
-        completed
-          ? `text-${scoreColor}-500 bg-${scoreColor}-500/10`
-          : `text-${scoreColor}-500 bg-slate-950 border border-white/5`
-      }`}>
+      <div className={`text-4xl font-black px-10 py-4 rounded-[2rem] shadow-inner ${completed
+        ? `text-${scoreColor}-500 bg-${scoreColor}-500/10`
+        : `text-${scoreColor}-500 bg-slate-950 border border-white/5`
+        }`}>
         {completed ? match.score : 'VS'}
       </div>
       <div className="flex items-center gap-3 text-slate-500 font-bold text-[10px] uppercase tracking-widest bg-slate-950 px-4 py-2 rounded-full border border-white/5">
@@ -517,7 +548,7 @@ const MatchTeamsRow = ({ match, scoreColor, completed }) => (
       )}
     </div>
     <div className="flex-1 text-center md:text-left">
-      <p className="text-white font-black text-2xl uppercase tracking-tighter">{match.team2Name}</p>
+      <p className="text-black font-black text-2xl uppercase tracking-tighter">{match.team2Name}</p>
       <p className="text-slate-500 text-[10px] font-black uppercase mt-1">Away Team</p>
     </div>
   </div>
@@ -566,7 +597,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
           <h3 className="text-white font-black uppercase text-2xl tracking-tighter flex items-center justify-center gap-3">
             <FaFutbol className="text-emerald-500" /> Post-Match Report
           </h3>
-          <p className="text-slate-500 text-xs font-black uppercase mt-2">
+          <p className="text-slate-500 text-xl font-black uppercase mt-2">
             {match.team1Name} VS {match.team2Name}
           </p>
         </div>
@@ -581,7 +612,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
               { name: 'score2', label: match.team2Name },
             ].map((s, i) => (
               <React.Fragment key={s.name}>
-                {i === 1 && <div className="text-4xl font-black text-slate-700 mt-6">-</div>}
+                {i === 1 && <div className="text-3xl font-black text-slate-700 mt-6">-</div>}
                 <div className="text-center space-y-3">
                   <label className="text-[10px] text-slate-500 font-black uppercase">{s.label}</label>
                   <input
@@ -678,9 +709,9 @@ const PlayerStatRow = ({ player }) => (
     </div>
     <div className="flex gap-4">
       {[
-        { name: `goals-${player.id}`,  label: 'GOALS', color: 'slate',  max: undefined },
-        { name: `yellow-${player.id}`, label: 'YEL',   color: 'yellow', max: 2 },
-        { name: `red-${player.id}`,    label: 'RED',   color: 'red',    max: 1 },
+        { name: `goals-${player.id}`, label: 'GOALS', color: 'slate', max: undefined },
+        { name: `yellow-${player.id}`, label: 'YEL', color: 'yellow', max: 2 },
+        { name: `red-${player.id}`, label: 'RED', color: 'red', max: 1 },
       ].map((field) => (
         <div key={field.name} className="text-center">
           <span className={`text-[8px] text-${field.color}-500 font-black block mb-1`}>{field.label}</span>
