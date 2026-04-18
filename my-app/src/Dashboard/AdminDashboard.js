@@ -42,9 +42,26 @@ const AdminDashboard = () => {
     });
 
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
+      const now = Date.now();
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setMatches(data);
-      setLiveMatches(data.filter(m => m.status !== "completed"));
+
+      const live = data.filter((m) => {
+  if (!m.startTime) return false;
+
+  const start = m.startTime?.toMillis
+    ? m.startTime.toMillis() // Firestore Timestamp
+    : new Date(m.startTime).getTime(); // fallback للويب
+
+  const isInTimeWindow =
+    now >= start &&
+    now <= start + 20 * 60 * 1000;
+
+  const notFinished = (m.status || "").toLowerCase() !== "completed";
+
+  return isInTimeWindow && notFinished;
+});
+      setLiveMatches(live);
       setFinishedMatches(data.filter(m => (m.status || "").trim().toLowerCase() === "completed"));
     });
 
