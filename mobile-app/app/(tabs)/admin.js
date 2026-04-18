@@ -183,45 +183,77 @@ const handleGenerateDraw = async () => {
       Alert.alert("Need at least 2 teams");
       return;
     }
-
     setIsGenerating(true);
 
     const shuffled = [...approvedTeams].sort(() => Math.random() - 0.5);
+    const totalRounds = Math.ceil(Math.log2(shuffled.length));
 
-    const firstRound = [];
+    // Build empty bracket
+    const rounds = {};
+    for (let r = 0; r < totalRounds; r++) {
+      const matchesCount = Math.pow(2, totalRounds - r - 1);
+      rounds[r] = Array.from({ length: matchesCount }, (_, i) => ({
+        id: `${r}-${i}`,
+        round: r,
+        matchIndex: i,
+        team1Id: null,
+        team2Id: null,
+        team1Name: null,
+        team2Name: null,
+        winner: null,
+      }));
+    }
 
+    // ✅ FIX: assign directly by index, no .push()
+    let idx = 0;
     for (let i = 0; i < shuffled.length; i += 2) {
-      if (shuffled[i + 1]) {
-        firstRound.push({
+      if (rounds[0][idx] && shuffled[i + 1]) {
+        rounds[0][idx] = {
+          ...rounds[0][idx],
           team1Id: shuffled[i].id,
           team1Name: shuffled[i].teamName,
           team2Id: shuffled[i + 1].id,
           team2Name: shuffled[i + 1].teamName,
+        };
+      } else if (rounds[0][idx] && !shuffled[i + 1]) {
+        // Odd team out → BYE
+        rounds[0][idx] = {
+          ...rounds[0][idx],
+          team1Id: shuffled[i].id,
+          team1Name: shuffled[i].teamName,
+          isBye: true,
+          winner: shuffled[i].teamName, // auto-advance
+        };
+      }
+      idx++;
+    }
+
+    await setDoc(doc(db, "tournaments", "main"), {
+      rounds,
+      createdAt: serverTimestamp(),
+    });
+
+    // Create Firestore match docs only for real (non-BYE) Round 0 matches
+    for (const m of rounds[0]) {
+      if (m.team1Id && m.team2Id && !m.isBye) {
+        await addDoc(collection(db, "matches"), {
+          team1Id: m.team1Id,
+          team1Name: m.team1Name,
+          team2Id: m.team2Id,
+          team2Name: m.team2Name,
+          round: m.round,
+          matchIndex: m.matchIndex,
+          status: "scheduled",
+          score: null,
+          createdAt: serverTimestamp(),
         });
       }
     }
 
-  
-    await setDoc(doc(db, "tournaments", "main"), {
-      rounds: {
-        0: firstRound
-      },
-      createdAt: serverTimestamp(),
-    });
-
-    // create matches
-    for (const m of firstRound) {
-      await addDoc(collection(db, "matches"), {
-        ...m,
-        status: "scheduled",
-        round: 0,
-        createdAt: serverTimestamp(),
-      });
-    }
-
-    Alert.alert("Tournament started (Round 1 only)");
+    Alert.alert("✅ Tournament started (Round 1 generated)");
   } catch (e) {
     console.error(e);
+    Alert.alert("Error generating draw");
   } finally {
     setIsGenerating(false);
   }
@@ -462,38 +494,85 @@ const getWinner = (match) => {
   if (!snap.exists()) return;
 
   const data = snap.data();
-  const rounds = data.rounds || {};
 
-  const currentRound = match.round; 
+  const rounds = JSON.parse(JSON.stringify(data.rounds));
 
-  const nextRound = currentRound + 1;
+  const currentRound = match.round;         
+  const nextRound = currentRound + 1;       
+  const matchIndex = match.matchIndex;      
+  const nextMatchIndex = Math.floor(matchIndex / 2);
+  const isTop = matchIndex % 2 === 0;       
 
-  if (!rounds[nextRound]) {
-    rounds[nextRound] = [];
+ 
+  const nextRoundKey = String(nextRound);
+
+  if (!rounds[nextRoundKey]) {
+    await updateDoc(tournamentRef, {
+      rounds,
+      winner: winner.name,
+    });
+    return;
   }
 
-  rounds[nextRound].push({
-    team1Id: winner.id,
-    team1Name: winner.name,
-    team2Id: null,
-    team2Name: null,
-  });
+  const nextMatch = rounds[nextRoundKey][nextMatchIndex];
+  if (!nextMatch) return;
+
+  rounds[nextRoundKey][nextMatchIndex] = {
+    ...nextMatch,
+    team1Id:   isTop ? winner.id   : nextMatch.team1Id,
+    team1Name: isTop ? winner.name : nextMatch.team1Name,
+    team2Id:   !isTop ? winner.id   : nextMatch.team2Id,
+    team2Name: !isTop ? winner.name : nextMatch.team2Name,
+  };
 
   await updateDoc(tournamentRef, { rounds });
-
-  console.log(`🏆 ${winner.name} advanced to round ${nextRound}`);
 };
 
-  const handleDeleteMatch = async (match) => {
-    Alert.alert("Delete Match", "Are you sure?", [
-      { text: "Cancel" },
-      {
-        text: "Delete", style: "destructive", onPress: async () => {
+ const handleDeleteMatch = async (match) => {
+  Alert.alert("Delete Match", "Are you sure?", [
+    { text: "Cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: async () => {
+        try {
+
           await deleteDoc(doc(db, "matches", match.id));
+          const tournamentRef = doc(db, "tournaments", "main");
+          const snap = await getDoc(tournamentRef);
+          if (!snap.exists()) return;
+
+          const data = snap.data();
+          const rounds = JSON.parse(JSON.stringify(data.rounds));
+
+          const roundKey = String(match.round);
+          if (
+            rounds[roundKey] &&
+            match.matchIndex !== undefined &&
+            rounds[roundKey][match.matchIndex]
+          ) {
+
+            rounds[roundKey][match.matchIndex] = {
+              ...rounds[roundKey][match.matchIndex],
+              team1Id: null,
+              team1Name: null,
+              team2Id: null,
+              team2Name: null,
+              winner: null,
+              score: null,
+              isBye: false,
+            };
+
+            await updateDoc(tournamentRef, { rounds });
+          }
+        } catch (e) {
+          console.error(e);
+          Alert.alert("Error deleting match");
         }
-      }
-    ]);
-  };
+      },
+    },
+  ]);
+};     
 
   // ─── Auto-build squad ────────────────────────────────────────
   const handleAutoBuild = async () => {
@@ -566,6 +645,74 @@ const getWinner = (match) => {
     if (searchTerm.trim()) return p.name?.toLowerCase().includes(searchTerm.toLowerCase());
     return playersSubTab === "free" ? !p.hasTeam : p.hasTeam;
   });
+
+
+  const handleManualWin = (match, winner) => {
+  if (!match.team1Name || !match.team2Name || match.winner) return;
+
+  setTournament(prev => {
+    const updated = { ...prev };
+
+    const roundsKeys = Object.keys(updated.rounds);
+
+    let currentRoundIndex = -1;
+    let matchIndex = -1;
+
+    roundsKeys.forEach((rKey, rIdx) => {
+      updated.rounds[rKey].forEach((m, mIdx) => {
+        if (m === match) {
+          currentRoundIndex = rIdx;
+          matchIndex = mIdx;
+        }
+      });
+    });
+
+    if (currentRoundIndex === -1) return prev;
+
+    const nextRoundKey = roundsKeys[currentRoundIndex + 1];
+
+    if (!nextRoundKey) {
+      updated.winner = winner;
+      return updated;
+    }
+
+    const nextMatchIndex = Math.floor(matchIndex / 2);
+    const isTop = matchIndex % 2 === 0;
+
+    updated.rounds = Object.fromEntries(
+      Object.entries(updated.rounds).map(([key, matches]) => {
+        if (key === roundsKeys[currentRoundIndex]) {
+          return [
+            key,
+            matches.map(m =>
+              m === match ? { ...m, winner } : m
+            )
+          ];
+        }
+
+        if (key === nextRoundKey) {
+          return [
+            key,
+            matches.map((m, idx) => {
+              if (idx === nextMatchIndex) {
+                return {
+                  ...m,
+                  team1Name: isTop ? winner : m.team1Name,
+                  team2Name: !isTop ? winner : m.team2Name,
+                };
+              }
+              return m;
+            })
+          ];
+        }
+
+        return [key, matches];
+      })
+    );
+
+    return updated;
+  });
+};
 
   // ════════════════════════════════════════════════════════════
   //  RENDER
@@ -826,30 +973,141 @@ const getWinner = (match) => {
                 }
               </TouchableOpacity>
 
-              {/* Tournament Bracket */}
-              {tournament && tournament.rounds ? (
-                <View style={{ marginTop: 20 }}>
-                  <Text style={[s.sectionLabel, { color: "#eab308" }]}>📊 BRACKET</Text>
-                  {Object.entries(tournament.rounds).map(([rIdx, roundMatches]) => (
-                    <View key={rIdx} style={{ marginBottom: 20 }}>
-                      <Text style={s.roundLabel}>
-                        {getRoundLabel(parseInt(rIdx), Object.keys(tournament.rounds).length)}
-                      </Text>
-                      {roundMatches.map((m, i) => (
-                        <View key={i} style={s.bracketMatch}>
-                          <Text style={s.bracketTeam}>{m.team1Name}</Text>
-                          <Text style={{ color: "#475569", fontWeight: "bold" }}>VS</Text>
-                          <Text style={s.bracketTeam}>{m.team2Name}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={[s.emptyText, { marginTop: 30 }]}>
-                  No draw generated yet.{"\n"}Press the button above to generate brackets for {approvedTeams.length} approved teams.
+             {/* Tournament Bracket */}
+{tournament && tournament.rounds ? (
+  <View style={{ marginTop: 20 }}>
+    
+    <Text style={[s.sectionLabel, { color: "#eab308" }]}>
+      📊 BRACKET
+    </Text>
+
+    {/* 🏆 Champion */}
+    {tournament.winner && (
+      <View style={{
+        backgroundColor: "#facc1533",
+        padding: 14,
+        borderRadius: 14,
+        marginBottom: 16,
+        alignItems: "center"
+      }}>
+        <Text style={{ color: "#facc15", fontWeight: "bold" }}>
+          🏆 Champion: {tournament.winner}
+        </Text>
+      </View>
+    )}
+
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+
+      {Object.entries(tournament.rounds).map(([rIdx, roundMatches]) => (
+
+        <View key={rIdx} style={{ marginRight: 20 }}>
+
+          {/* Round Title */}
+          <Text style={{
+            color: "#3b82f6",
+            fontSize: 12,
+            marginBottom: 10,
+            textAlign: "center",
+            fontWeight: "bold"
+          }}>
+            {getRoundLabel(parseInt(rIdx), Object.keys(tournament.rounds).length)}
+          </Text>
+
+          {/* Matches */}
+          {roundMatches.map((m, i) => {
+
+            const isFinished = !!m.winner;
+
+            return (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: "#020617",
+                  borderRadius: 16,
+                  padding: 12,
+                  borderWidth: 2,
+                  borderColor: isFinished ? "#22c55e55" : "#1e293b",
+                  marginBottom: 16,
+                  minWidth: 180
+                }}
+              >
+
+                {/* Match Label */}
+                <Text style={{
+                  color: "#64748b",
+                  fontSize: 10,
+                  marginBottom: 6,
+                  textAlign: "center"
+                }}>
+                  Match {i + 1}
                 </Text>
-              )}
+
+                {/* Team 1 */}
+                <TouchableOpacity
+                  disabled={!m.team1Name || !m.team2Name || isFinished}
+                  onPress={() => handleManualWin(m, m.team1Name)}
+                  style={{
+                    padding: 10,
+                    borderRadius: 10,
+                    backgroundColor:
+                      m.winner === m.team1Name ? "#22c55e33" : "#020617",
+                    borderWidth: 1,
+                    borderColor: "#1e293b",
+                    marginBottom: 6
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    {m.team1Name || "TBD"}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* BYE */}
+                {m.isBye ? (
+                  <View style={{
+                    padding: 10,
+                    borderRadius: 10,
+                    borderStyle: "dashed",
+                    borderWidth: 1,
+                    borderColor: "#475569",
+                    alignItems: "center"
+                  }}>
+                    <Text style={{ color: "#64748b" }}>BYE</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    disabled={!m.team1Name || !m.team2Name || isFinished}
+                    onPress={() => handleManualWin(m, m.team2Name)}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      backgroundColor:
+                        m.winner === m.team2Name ? "#22c55e33" : "#020617",
+                      borderWidth: 1,
+                      borderColor: "#1e293b"
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                      {m.team2Name || "TBD"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+              </View>
+            );
+          })}
+
+        </View>
+
+      ))}
+
+    </ScrollView>
+  </View>
+) : (
+  <Text style={[s.emptyText, { marginTop: 30 }]}>
+    No draw generated yet.{"\n"}
+    Press the button above to generate brackets for {approvedTeams.length} approved teams.
+  </Text>
+)}
 
               {/* Standings */}
               <Text style={[s.sectionLabel, { color: "#a855f7", marginTop: 20 }]}>🥇 STANDINGS</Text>
