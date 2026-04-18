@@ -34,6 +34,7 @@ export default function AdminDashboard() {
   const [allUsers, setAllUsers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [tournament, setTournament] = useState(null);
+  const [activeClick, setActiveClick] = useState("live");
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -751,24 +752,64 @@ const getWinner = (match) => {
             <View>
               {/* Stats Grid */}
               <View style={s.statsGrid}>
-                <StatCard label="PLAYERS" value={stats.total} icon="👥" color="#3b82f6" />
-                <StatCard label="PENDING" value={stats.pending} icon="⏳" color="#eab308" />
-                <StatCard label="FREE" value={stats.free} icon="🏃" color="#22c55e" />
-                <StatCard label="TEAMS" value={stats.approved} icon="🛡" color="#a855f7" />
+                <View style={s.statCardDark}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "bold" }}>Total Players</Text>
+                    <Text style={{ fontSize: 16 }}>👥</Text>
+                  </View>
+                  <Text style={{ color: "#fff", fontSize: 28, fontWeight: "900" }}>{stats.total}</Text>
+                </View>
+                <View style={s.statCardDark}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "bold" }}>Pending Approval</Text>
+                    <Text style={{ fontSize: 16 }}>⏳</Text>
+                  </View>
+                  <Text style={{ color: "#fff", fontSize: 28, fontWeight: "900" }}>{stats.pending}</Text>
+                </View>
+                <View style={s.statCardDark}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "bold" }}>Free Agents</Text>
+                    <Text style={{ fontSize: 16 }}>🏃</Text>
+                  </View>
+                  <Text style={{ color: "#fff", fontSize: 28, fontWeight: "900" }}>{stats.free}</Text>
+                </View>
+                <View style={s.statCardDark}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "bold" }}>Matches</Text>
+                    <Text style={{ fontSize: 16 }}>✅</Text>
+                  </View>
+                  <Text style={{ color: "#fff", fontSize: 28, fontWeight: "900" }}>{matches.length}</Text>
+                </View>
               </View>
 
-              {/* Live Matches */}
-              {liveMatches.length > 0 && (
-                <View style={{ marginBottom: 20 }}>
-                  <Text style={[s.sectionLabel, { color: "#ef4444" }]}>🔴 LIVE NOW</Text>
-                  {liveMatches.map(m => (
-                    <View key={m.id} style={[s.matchCard, { borderLeftColor: "#ef4444" }]}>
-                      <View style={s.matchTeamsRow}>
-                        <Text style={s.matchTeam}>{m.team1Name}</Text>
-                        <View style={s.scoreBox}><Text style={[s.scoreText, { color: "#ef4444" }]}>{m.score || "LIVE"}</Text></View>
-                        <Text style={s.matchTeam}>{m.team2Name}</Text>
+              {/* Tabs */}
+              <View style={s.dashNavRow}>
+                <TouchableOpacity onPress={() => setActiveClick("live")} style={[s.dashNavBtn, activeClick === "live" && s.dashNavBtnActive]}>
+                  <Text style={[s.dashNavTxt, activeClick === "live" && s.dashNavTxtActive]}>Live</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setActiveClick("history")} style={[s.dashNavBtn, activeClick === "history" && s.dashNavBtnActive]}>
+                  <Text style={[s.dashNavTxt, activeClick === "history" && s.dashNavTxtActive]}>Match History</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setActiveClick("requests")} style={[s.dashNavBtn, activeClick === "requests" && s.dashNavBtnActive]}>
+                  <Text style={[s.dashNavTxt, activeClick === "requests" && s.dashNavTxtActive]}>Team Request ({pendingTeams.length})</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* LIVE */}
+              {activeClick === "live" && (
+                <View style={{ marginTop: 10 }}>
+                  {liveMatches.length === 0 ? <Text style={s.emptyText}>No live matches</Text> : liveMatches.map(m => (
+                    <View key={m.id} style={s.matchCardDark}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <Text style={{ color: "#fff" }}></Text>
+                        <View style={s.liveBadge}><Text style={s.liveBadgeTxt}>LIVE</Text></View>
                       </View>
-                      <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                      <View style={s.matchTeamsRow}>
+                        <Text style={s.matchTeamDark}>{m.team1Name}</Text>
+                        <Text style={s.scoreTextDark}>{m.score || "0 - 0"}</Text>
+                        <Text style={s.matchTeamDark}>{m.team2Name}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
                         <TouchableOpacity style={s.enterResultBtn} onPress={() => openResultModal(m)}>
                           <Text style={s.enterResultText}>Enter Result</Text>
                         </TouchableOpacity>
@@ -781,49 +822,64 @@ const getWinner = (match) => {
                 </View>
               )}
 
-              {/* Pending Teams */}
-              <Text style={s.sectionLabel}>📋 TEAM REQUESTS</Text>
-              {pendingTeams.length === 0
-                ? <Text style={s.emptyText}>No pending requests</Text>
-                : pendingTeams.map(team => (
-                  <View key={team.id} style={[s.card, { borderLeftWidth: 4, borderLeftColor: "#3b82f6" }]}>
-                    <View style={s.teamAvatarBlue}>
-                      <Text style={{ color: "#60a5fa", fontSize: 20, fontWeight: "bold" }}>{team.teamName?.[0]}</Text>
-                    </View>
-                    <Text style={s.teamName}>{team.teamName}</Text>
-                    <Text style={s.teamCapt}>Captain: {team.captainName || "—"}</Text>
-                    <Text style={{ color: "#64748b", fontSize: 11, marginTop: 4 }}>
-                      {(team.members || []).join("  •  ")}
-                    </Text>
-                    <View style={s.actionRow}>
-                      <TouchableOpacity style={s.approveBtn} onPress={() => handleApprove(team.id)}>
-                        <Text style={s.approveTxt}>✓ Approve</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={s.rejectBtn} onPress={() => handleRejectTeam(team)}>
-                        <Text style={s.rejectTxt}>✕ Reject</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))
-              }
-
-              {/* Match History */}
-              {completedMatches.length > 0 && (
-                <View style={{ marginTop: 20 }}>
-                  <Text style={[s.sectionLabel, { color: "#22c55e" }]}>📜 MATCH HISTORY</Text>
-                  {completedMatches.map(m => (
-                    <View key={m.id} style={[s.matchCard, { borderLeftColor: "#22c55e", opacity: 0.9 }]}>
-                      <View style={s.matchTeamsRow}>
-                        <Text style={s.matchTeam}>{m.team1Name}</Text>
-                        <View style={s.scoreBox}><Text style={[s.scoreText, { color: "#22c55e" }]}>{m.score}</Text></View>
-                        <Text style={s.matchTeam}>{m.team2Name}</Text>
+              {/* HISTORY */}
+              {activeClick === "history" && (
+                <View style={{ marginTop: 10 }}>
+                  {completedMatches.length === 0 ? <Text style={s.emptyText}>No finished matches</Text> : completedMatches.map(m => (
+                    <View key={m.id} style={s.matchCardDark}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <Text style={s.matchTeamDark}>{m.team1Name}</Text>
+                        <Text style={{ color: "#94a3b8", fontSize: 12 }}>VS</Text>
+                        <Text style={s.matchTeamDark}>{m.team2Name}</Text>
                       </View>
-                      {m.penalties && <Text style={{ color: "#eab308", fontSize: 11, textAlign: "center", marginTop: 4 }}>Pens: {m.penalties}</Text>}
-                      <TouchableOpacity style={[s.deleteBtnSmall, { alignSelf: "flex-end", marginTop: 8 }]} onPress={() => handleDeleteMatch(m)}>
+                      <View style={{ alignItems: "center", marginBottom: 12 }}>
+                        <Text style={s.scoreTextYellow}>{m.score || "0 - 0"}</Text>
+                      </View>
+                      <View style={{ alignItems: "center", marginBottom: 12 }}>
+                        <View style={s.finishedBadge}><Text style={s.finishedBadgeTxt}>Finished</Text></View>
+                      </View>
+                      <TouchableOpacity style={[s.deleteBtnSmall, { alignSelf: "flex-end", marginTop: 4 }]} onPress={() => handleDeleteMatch(m)}>
                         <Text style={{ color: "#ef4444" }}>🗑</Text>
                       </TouchableOpacity>
                     </View>
                   ))}
+                </View>
+              )}
+
+              {/* REQUESTS */}
+              {activeClick === "requests" && (
+                <View style={{ marginTop: 10 }}>
+                  {pendingTeams.length === 0
+                    ? <Text style={s.emptyText}>No pending requests at the moment.</Text>
+                    : pendingTeams.map(team => (
+                      <View key={team.id} style={s.requestCard}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                          <View>
+                            <Text style={{ color: "#f1f5f9", fontSize: 20, fontWeight: "bold" }}>{team.teamName}</Text>
+                            <Text style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>Captain: {team.captainName || "Unknown"}</Text>
+                          </View>
+                          <View style={{ backgroundColor: "#dbeafe", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 }}>
+                            <Text style={{ color: "#2563eb", fontWeight: "bold", fontSize: 11 }}>{team.memberIds?.length || 0} Players</Text>
+                          </View>
+                        </View>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                          {team.members?.map((name, i) => (
+                            <View key={i} style={{ backgroundColor: "#334155", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" }}>
+                              <Text style={{ color: "#f1f5f9", fontSize: 11, fontWeight: "bold" }}>• {name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                        <View style={{ flexDirection: "row", gap: 10 }}>
+                          <TouchableOpacity style={s.requestApproveBtn} onPress={() => handleApprove(team.id)}>
+                            <Text style={{ color: "#fff", fontWeight: "bold", textTransform: "uppercase", fontSize: 12 }}>Approve Team</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={s.requestRejectBtn} onPress={() => handleRejectTeam(team)}>
+                            <Text style={{ color: "#f87171", fontWeight: "bold", textTransform: "uppercase", fontSize: 12 }}>Reject</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))
+                  }
                 </View>
               )}
             </View>
@@ -1769,4 +1825,23 @@ const s = StyleSheet.create({
   scoreInput: { width: 80, height: 80, backgroundColor: "#1e293b", borderRadius: 16, color: "#fff", fontSize: 36, fontWeight: "bold", textAlign: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.1)" },
   playerStatRow: { backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
   statInput: { width: 44, height: 44, backgroundColor: "#1e293b", borderRadius: 10, color: "#fff", fontSize: 16, fontWeight: "bold", textAlign: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+
+  // New Dashboard Parity Styles
+  statCardDark: { flex: 1, minWidth: "45%", backgroundColor: "#1e293b", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 5, elevation: 4 },
+  dashNavRow: { flexDirection: "row", gap: 20, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)", paddingBottom: 10, marginBottom: 10, marginTop: 10 },
+  dashNavBtn: { paddingBottom: 8 },
+  dashNavBtnActive: { borderBottomWidth: 3, borderBottomColor: "#22c55e" },
+  dashNavTxt: { color: "#94a3b8", fontSize: 16, fontWeight: "bold" },
+  dashNavTxtActive: { color: "#22c55e" },
+  matchCardDark: { backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  matchTeamDark: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center", flex: 1 },
+  scoreTextDark: { color: "#60a5fa", fontSize: 28, fontWeight: "900", textAlign: "center", width: 80 },
+  scoreTextYellow: { color: "#facc15", fontSize: 32, fontWeight: "900", textAlign: "center", width: 100 },
+  liveBadge: { backgroundColor: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.3)", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  liveBadgeTxt: { color: "#4ade80", fontSize: 10, fontWeight: "bold" },
+  finishedBadge: { backgroundColor: "transparent", borderColor: "#facc15", borderWidth: 1, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  finishedBadgeTxt: { color: "#facc15", fontSize: 10, fontWeight: "bold" },
+  requestCard: { backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 16, borderLeftWidth: 6, borderLeftColor: "#2563eb", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  requestApproveBtn: { flex: 1, backgroundColor: "#2563eb", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  requestRejectBtn: { flex: 1, backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 10, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(239,68,68,0.3)" },
 });
