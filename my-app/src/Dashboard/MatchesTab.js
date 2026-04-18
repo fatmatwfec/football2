@@ -98,6 +98,7 @@ const MatchesTab = () => {
     [teams],
   );
 
+  // enrichedMatches للعرض فقط في الـ UI
   const enrichedMatches = useMemo(() =>
     matches.map(m => ({
       ...m,
@@ -107,19 +108,19 @@ const MatchesTab = () => {
     [matches, resolveTeamName],
   );
 
+  const now = Date.now();
+
   const scheduledMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'scheduled'));
- const now = Date.now();
 
-const liveMatches = filterByRound(
-  enrichedMatches.filter((m) => {
-    if (!m.date || !m.time) return false;
+  const liveMatches = filterByRound(
+    enrichedMatches.filter((m) => {
+      if (!m.date || !m.time) return false;
+      const start = new Date(`${m.date} ${m.time}`).getTime();
+      const end = start + 20 * 60 * 1000;
+      return now >= start && now <= end;
+    })
+  );
 
-    const start = new Date(`${m.date} ${m.time}`).getTime();
-    const end = start + 20 * 60 * 1000; 
-
-    return now >= start && now <= end;
-  })
-);
   const completedMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'completed'));
 
   // ── Handlers ─────────────────────────────────────────────
@@ -134,10 +135,15 @@ const liveMatches = filterByRound(
     }
   };
 
-  const handleOpenResult = async (match) => {
+  // ✅ FIX: استخدم الـ raw match من الـ matches state بالـ id
+  const handleOpenResult = async (matchId) => {
+    const rawMatch = matches.find(m => m.id === matchId);
+    if (!rawMatch) return alert('Match not found');
     try {
-      await prepareMatchForResult(match, players);
-      setShowResultModal(match);
+      await prepareMatchForResult(rawMatch, players);
+      // نعرض في الـ modal الـ enriched names للـ UI بس
+      const enrichedMatch = enrichedMatches.find(m => m.id === matchId);
+      setShowResultModal(enrichedMatch || rawMatch);
     } catch (err) {
       alert(err.message);
     }
@@ -150,6 +156,9 @@ const liveMatches = filterByRound(
     const fd = new FormData(e.target);
     const raw = Object.fromEntries(fd.entries());
 
+    // ✅ FIX: استخدم الـ raw match للـ Firestore operations
+    const rawMatch = matches.find(m => m.id === showResultModal.id);
+
     const activePlayers = players.filter(
       (p) =>
         (p.teamId === showResultModal.team1Id || p.teamId === showResultModal.team2Id) &&
@@ -157,7 +166,7 @@ const liveMatches = filterByRound(
     );
 
     try {
-      const result = await finalizeMatch(showResultModal, raw, activePlayers);
+      const result = await finalizeMatch(rawMatch || showResultModal, raw, activePlayers);
       if (!result.ok) {
         alert(result.error);
       } else {
@@ -171,10 +180,13 @@ const liveMatches = filterByRound(
     setIsSubmitting(false);
   };
 
-  const handleDelete = async (match) => {
+  // ✅ FIX: استخدم الـ raw match بالـ id عشان الـ Firestore يلاقيه
+  const handleDelete = async (matchId) => {
     if (!window.confirm('Are you sure? Stats will be rolled back.')) return;
+    const rawMatch = matches.find(m => m.id === matchId);
+    if (!rawMatch) return alert('Match not found in database.');
     try {
-      await deleteMatch(match);
+      await deleteMatch(rawMatch);
     } catch (err) {
       alert('Failed to delete: ' + err.message);
     }
@@ -349,7 +361,6 @@ const liveMatches = filterByRound(
       </div>
 
       {/* ── Live Matches ── */}
-
       {activeClick === "live" && liveMatches.length > 0 && (
         <Section
           label="🔴 Live Now"
@@ -362,13 +373,12 @@ const liveMatches = filterByRound(
               roundLabel={getMatchRoundLabel(m)}
               canFinalize
               isLive
-              onEnterResult={() => handleOpenResult(m)}
-              onDelete={() => handleDelete(m)}
+              onEnterResult={() => handleOpenResult(m.id)}
+              onDelete={() => handleDelete(m.id)}
             />
           )}
         />
       )}
-
 
       {/* ── Scheduled Matches ── */}
       {activeClick === "upcoming" && (
@@ -386,13 +396,14 @@ const liveMatches = filterByRound(
                 roundLabel={getMatchRoundLabel(m)}
                 canFinalize={canFinalize}
                 isLive={false}
-                onEnterResult={() => handleOpenResult(m)}
-                onDelete={() => handleDelete(m)}
+                onEnterResult={() => handleOpenResult(m.id)}
+                onDelete={() => handleDelete(m.id)}
               />
             );
           }}
         />
       )}
+
       {/* ── Match History ── */}
       {activeClick === "history" && completedMatches.length > 0 && (
         <Section
@@ -404,7 +415,7 @@ const liveMatches = filterByRound(
               key={m.id}
               match={m}
               roundLabel={getMatchRoundLabel(m)}
-              onDelete={() => handleDelete(m)}
+              onDelete={() => handleDelete(m.id)}
             />
           )}
         />

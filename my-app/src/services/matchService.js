@@ -15,8 +15,10 @@ export const scheduleMatch = async (newMatch) => {
   const conflict = await checkScheduleConflict(team1Id, team2Id, date, time, pitch);
   if (conflict) throw new Error(conflict);
 
+  // ✅ FIX: لا نحفظ الأسماء نهائياً — بنحفظ الـ IDs بس
+  // الأسماء بتتحل دايماً من teams collection في الـ UI
   await addDoc(collection(db, 'matches'), {
-    team1Id, team2Id, team1Name, team2Name,
+    team1Id, team2Id,
     date, time, pitch,
     score:     '',
     status:    'scheduled',
@@ -55,6 +57,9 @@ const checkScheduleConflict = async (team1Id, team2Id, date, time, pitch) => {
 };
 
 export const prepareMatchForResult = async (match, players) => {
+  // ✅ FIX: تأكد إن match.id موجود قبل أي عملية
+  if (!match?.id) throw new Error('معرّف المباراة غير موجود.');
+
   const matchPlayers = players.filter(
     p => p.teamId === match.team1Id || p.teamId === match.team2Id
   );
@@ -85,6 +90,8 @@ export const prepareMatchForResult = async (match, players) => {
 };
 
 export const finalizeMatch = async (match, raw, activePlayers) => {
+  // ✅ FIX: تأكد إن match.id موجود
+  if (!match?.id) return { ok: false, error: 'معرّف المباراة غير موجود.' };
 
   const s1 = parseInt(raw.score1);
   const s2 = parseInt(raw.score2);
@@ -104,6 +111,7 @@ export const finalizeMatch = async (match, raw, activePlayers) => {
     if (p1 === p2)               return { ok: false, error: 'لا يمكن التعادل في ضربات الجزاء. لازم يكون في فائز.' };
 
     finalWinnerId   = p1 > p2 ? match.team1Id   : match.team2Id;
+    // ✅ FIX: الاسم بييجي من match مباشرة (enriched في الـ UI)
     finalWinnerName = p1 > p2 ? match.team1Name : match.team2Name;
   } else {
     finalWinnerId   = s1 > s2 ? match.team1Id   : match.team2Id;
@@ -168,11 +176,11 @@ const applySuspensions = async (raw, activePlayers) => {
     let suspendReason = null;
 
     if (redInMatch >= 1) {
-      suspendReason = 'red';       
+      suspendReason = 'red';
     } else if (yellowInMatch >= 2) {
-      suspendReason = 'yellow';       
+      suspendReason = 'yellow';
     } else if (totalYellow >= 2) {
-      suspendReason = 'accumulated';  
+      suspendReason = 'accumulated';
     }
 
     if (suspendReason) {
@@ -188,6 +196,17 @@ const applySuspensions = async (raw, activePlayers) => {
 };
 
 export const deleteMatch = async (match) => {
+  // ✅ FIX: تأكد إن match.id موجود وصالح قبل الحذف
+  if (!match?.id) throw new Error('معرّف المباراة غير موجود — لا يمكن الحذف.');
+
+  // ✅ FIX: تحقق إن الـ document موجود فعلاً في Firestore قبل الحذف
+  const matchRef  = doc(db, 'matches', match.id);
+  const matchSnap = await getDoc(matchRef);
+
+  if (!matchSnap.exists()) {
+    throw new Error(`المباراة غير موجودة في قاعدة البيانات (id: ${match.id})`);
+  }
+
   const batch = writeBatch(db);
 
   if (match.status === 'completed' && match.statsSnapshot) {
@@ -200,7 +219,7 @@ export const deleteMatch = async (match) => {
     });
   }
 
-  batch.delete(doc(db, 'matches', match.id));
+  batch.delete(matchRef);
   await batch.commit();
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { db } from "../firebase";
 import { collection, onSnapshot, doc, updateDoc, writeBatch, deleteDoc } from "firebase/firestore";
 import PlayersTab from "./PlayersTab";
@@ -22,10 +22,9 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ total: 0, pending: 0, free: 0 });
   const [pendingTeams, setPendingTeams] = useState([]);
   const [approvedTeams, setApprovedTeams] = useState([]);
+  const [allTeams, setAllTeams] = useState([]); // ✅ كل الفرق عشان نعمل resolve للأسماء
   const [allUsers, setAllUsers] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [liveMatches, setLiveMatches] = useState([]);
-  const [finishedMatches, setFinishedMatches] = useState([]);
 
   useEffect(() => {
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
@@ -36,36 +35,55 @@ const AdminDashboard = () => {
 
     const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllTeams(all); // ✅ احفظ كل الفرق
       setPendingTeams(all.filter(t => t.status === "pending"));
       setApprovedTeams(all.filter(t => t.status === "approved"));
       setStats(prev => ({ ...prev, pending: all.filter(t => t.status === "pending").length }));
     });
 
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
-      const now = Date.now();
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setMatches(data);
-
-      const live = data.filter((m) => {
-  if (!m.startTime) return false;
-
-  const start = m.startTime?.toMillis
-    ? m.startTime.toMillis()
-    : new Date(m.startTime).getTime(); 
-  const isInTimeWindow =
-    now >= start &&
-    now <= start + 20 * 60 * 1000;
-
-  const notFinished = (m.status || "").toLowerCase() !== "completed";
-
-  return isInTimeWindow && notFinished;
-});
-      setLiveMatches(live);
-      setFinishedMatches(data.filter(m => (m.status || "").trim().toLowerCase() === "completed"));
     });
 
     return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
   }, []);
+
+  // ✅ FIX: resolve اسم التيم دايماً من teams collection مش من الماتش
+  const resolveTeamName = useCallback(
+    (teamId, fallback) => {
+      const found = allTeams.find(t => t.id === teamId);
+      return found?.teamName || fallback || '';
+    },
+    [allTeams],
+  );
+
+  // ✅ FIX: enrichedMatches بتعرض الأسماء الحالية دايماً
+  const enrichedMatches = useMemo(() =>
+    matches.map(m => ({
+      ...m,
+      team1Name: resolveTeamName(m.team1Id, m.team1Name),
+      team2Name: resolveTeamName(m.team2Id, m.team2Name),
+    })),
+    [matches, resolveTeamName],
+  );
+
+  const now = Date.now();
+
+  const liveMatches = useMemo(() =>
+    enrichedMatches.filter((m) => {
+      if (!m.date || !m.time) return false;
+      const start = new Date(`${m.date} ${m.time}`).getTime();
+      const end = start + 20 * 60 * 1000;
+      return now >= start && now <= end;
+    }),
+    [enrichedMatches],
+  );
+
+  const finishedMatches = useMemo(() =>
+    enrichedMatches.filter(m => (m.status || "").trim().toLowerCase() === "completed"),
+    [enrichedMatches],
+  );
 
   const filteredPlayers = allUsers.filter(u => u.role !== 'admin');
 
@@ -103,15 +121,11 @@ const AdminDashboard = () => {
 .stadium-bg {
   position: relative;
   min-height: 100vh;
-
   background-image: url("/staduimPicture.jpg");
   background-size: cover;
   background-position: center;
-
 }
 
-
-/* كروت مش flat */
 .glass {
   background: linear-gradient(145deg, #ffffff, #f1f5f9);
   border: 1px solid #e2e8f0;
@@ -121,7 +135,6 @@ const AdminDashboard = () => {
   backdrop-filter: blur(4px);
 }
 
-/* Scrollbar شيك */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -139,8 +152,7 @@ border-b border-white/10
 backdrop-blur-sm 
 shrink-0">
           <div className="flex items-center gap-4">
-
-            <button active={false} onClick={() => setIsSidebarOpen(true)} className="text-green-200" >
+            <button active={false} onClick={() => setIsSidebarOpen(true)} className="text-green-200">
               <BsGridFill className="size-9 text-green-100" /> Menu
             </button>
             <div>
@@ -150,10 +162,10 @@ shrink-0">
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsAIChatOpen(true)} className="rounded-xl bg-slate-100 hover:bg-blue-100 p-3 border border-slate-200 flex  transition">
+            <button onClick={() => setIsAIChatOpen(true)} className="rounded-xl bg-slate-100 hover:bg-blue-100 p-3 border border-slate-200 flex transition">
               <FaRobot className="text-blue-600 text-xl" />
             </button>
-            <button onClick={() => setIsModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest shadow-md transition ">
+            <button onClick={() => setIsModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest shadow-md transition">
               <FaPlus className="inline mr-2" /> Create New Team
             </button>
           </div>
@@ -162,7 +174,7 @@ shrink-0">
         <AIChatSidebar
           isOpen={isAIChatOpen}
           onClose={() => setIsAIChatOpen(false)}
-          stats={stats} players={filteredPlayers} matches={matches} teams={approvedTeams}
+          stats={stats} players={filteredPlayers} matches={enrichedMatches} teams={approvedTeams}
         />
 
         <AddActionModal
@@ -244,11 +256,12 @@ shrink-0">
                 </button>
               </div>
 
+              {/* LIVE */}
               {activeClick === "live" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
-
-
+                  {liveMatches.length === 0 && (
+                    <p className="text-gray-300 text-xl italic col-span-4 text-center py-10">No live matches right now.</p>
+                  )}
                   {liveMatches.map(match => (
                     <div key={match.id}
                       className="relative rounded-2xl p-5 
@@ -257,16 +270,8 @@ shrink-0">
         shadow-md hover:shadow-xl hover:shadow-blue-500/10
         transition-all duration-300"
                     >
-
-                      {/* 🔹 Top Row */}
                       <div className="flex justify-between items-center mb-4">
-
-                        {/* Teams */}
-                        <p className="text-white font-semibold text-2xl :text-base">
-
-                        </p>
-
-                        {/* Status */}
+                        <p className="text-white font-semibold text-2xl"></p>
                         <span className="text-xs font-bold 
             text-green-400 
             border border-green-400/30 
@@ -277,17 +282,14 @@ shrink-0">
                         </span>
                       </div>
 
-                      {/* 🔹 Bottom Row */}
                       <div className="flex items-center justify-between">
-
-
-                        {/* Score */}
                         <div className="text-center flex-1">
                           <div className="flex justify-between items-center mb-4">
-                            <p className="text-white font-semibold text-2xl :text-base flex items-center gap-2">
+                            {/* ✅ الأسماء بتيجي من enrichedMatches دايماً محدثة */}
+                            <p className="text-white font-semibold text-2xl flex items-center gap-2">
                               {match.team1Name}
                             </p>
-                            <p className="text-white font-semibold text-2xl :text-base flex items-center gap-2">
+                            <p className="text-white font-semibold text-2xl flex items-center gap-2">
                               {match.team2Name}
                             </p>
                           </div>
@@ -304,6 +306,9 @@ shrink-0">
               {/* HISTORY */}
               {activeClick === "history" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {finishedMatches.length === 0 && (
+                    <p className="text-gray-300 text-xl italic col-span-4 text-center py-10">No finished matches yet.</p>
+                  )}
                   {finishedMatches.map(match => (
                     <div
                       key={match.id}
@@ -313,27 +318,23 @@ shrink-0">
         shadow-md hover:shadow-xl hover:shadow-blue-500/10
         transition-all duration-300"
                     >
-                      {/* Teams */}
                       <div className="flex justify-between items-center mb-4">
+                        {/* ✅ الأسماء بتيجي من enrichedMatches دايماً محدثة */}
                         <span className="font-bold text-white text-2xl">
                           {match.team1Name}
                         </span>
-
                         <span className="text-s text-slate-400">VS</span>
-
                         <span className="font-bold text-white text-2xl">
                           {match.team2Name}
                         </span>
                       </div>
 
-                      {/* Score */}
                       <div className="text-center mb-4">
                         <p className="text-3xl font-black text-yellow-400 tracking-wider">
                           {match.score || "0 - 0"}
                         </p>
                       </div>
 
-                      {/* Status */}
                       <div className="flex justify-center">
                         <span className="text-xs font-bold text-yellow-300 border border-yellow-400 px-3 py-1 rounded-full">
                           Finished
@@ -353,7 +354,6 @@ shrink-0">
                         key={team.id}
                         className="bg-gray rounded-xl p-6 shadow-sm border border-l-8 border-l-blue-600 hover:scale-[1.01] transition-all"
                       >
-                        {/* Header */}
                         <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
                           <div>
                             <h3 className="text-slate-100 font-bold text-2xl">
@@ -363,13 +363,11 @@ shrink-0">
                               Captain: {team.captainName || "Unknown"}
                             </p>
                           </div>
-
                           <span className="bg-blue-100 text-blue-600 px-4 py-1 rounded-lg text-sm font-bold">
                             {team.memberIds?.length || 0} Players
                           </span>
                         </div>
 
-                        {/* Members */}
                         <div className="flex gap-2 flex-wrap mb-4">
                           {team.members?.map((name, i) => (
                             <span
@@ -381,7 +379,6 @@ shrink-0">
                           ))}
                         </div>
 
-                        {/* Actions */}
                         <div className="flex gap-4">
                           <button
                             onClick={() => handleApproveTeam(team.id)}
@@ -389,7 +386,6 @@ shrink-0">
                           >
                             Approve Team
                           </button>
-
                           <button
                             onClick={() => handleRejectTeam(team)}
                             className="flex-1 bg-red-500/10 font-bold uppercase py-2 text-red-400 hover:text-white rounded-lg hover:bg-red-500 transition-all border border-slate-300"
@@ -429,8 +425,6 @@ shrink-0">
             }`}
         >
           <div className="h-full bg-white border-r border-slate-200 shadow-xl p-6 flex flex-col gap-6">
-
-            {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-white font-black text-lg tracking-widest">MENU</h2>
               <button
@@ -441,7 +435,6 @@ shrink-0">
               </button>
             </div>
 
-            {/* Links */}
             <div className="flex flex-col space-y-3 gap-4 mt-6">
               <NavButton active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }} icon={<BsGridFill />} label="HOME" />
               <NavButton active={activeTab === "players"} onClick={() => { setActiveTab("players"); setIsSidebarOpen(false); }} icon={<FaUserPlus />} label="PLAYERS" />
@@ -450,7 +443,6 @@ shrink-0">
               <NavButton active={activeTab === "schedule"} onClick={() => { setActiveTab("schedule"); setIsSidebarOpen(false); }} icon={<FaRegCalendarAlt />} label="MATCHES" />
               <NavButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} icon={<FaCog />} label="SETTINGS" />
             </div>
-
           </div>
         </div>
       </div>
@@ -464,7 +456,7 @@ const StatCard = ({ icon, label, value, color }) => (
       <p className="text-blue-500 text-xs font-bold uppercase tracking-widest">{label}</p>
       <p className="text-slate-900 text-xl font-black">{value}</p>
     </div>
-    <div className={`text-3xl ${color} group-hover:scale-110 transition-transform `}>
+    <div className={`text-3xl ${color} group-hover:scale-110 transition-transform`}>
       {icon}
     </div>
   </div>
