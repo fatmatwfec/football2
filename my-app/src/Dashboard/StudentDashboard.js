@@ -443,17 +443,19 @@ const StudentDashboard = () => {
                         {liveMatches.length === 0 ? (
                             <p className="text-gray-400 text-sm">No live matches</p>
                         ) : (
-                            liveMatches.map(match => (
-                                <div key={match.id} className="mb-3 p-3 bg-black/40 rounded-xl">
-                                    <p className="font-bold">
-                                        {match.team1Name} vs {match.team2Name}
-                                    </p>
-                                    <p className="text-blue-400 text-xl font-black">
-                                        {match.score || "0-0"}
-                                    </p>
-                                    <span className="text-green-400 text-xs">LIVE</span>
-                                </div>
-                            ))
+                            <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
+                                {liveMatches.map(match => (
+                                    <div key={match.id} className="p-3 bg-black/40 rounded-xl">
+                                        <p className="font-bold">
+                                            {match.team1Name} vs {match.team2Name}
+                                        </p>
+                                        <p className="text-blue-400 text-xl font-black">
+                                            {match.score || "0-0"}
+                                        </p>
+                                        <span className="text-green-400 text-xs">LIVE</span>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
 
@@ -463,17 +465,19 @@ const StudentDashboard = () => {
                         {finishedMatches.length === 0 ? (
                             <p className="text-gray-400 text-sm">No finished matches</p>
                         ) : (
-                            finishedMatches.map(match => (
-                                <div key={match.id} className="mb-3 p-3 bg-black/40 rounded-xl">
-                                    <p className="font-bold">
-                                        {match.team1Name} vs {match.team2Name}
-                                    </p>
-                                    <p className="text-lg">
-                                        {match.score || "0-0"}
-                                    </p>
-                                    <span className="text-yellow-400 text-xs">Finished</span>
-                                </div>
-                            ))
+                            <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
+                                {finishedMatches.map(match => (
+                                    <div key={match.id} className="p-3 bg-black/40 rounded-xl">
+                                        <p className="font-bold">
+                                            {match.team1Name} vs {match.team2Name}
+                                        </p>
+                                        <p className="text-lg">
+                                            {match.score || "0-0"}
+                                        </p>
+                                        <span className="text-yellow-400 text-xs">Finished</span>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
 
