@@ -108,7 +108,18 @@ const MatchesTab = () => {
   );
 
   const scheduledMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'scheduled'));
-  const liveMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'live'));
+ const now = Date.now();
+
+const liveMatches = filterByRound(
+  enrichedMatches.filter((m) => {
+    if (!m.date || !m.time) return false;
+
+    const start = new Date(`${m.date} ${m.time}`).getTime();
+    const end = start + 20 * 60 * 1000; 
+
+    return now >= start && now <= end;
+  })
+);
   const completedMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'completed'));
 
   // ── Handlers ─────────────────────────────────────────────

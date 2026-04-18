@@ -50,9 +50,8 @@ const AdminDashboard = () => {
   if (!m.startTime) return false;
 
   const start = m.startTime?.toMillis
-    ? m.startTime.toMillis() // Firestore Timestamp
-    : new Date(m.startTime).getTime(); // fallback للويب
-
+    ? m.startTime.toMillis()
+    : new Date(m.startTime).getTime(); 
   const isInTimeWindow =
     now >= start &&
     now <= start + 20 * 60 * 1000;

@@ -54,14 +54,38 @@ export default function StudentDashboard() {
   }, []);
 
   // All matches listener (live + finished)
-  useEffect(() => {
-    const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setLiveMatches(data.filter(m => (m.status || "").trim().toLowerCase() !== "completed"));
-      setFinishedMatches(data.filter(m => (m.status || "").trim().toLowerCase() === "completed"));
+ useEffect(() => {
+  const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const now = Date.now();
+
+    const live = data.filter(m => {
+      if (!m.startTime) return false;
+
+      const start = m.startTime?.toMillis
+        ? m.startTime.toMillis()
+        : new Date(m.startTime).getTime();
+
+      const isInTimeWindow =
+        now >= start &&
+        now <= start + 20 * 60 * 1000;
+
+      const notFinished = m.status !== "completed";
+
+      return isInTimeWindow && notFinished;
     });
-    return () => unsubMatches();
-  }, []);
+
+    setLiveMatches(live);
+    setFinishedMatches(
+      data.filter(m =>
+        (m.status || "").trim().toLowerCase() === "completed"
+      )
+    );
+  });
+
+  return () => unsubMatches();
+}, []);
 
   // Next match for this team
   useEffect(() => {

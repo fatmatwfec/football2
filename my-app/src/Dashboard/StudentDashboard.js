@@ -71,13 +71,25 @@ const StudentDashboard = () => {
     useEffect(() => {
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
         const data = snap.docs.map(d => ({id: d.id,...d.data()}));
+         const now = Date.now();
 
             setMatches(data);
 
-            setLiveMatches(
-                data.filter(m => (m.status || "").trim().toLowerCase() !== "completed")
-            );
+           const live = data.filter((m) => {
+  if (!m.startTime) return false;
 
+  const start = m.startTime?.toMillis
+    ? m.startTime.toMillis()
+    : new Date(m.startTime).getTime(); 
+  const isInTimeWindow =
+    now >= start &&
+    now <= start + 20 * 60 * 1000;
+
+  const notFinished = (m.status || "").toLowerCase() !== "completed";
+
+  return isInTimeWindow && notFinished;
+});
+ setLiveMatches(live);
             setFinishedMatches(
                 data.filter(m => (m.status || "").trim().toLowerCase() === "completed")
             );
