@@ -317,13 +317,17 @@ export default function StudentDashboard() {
           {liveMatches.length === 0 ? (
             <Text style={styles.noTeamText}>No live matches</Text>
           ) : (
-            liveMatches.map(match => (
-              <View key={match.id} style={styles.matchRow}>
-                <Text style={styles.matchTeams}>{match.team1Name} vs {match.team2Name}</Text>
-                <Text style={styles.matchScore}>{match.score || "0-0"}</Text>
-                <Text style={styles.liveTag}>LIVE</Text>
-              </View>
-            ))
+            <View style={{ maxHeight: 180, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", borderRadius: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.2)" }}>
+              <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
+                {liveMatches.map(match => (
+                  <View key={match.id} style={styles.matchRow}>
+                    <Text style={styles.matchTeams}>{match.team1Name} vs {match.team2Name}</Text>
+                    <Text style={styles.matchScore}>{match.score || "0-0"}</Text>
+                    <Text style={styles.liveTag}>LIVE</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
           )}
         </View>
 
@@ -333,13 +337,17 @@ export default function StudentDashboard() {
           {finishedMatches.length === 0 ? (
             <Text style={styles.noTeamText}>No finished matches</Text>
           ) : (
-            finishedMatches.map(match => (
-              <View key={match.id} style={styles.matchRow}>
-                <Text style={styles.matchTeams}>{match.team1Name} vs {match.team2Name}</Text>
-                <Text style={styles.matchScore}>{match.score || "0-0"}</Text>
-                <Text style={styles.finishedTag}>Finished</Text>
-              </View>
-            ))
+            <View style={{ maxHeight: 180, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", borderRadius: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.2)" }}>
+              <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
+                {finishedMatches.map(match => (
+                  <View key={match.id} style={styles.matchRow}>
+                    <Text style={styles.matchTeams}>{match.team1Name} vs {match.team2Name}</Text>
+                    <Text style={styles.matchScore}>{match.score || "0-0"}</Text>
+                    <Text style={styles.finishedTag}>Finished</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
           )}
         </View>
 
