@@ -89,79 +89,44 @@ export const prepareMatchForResult = async (match, players) => {
   if (anyLifted) await batch.commit();
 };
 
-export const finalizeMatch = async (match, raw, activePlayers) => {
-  // ✅ FIX: تأكد إن match.id موجود
-  if (!match?.id) return { ok: false, error: 'معرّف المباراة غير موجود.' };
 
-  const s1 = parseInt(raw.score1);
-  const s2 = parseInt(raw.score2);
+export const finalizeMatch = async (match, formData, activePlayers) => {
+  try {
+    const score1 = parseInt(formData.score1) || 0;
+    const score2 = parseInt(formData.score2) || 0;
 
-  if (isNaN(s1) || isNaN(s2)) return { ok: false, error: 'يجب إدخال النتيجة.' };
-  if (s1 < 0 || s2 < 0)       return { ok: false, error: 'لا يمكن أن تكون النتيجة سالبة.' };
-
-  let p1 = null, p2 = null;
-  let finalWinnerId, finalWinnerName;
-
-  if (s1 === s2) {
-    p1 = parseInt(raw.pen1);
-    p2 = parseInt(raw.pen2);
-
-    if (isNaN(p1) || isNaN(p2)) return { ok: false, error: 'المباراة تعادلت — يجب إدخال نتيجة ضربات الجزاء.' };
-    if (p1 < 0 || p2 < 0)       return { ok: false, error: 'نتيجة الجزاء لا يمكن أن تكون سالبة.' };
-    if (p1 === p2)               return { ok: false, error: 'لا يمكن التعادل في ضربات الجزاء. لازم يكون في فائز.' };
-
-    finalWinnerId   = p1 > p2 ? match.team1Id   : match.team2Id;
-    // ✅ FIX: الاسم بييجي من match مباشرة (enriched في الـ UI)
-    finalWinnerName = p1 > p2 ? match.team1Name : match.team2Name;
-  } else {
-    finalWinnerId   = s1 > s2 ? match.team1Id   : match.team2Id;
-    finalWinnerName = s1 > s2 ? match.team1Name : match.team2Name;
-  }
-
-  let team1Goals = 0, team2Goals = 0;
-  activePlayers.forEach(player => {
-    const g = parseInt(raw[`goals-${player.id}`]) || 0;
-    if (player.teamId === match.team1Id) team1Goals += g;
-    if (player.teamId === match.team2Id) team2Goals += g;
-  });
-
-  if (team1Goals !== s1) return { ok: false, error: `أهداف لاعبي ${match.team1Name} (${team1Goals}) لا تساوي السكور (${s1}).` };
-  if (team2Goals !== s2) return { ok: false, error: `أهداف لاعبي ${match.team2Name} (${team2Goals}) لا تساوي السكور (${s2}).` };
-
-  const batch = writeBatch(db);
-
-  const statsSnapshot = {};
-  activePlayers.forEach(player => {
-    const goals  = parseInt(raw[`goals-${player.id}`])  || 0;
-    const yellow = parseInt(raw[`yellow-${player.id}`]) || 0;
-    const red    = parseInt(raw[`red-${player.id}`])    || 0;
-
-    if (goals > 0 || yellow > 0 || red > 0) {
-      statsSnapshot[player.id] = { name: player.name, goals, yellow, red };
-      batch.update(doc(db, 'users', player.id), {
-        goals:       increment(goals),
-        yellowCards: increment(yellow),
-        redCards:    increment(red),
-      });
+    let winnerName = null;
+    if (score1 > score2) {
+      winnerName = match.team1Name;
+    } else if (score2 > score1) {
+      winnerName = match.team2Name;
+    } else {
+      const pen1 = parseInt(formData.pen1) || 0;
+      const pen2 = parseInt(formData.pen2) || 0;
+      if (pen1 > pen2) {
+        winnerName = match.team1Name;
+      } else if (pen2 > pen1) {
+        winnerName = match.team2Name;
+      }
     }
-  });
-
-  const matchUpdate = {
-    score:       `${s1}-${s2}`,
-    status:      'completed',
-    statsSnapshot,
-    winnerId:    finalWinnerId,
-    winnerName:  finalWinnerName,
-    finalizedAt: new Date(),
-  };
-  if (p1 !== null) matchUpdate.penalties = `${p1}-${p2}`;
-
-  batch.update(doc(db, 'matches', match.id), matchUpdate);
-  await batch.commit();
-  await applySuspensions(raw, activePlayers);
-  await advanceBracketWinner(finalWinnerId, finalWinnerName, match.team1Id, match.team2Id);
-
-  return { ok: true };
+    
+    const updateData = {
+      status: 'completed',
+      score: `${score1} - ${score2}`,
+      completedAt: new Date(),
+      winnerName: winnerName || null, 
+    };
+    
+    if (formData.pen1 && formData.pen2) {
+      updateData.penalties = `${formData.pen1} - ${formData.pen2}`;
+    }
+    
+    await updateDoc(doc(db, 'matches', match.id), updateData);
+    return { ok: true };
+  } catch (error) {
+    console.error('Error finalizing match:', error);
+    return { ok: false, error: error.message };
+  }
 };
 
 const applySuspensions = async (raw, activePlayers) => {
@@ -196,10 +161,8 @@ const applySuspensions = async (raw, activePlayers) => {
 };
 
 export const deleteMatch = async (match) => {
-  // ✅ FIX: تأكد إن match.id موجود وصالح قبل الحذف
   if (!match?.id) throw new Error('معرّف المباراة غير موجود — لا يمكن الحذف.');
 
-  // ✅ FIX: تحقق إن الـ document موجود فعلاً في Firestore قبل الحذف
   const matchRef  = doc(db, 'matches', match.id);
   const matchSnap = await getDoc(matchRef);
 

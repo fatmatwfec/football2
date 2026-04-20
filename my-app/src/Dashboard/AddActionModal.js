@@ -99,67 +99,233 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div className="glass w-full max-w-md rounded-[2.5rem] p-8 relative border-white/20 shadow-2xl">
-        <div className="flex justify-between items-center mb-6">
-          {view !== 'options' && <button onClick={() => setView('options')} className="text-slate-400 hover:text-white"><FaArrowLeft /></button>}
-          <h3 className="text-xl font-bold flex-1 text-center">{view === 'options' ? 'Quick Actions' : view === 'teamForm' ? 'New Team' : 'New Match'}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><FaTimes size={20} /></button>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in"
+      />
+      
+      {/* Modal Content */}
+      <div className="relative w-full max-w-md bg-gradient-to-br from-[#121821] to-[#0a0f16] rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-fade-slide-up">
+        {/* Header */}
+        <div className="relative px-6 py-5 border-b border-white/10 bg-gradient-to-r from-[#00FF9C]/5 to-transparent">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {view !== 'options' && (
+                <button 
+                  onClick={() => setView('options')} 
+                  className="text-gray-400 hover:text-white transition-colors p-1"
+                >
+                  <FaArrowLeft className="text-lg" />
+                </button>
+              )}
+              <div className="w-8 h-8 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg flex items-center justify-center">
+                {view === 'options' && <span className="text-black font-black text-lg">+</span>}
+                {view === 'teamForm' && <FaUsers className="text-black text-sm" />}
+                {view === 'matchForm' && <FaFutbol className="text-black text-sm" />}
+              </div>
+              <h3 className="text-xl font-bold text-white">
+                {view === 'options' && 'Quick Actions'}
+                {view === 'teamForm' && 'New Team'}
+                {view === 'matchForm' && 'New Match'}
+              </h3>
+            </div>
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"
+            >
+              <FaTimes size={18} />
+            </button>
+          </div>
         </div>
 
+        {/* Options View */}
         {view === 'options' && (
-          <div className="grid grid-cols-1 gap-4">
-            <button onClick={() => setView('teamForm')} className="flex items-center gap-4 p-5 glass hover:bg-blue-600/20 rounded-3xl transition-all">
-              <div className="size-12 rounded-2xl bg-blue-600/20 flex items-center justify-center"><FaUsers className="text-blue-500"/></div>
-              <div className="text-left"><p className="font-bold">Add Team</p><p className="text-[10px] text-slate-400">{currentTeamsCount}/32 Slots Used</p></div>
+          <div className="p-6 space-y-4">
+            <button 
+              onClick={() => setView('teamForm')} 
+              className="w-full flex items-center gap-4 p-5 bg-[#121821] border border-white/10 rounded-xl hover:border-[#00FF9C]/30 hover:bg-white/5 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#00FF9C]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FaUsers className="text-[#00FF9C] text-xl" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-white">Add Team</p>
+                <p className="text-xs text-gray-500">{currentTeamsCount}/32 Slots Used</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#00FF9C]/20 transition-all">
+                <FaPlus className="text-[#00FF9C] text-xs" />
+              </div>
             </button>
-            <button onClick={() => setView('matchForm')} className="flex items-center gap-4 p-5 glass hover:bg-accent-lime/10 rounded-3xl transition-all">
-              <div className="size-12 rounded-2xl bg-accent-lime/20 flex items-center justify-center"><FaFutbol className="text-accent-lime"/></div>
-              <div className="text-left"><p className="font-bold">Schedule Match</p><p className="text-[10px] text-slate-400">Create game fixture</p></div>
+            
+            <button 
+              onClick={() => setView('matchForm')} 
+              className="w-full flex items-center gap-4 p-5 bg-[#121821] border border-white/10 rounded-xl hover:border-[#00FF9C]/30 hover:bg-white/5 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#00FF9C]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FaFutbol className="text-[#00FF9C] text-xl" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-white">Schedule Match</p>
+                <p className="text-xs text-gray-500">Create game fixture</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#00FF9C]/20 transition-all">
+                <FaPlus className="text-[#00FF9C] text-xs" />
+              </div>
             </button>
           </div>
         )}
 
+        {/* Team Form View */}
         {view === 'teamForm' && (
-          <form onSubmit={handleSubmitTeam} className="flex flex-col gap-4 animate-in slide-in-from-right-4">
-            <input required placeholder="Team Name" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setTeamData({...teamData, teamName: e.target.value})}/>
-            <input required placeholder="Captain Name" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setTeamData({...teamData, captainName: e.target.value})}/>
+          <form onSubmit={handleSubmitTeam} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Team Name <span className="text-[#00FF9C]">*</span>
+              </label>
+              <input 
+                required 
+                placeholder="e.g., FC Barcelona" 
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                onChange={(e) => setTeamData({...teamData, teamName: e.target.value})}
+              />
+            </div>
             
-            <div className="flex gap-3">
-               <select className="flex-1 bg-slate-900 border border-white/10 rounded-2xl p-4 text-white outline-none" value={selectedDropdownPlayer} onChange={e => setSelectedDropdownPlayer(e.target.value)}>
-                   <option value="">Select Players (Optional)</option>
-                   {availableFreeAgents.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
-               </select>
-               <button type="button" onClick={handleAddPlayerToRoster} className="bg-blue-600/20 text-blue-500 border border-blue-500/30 font-black px-6 rounded-2xl hover:bg-blue-500 hover:text-white transition-all text-xl"><FaPlus /></button>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Captain Name <span className="text-[#00FF9C]">*</span>
+              </label>
+              <input 
+                required 
+                placeholder="Full name" 
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                onChange={(e) => setTeamData({...teamData, captainName: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Add Players (Optional)
+              </label>
+              <div className="flex gap-3">
+                <select 
+                  className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                  value={selectedDropdownPlayer} 
+                  onChange={e => setSelectedDropdownPlayer(e.target.value)}
+                >
+                  <option value="" className="bg-[#121821]">Select a player</option>
+                  {availableFreeAgents.map(p => (
+                    <option value={p.id} key={p.id} className="bg-[#121821]">{p.name || p.email}</option>
+                  ))}
+                </select>
+                <button 
+                  type="button" 
+                  onClick={handleAddPlayerToRoster} 
+                  className="bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20 font-bold px-6 rounded-xl hover:bg-[#00FF9C]/20 hover:scale-105 transition-all"
+                >
+                  <FaPlus />
+                </button>
+              </div>
             </div>
 
             {selectedPlayers.length > 0 && (
-                <div className="flex flex-wrap gap-2 bg-black/20 p-4 rounded-2xl border border-white/5">
-                    {selectedPlayers.map(p => (
-                        <div key={p.id} className="bg-slate-800 text-xs px-4 py-2 text-white font-bold rounded-xl flex items-center gap-3">
-                            {p.name} <FaTimes className="cursor-pointer text-red-500 hover:scale-125 transition-all" onClick={() => handleRemovePlayerFromRoster(p.id)} />
-                        </div>
-                    ))}
+              <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                <p className="text-xs text-gray-400 mb-3">Selected Players ({selectedPlayers.length}/7)</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedPlayers.map(p => (
+                    <div key={p.id} className="bg-white/5 text-xs px-3 py-2 text-white rounded-lg flex items-center gap-2 border border-white/10">
+                      <span>{p.name || p.email}</span>
+                      <FaTimes 
+                        className="cursor-pointer text-red-400 hover:text-red-300 hover:scale-110 transition-all text-xs" 
+                        onClick={() => handleRemovePlayerFromRoster(p.id)} 
+                      />
+                    </div>
+                  ))}
                 </div>
+              </div>
             )}
 
-            <button disabled={loading} className="w-full bg-blue-600 text-white h-14 rounded-2xl font-bold mt-4 shadow-xl hover:bg-blue-500 active:scale-95 transition-all">{loading ? 'Saving...' : 'Create Team'}</button>
+            <button 
+              disabled={loading} 
+              className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold py-3 rounded-xl hover:scale-105 transition-all duration-300 glow-on-hover disabled:opacity-50 disabled:hover:scale-100 mt-2"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                  Creating...
+                </div>
+              ) : (
+                'Create Team'
+              )}
+            </button>
           </form>
         )}
 
+        {/* Match Form View */}
         {view === 'matchForm' && (
-          <form onSubmit={handleSubmitMatch} className="flex flex-col gap-4 animate-in slide-in-from-right-4">
-            <input required placeholder="Team 1" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setMatchData({...matchData, team1: e.target.value})}/>
-            <input required placeholder="Team 2" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" onChange={(e) => setMatchData({...matchData, team2: e.target.value})}/>
-            <div className="grid grid-cols-2 gap-3">
-              <input required type="date" className="bg-slate-900 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setMatchData({...matchData, date: e.target.value})}/>
-              <input required type="time" className="bg-slate-900 border border-white/10 rounded-2xl p-4 text-white text-xs" onChange={(e) => setMatchData({...matchData, time: e.target.value})}/>
+          <form onSubmit={handleSubmitMatch} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Team 1 <span className="text-[#00FF9C]">*</span>
+              </label>
+              <input 
+                required 
+                placeholder="Team name" 
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                onChange={(e) => setMatchData({...matchData, team1: e.target.value})}
+              />
             </div>
-            <button disabled={loading} className="w-full bg-accent-lime text-slate-900 h-14 rounded-2xl font-bold mt-4"><FaCalendarAlt /> Confirm Match</button>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Team 2 <span className="text-[#00FF9C]">*</span>
+              </label>
+              <input 
+                required 
+                placeholder="Team name" 
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                onChange={(e) => setMatchData({...matchData, team2: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date <span className="text-[#00FF9C]">*</span>
+                </label>
+                <input 
+                  required 
+                  type="date" 
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                  onChange={(e) => setMatchData({...matchData, date: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Time <span className="text-[#00FF9C]">*</span>
+                </label>
+                <input 
+                  required 
+                  type="time" 
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                  onChange={(e) => setMatchData({...matchData, time: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <button 
+              disabled={loading} 
+              className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold py-3 rounded-xl hover:scale-105 transition-all duration-300 glow-on-hover flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+            >
+              <FaCalendarAlt />
+              {loading ? 'Scheduling...' : 'Confirm Match'}
+            </button>
           </form>
         )}
       </div>
     </div>
   );
 };
+
 export default AddActionModal;

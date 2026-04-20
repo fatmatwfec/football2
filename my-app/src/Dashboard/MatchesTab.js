@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCircle, FaBan, FaFire, FaFilter } from 'react-icons/fa';
+import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCircle, FaBan, FaFire, FaFilter, FaMapMarkerAlt, FaTv } from 'react-icons/fa';
 import { scheduleMatch, prepareMatchForResult, finalizeMatch, deleteMatch, syncMatchStatuses } from '../services/matchService';
 import { getRoundLabel, buildMatchCache, getMatchRoundFromCache } from '../services/tournamentService';
 
@@ -10,9 +10,7 @@ const MatchesTab = () => {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [tournament, setTournament] = useState(null);
-
-  const [activeClick, setActiveClick] = useState("live");
-
+  const [activeTab, setActiveTab] = useState("upcoming"); 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showResultModal, setShowResultModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +21,6 @@ const MatchesTab = () => {
     date: '', time: '', pitch: 'Main Pitch',
   });
 
-  // ── Firestore listeners ──────────────────────────────────
   useEffect(() => {
     const unsubs = [
       onSnapshot(collection(db, 'matches'), (snap) => {
@@ -48,11 +45,10 @@ const MatchesTab = () => {
   useEffect(() => {
     if (!matches.length) return;
     syncMatchStatuses(matches);
-    const interval = setInterval(() => syncMatchStatuses(matches), 60_000);
+    const interval = setInterval(() => syncMatchStatuses(matches), 60000);
     return () => clearInterval(interval);
   }, [matches]);
 
-  // ── Derived ──────────────────────────────────────────────
   const matchCache = useMemo(() => buildMatchCache(tournament), [tournament]);
 
   const availableRounds = useMemo(() => {
@@ -76,20 +72,6 @@ const MatchesTab = () => {
     [teams, getPlayerCount],
   );
 
-  const isMatchFinished = (date, time) => new Date() >= new Date(`${date} ${time}`);
-
-  // ── Filter by round ──────────────────────────────────────
-  const filterByRound = useCallback(
-    (list) => {
-      if (roundFilter === null || !tournament) return list;
-      return list.filter((m) => {
-        const info = getMatchRoundFromCache(matchCache, m.team1Id, m.team2Id);
-        return info?.roundIndex === roundFilter;
-      });
-    },
-    [roundFilter, tournament, matchCache],
-  );
-
   const resolveTeamName = useCallback(
     (teamId, fallback) => {
       const found = teams.find(t => t.id === teamId);
@@ -98,7 +80,6 @@ const MatchesTab = () => {
     [teams],
   );
 
-  // enrichedMatches للعرض فقط في الـ UI
   const enrichedMatches = useMemo(() =>
     matches.map(m => ({
       ...m,
@@ -110,20 +91,52 @@ const MatchesTab = () => {
 
   const now = Date.now();
 
-  const scheduledMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'scheduled'));
+  const filterByRound = useCallback(
+    (list) => {
+      if (roundFilter === null || !tournament) return list;
+      return list.filter((m) => {
+        const info = getMatchRoundFromCache(matchCache, m.team1Id, m.team2Id);
+        return info?.roundIndex === roundFilter;
+      });
+    },
+    [roundFilter, tournament, matchCache],
+  );
 
-  const liveMatches = filterByRound(
+  
+  const upcomingMatches = filterByRound(
     enrichedMatches.filter((m) => {
       if (!m.date || !m.time) return false;
-      const start = new Date(`${m.date} ${m.time}`).getTime();
-      const end = start + 20 * 60 * 1000;
-      return now >= start && now <= end;
+      const matchTime = new Date(`${m.date} ${m.time}`).getTime();
+      return (m.status === 'scheduled' || m.status === 'upcoming') && matchTime > now;
     })
   );
 
-  const completedMatches = filterByRound(enrichedMatches.filter((m) => m.status === 'completed'));
+  
+  const liveMatches = filterByRound(
+    enrichedMatches.filter((m) => {
+      if (!m.date || !m.time) return false;
+      const matchTime = new Date(`${m.date} ${m.time}`).getTime();
+      const matchEndTime = matchTime + 120 * 60 * 1000; // 2 hours match duration
+      
+      const isLiveTime = now >= matchTime && now <= matchEndTime;
+      const isNotCompleted = m.status !== 'completed' && m.status !== 'cancelled';
+      const isNotUpcoming = matchTime <= now;
+      
+      return isLiveTime && isNotCompleted && isNotUpcoming;
+    })
+  );
 
-  // ── Handlers ─────────────────────────────────────────────
+  const completedMatches = filterByRound(
+    enrichedMatches.filter((m) => m.status === 'completed')
+  );
+
+  const getMatchRoundLabel = (match) => {
+    if (!tournament) return null;
+    const info = getMatchRoundFromCache(matchCache, match.team1Id, match.team2Id);
+    if (!info) return null;
+    return getRoundLabel(info.roundIndex, Object.keys(tournament.rounds).length);
+  };
+
   const handleSchedule = async (e) => {
     e.preventDefault();
     try {
@@ -135,13 +148,11 @@ const MatchesTab = () => {
     }
   };
 
-  // ✅ FIX: استخدم الـ raw match من الـ matches state بالـ id
   const handleOpenResult = async (matchId) => {
     const rawMatch = matches.find(m => m.id === matchId);
     if (!rawMatch) return alert('Match not found');
     try {
       await prepareMatchForResult(rawMatch, players);
-      // نعرض في الـ modal الـ enriched names للـ UI بس
       const enrichedMatch = enrichedMatches.find(m => m.id === matchId);
       setShowResultModal(enrichedMatch || rawMatch);
     } catch (err) {
@@ -155,8 +166,6 @@ const MatchesTab = () => {
 
     const fd = new FormData(e.target);
     const raw = Object.fromEntries(fd.entries());
-
-    // ✅ FIX: استخدم الـ raw match للـ Firestore operations
     const rawMatch = matches.find(m => m.id === showResultModal.id);
 
     const activePlayers = players.filter(
@@ -170,7 +179,7 @@ const MatchesTab = () => {
       if (!result.ok) {
         alert(result.error);
       } else {
-        alert('تم حفظ النتيجة وتحديث الـ Bracket!');
+        alert('Match result saved!');
         setShowResultModal(null);
       }
     } catch (err) {
@@ -180,7 +189,6 @@ const MatchesTab = () => {
     setIsSubmitting(false);
   };
 
-  // ✅ FIX: استخدم الـ raw match بالـ id عشان الـ Firestore يلاقيه
   const handleDelete = async (matchId) => {
     if (!window.confirm('Are you sure? Stats will be rolled back.')) return;
     const rawMatch = matches.find(m => m.id === matchId);
@@ -192,236 +200,244 @@ const MatchesTab = () => {
     }
   };
 
-  const getMatchRoundLabel = (match) => {
-    if (!tournament) return null;
-    const info = getMatchRoundFromCache(matchCache, match.team1Id, match.team2Id);
-    if (!info) return null;
-    return getRoundLabel(info.roundIndex, Object.keys(tournament.rounds).length);
+  // Get display count for tabs
+  const getTabCount = (tab) => {
+    switch(tab) {
+      case 'upcoming': return upcomingMatches.length;
+      case 'live': return liveMatches.length;
+      case 'completed': return completedMatches.length;
+      default: return 0;
+    }
   };
 
-  // ── Render ───────────────────────────────────────────────
   return (
-    <div className="animate-in fade-in duration-500 max-w-5xl mx-auto pb-40 px-4">
-
-      {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6 bg-slate-900/50 p-8 rounded-[3rem] border border-white/5">
-        <div>
-          <h2 className="text-4xl font-black text-white flex items-center gap-4">
-            <FaTrophy className="text-yellow-500" /> FIXTURES
-          </h2>
-          <p className="text-slate-400 text-xs font-black uppercase tracking-widest mt-2 italic">
-            Official League Match Center
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className={`px-8 py-4 rounded-2xl font-black text-xs uppercase transition-all shadow-2xl ${showAddForm
-            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
-            : 'bg-blue-600 text-white hover:bg-blue-500'
-            }`}
-        >
-          {showAddForm ? 'Cancel Schedule' : 'Schedule New Match'}
-        </button>
-      </div>
-
-      {/* ── Round Filter ── */}
-      {availableRounds.length > 0 && (
-        <div className="flex gap-3 mb-8 flex-wrap items-center">
-          <FaFilter className="text-slate-500 text-sm" />
+    <div className="w-full min-h-screen bg-gradient-to-br from-black via-slate-900 to-[#0a1927]">
+      <div className="relative max-w-7xl mx-auto px-4 py-8">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-6">
+          <div>
+            <h1 className="text-4xl font-black text-white flex items-center gap-3">
+              <FaTrophy className="text-[#00FF9C]" />
+              Match Schedule
+            </h1>
+            <p className="text-gray-500 text-sm mt-2">
+              Stay updated with all tournament matches
+            </p>
+          </div>
+          
           <button
-            onClick={() => setRoundFilter(null)}
-            className={`px-4 py-2 rounded-xl font-black text-xs uppercase transition-all border ${roundFilter === null
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-transparent text-slate-500 border-white/10 hover:border-white/20'
-              }`}
+            onClick={() => setShowAddForm(!showAddForm)}
+            className={`px-6 py-3 rounded-xl font-bold text-sm uppercase transition-all shadow-lg ${
+              showAddForm
+                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
+            }`}
           >
-            All Rounds
+            {showAddForm ? 'Cancel' : '+ Schedule Match'}
           </button>
-          {availableRounds.map((r) => (
-            <button
-              key={r.key}
-              onClick={() => setRoundFilter(r.key)}
-              className={`px-4 py-2 rounded-xl font-black text-xs uppercase transition-all border ${roundFilter === r.key
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-transparent text-slate-500 border-white/10 hover:border-white/20'
-                }`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      )}
+        </div> 
 
-      {/* ── Add match form ── */}
-      {showAddForm && (
-        <div className="glass p-10 rounded-[3rem] border-2 border-blue-500/20 mb-12 bg-slate-900/40">
-          <form onSubmit={handleSchedule} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Home Team</label>
+        {/* Add Match Form */}
+        {showAddForm && (
+          <div className="bg-[#121821] backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
+            <form onSubmit={handleSchedule} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <select
                 required
-                className="w-full bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500 transition-all"
+                className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]"
                 onChange={(e) => {
                   const t = teams.find((x) => x.id === e.target.value);
                   if (t) setNewMatch({ ...newMatch, team1Id: t.id, team1Name: t.teamName });
                 }}
               >
-                <option value="">Select Home</option>
+                <option value="">Home Team</option>
                 {availableTeams(newMatch.team2Id).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.teamName} ({getPlayerCount(t.id)} Players)
-                  </option>
+                  <option key={t.id} value={t.id}>{t.teamName} ({getPlayerCount(t.id)} players)</option>
                 ))}
               </select>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Away Team</label>
               <select
                 required
-                className="w-full bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500 transition-all"
+                className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]"
                 onChange={(e) => {
                   const t = teams.find((x) => x.id === e.target.value);
                   if (t) setNewMatch({ ...newMatch, team2Id: t.id, team2Name: t.teamName });
                 }}
               >
-                <option value="">Select Away</option>
+                <option value="">Away Team</option>
                 {availableTeams(newMatch.team1Id).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.teamName} ({getPlayerCount(t.id)} Players)
-                  </option>
+                  <option key={t.id} value={t.id}>{t.teamName} ({getPlayerCount(t.id)} players)</option>
                 ))}
               </select>
-            </div>
 
-            <input
-              type="date" required
-              className="bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500"
-              onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })}
-            />
-            <input
-              type="time" required
-              className="bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500"
-              onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })}
-            />
+              <input type="date" required className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]" onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })} />
+              <input type="time" required className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]" onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })} />
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Pitch</label>
-              <select
-                className="w-full bg-slate-950 border-2 border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500 transition-all"
-                value={newMatch.pitch}
-                onChange={(e) => setNewMatch({ ...newMatch, pitch: e.target.value })}
-              >
+              <select className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]" value={newMatch.pitch} onChange={(e) => setNewMatch({ ...newMatch, pitch: e.target.value })}>
                 <option value="Main Pitch">Main Pitch</option>
-                <option value="Pitch 2">Pitch 2</option>
-                <option value="Pitch 3">Pitch 3</option>
+                <option value="Stadium A">Stadium A</option>
+                <option value="Stadium B">Stadium B</option>
               </select>
-            </div>
 
+              <button type="submit" className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold py-3 rounded-xl text-sm hover:scale-105 transition-all">
+                Confirm Match
+              </button>
+            </form>
+          </div>
+        )}
+        
+        {/* Round Filter */}
+        {availableRounds.length > 0 && (
+          <div className="flex gap-2 mb-6 flex-wrap items-center">
+            <FaFilter className="text-gray-500 text-xs" />
             <button
-              type="submit"
-              className="self-end bg-blue-600 text-white font-black h-16 rounded-[2rem] uppercase text-sm shadow-xl hover:bg-blue-500 transition-all active:scale-95"
+              onClick={() => setRoundFilter(null)}
+              className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all ${
+                roundFilter === null
+                  ? 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              }`}
             >
-              Confirm Fixture
+              All
             </button>
-          </form>
+            {availableRounds.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => setRoundFilter(r.key)}
+                className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all ${
+                  roundFilter === r.key
+                    ? 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-8 border-b border-white/10">
+          <button
+            onClick={() => setActiveTab('upcoming')}
+            className={`px-6 py-3 text-sm font-bold uppercase transition-all relative ${
+              activeTab === 'upcoming' 
+                ? 'text-[#00FF9C] border-b-2 border-[#00FF9C]'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              📅 Upcoming
+            </span>
+            <span className={`ml-2 text-xs ${activeTab === 'upcoming' ? 'text-[#00FF9C]/60' : 'text-gray-600'}`}>
+              ({getTabCount('upcoming')})
+            </span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('live')}
+            className={`px-6 py-3 text-sm font-bold uppercase transition-all relative ${
+              activeTab === 'live' 
+                ? 'text-red-400 border-b-2 border-red-400'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              🔴 Live
+              {liveMatches.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              )}
+            </span>
+            <span className={`ml-2 text-xs ${activeTab === 'live' ? 'text-red-400/60' : 'text-gray-600'}`}>
+              ({getTabCount('live')})
+            </span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('completed')}
+            className={`px-6 py-3 text-sm font-bold uppercase transition-all relative ${
+              activeTab === 'completed' 
+                ? 'text-[#00FF9C] border-b-2 border-[#00FF9C]'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              ✅ Completed
+            </span>
+            <span className={`ml-2 text-xs ${activeTab === 'completed' ? 'text-[#00FF9C]/60' : 'text-gray-600'}`}>
+              ({getTabCount('completed')})
+            </span>
+          </button>
         </div>
-      )}
 
-      <div className="flex gap-10 border-b pb-2 mb-3 mt-3">
-        <button
-          onClick={() => setActiveClick("live")}
-          className={`font-bold text-3xl tracking-wide ${activeClick === "live"
-            ? "text-red-500 border-b-4 border-red-500 pb-1"
-            : "text-gray-300"
-            }`}
-        >
-          Live
-        </button>
+        {/* Matches Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activeTab === 'upcoming' && upcomingMatches.map(match => (
+            <MatchCard
+              key={match.id}
+              match={match}
+              type="upcoming"
+              roundLabel={getMatchRoundLabel(match)}
+              onEnterResult={() => handleOpenResult(match.id)}
+              onDelete={() => handleDelete(match.id)}
+            />
+          ))}
+          
+          {activeTab === 'live' && liveMatches.map(match => (
+            <MatchCard
+              key={match.id}
+              match={match}
+              type="live"
+              roundLabel={getMatchRoundLabel(match)}
+              onEnterResult={() => handleOpenResult(match.id)}
+              onDelete={() => handleDelete(match.id)}
+            />
+          ))}
+          
+          {activeTab === 'completed' && completedMatches.map(match => (
+            <MatchCard
+              key={match.id}
+              match={match}
+              type="completed"
+              roundLabel={getMatchRoundLabel(match)}
+              onDelete={() => handleDelete(match.id)}
+            />
+          ))}
+        </div>
 
-        <button
-          onClick={() => setActiveClick("upcoming")}
-          className={`font-bold text-3xl tracking-wide ${activeClick === "upcoming"
-            ? "text-green-500 border-b-4 border-green-500 pb-1"
-            : "text-gray-300"
-            }`}
-        >
-          Upcoming Matches
-        </button>
+        {/* Empty State */}
+        {((activeTab === 'upcoming' && upcomingMatches.length === 0) ||
+          (activeTab === 'live' && liveMatches.length === 0) ||
+          (activeTab === 'completed' && completedMatches.length === 0)) && (
+          <div className="text-center py-20">
+            <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <FaFutbol className="text-gray-600 text-3xl" />
+            </div>
+            <p className="text-gray-500 font-medium">No {activeTab} matches</p>
+            <p className="text-gray-600 text-sm mt-1">Check back later for updates</p>
+          </div>
+        )}
 
-        <button
-          onClick={() => setActiveClick("history")}
-          className={`font-bold text-3xl tracking-wide ${activeClick === "history"
-            ? "text-orange-700 border-b-4 border-orange-500 pb-1"
-            : "text-gray-300"
-            }`}
-        >
-          Match History
-        </button>
+        {/* Stats Footer */}
+        <div className="mt-12 pt-6 border-t border-white/10 flex justify-center gap-8 text-center">
+          <div>
+            <p className="text-2xl font-black text-[#00FF9C]">{upcomingMatches.length + liveMatches.length + completedMatches.length}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total Matches</p>
+          </div>
+          <div className="w-px bg-white/10"></div>
+          <div>
+            <p className="text-2xl font-black text-[#00FF9C]">{upcomingMatches.length}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Upcoming</p>
+          </div>
+          <div className="w-px bg-white/10"></div>
+          <div>
+            <p className="text-2xl font-black text-red-400">{liveMatches.length}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Live Now</p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Live Matches ── */}
-      {activeClick === "live" && liveMatches.length > 0 && (
-        <Section
-          label="🔴 Live Now"
-          labelColor="text-red-500"
-          matches={liveMatches}
-          renderMatch={(m) => (
-            <UpcomingMatchCard
-              key={m.id}
-              match={m}
-              roundLabel={getMatchRoundLabel(m)}
-              canFinalize
-              isLive
-              onEnterResult={() => handleOpenResult(m.id)}
-              onDelete={() => handleDelete(m.id)}
-            />
-          )}
-        />
-      )}
-
-      {/* ── Scheduled Matches ── */}
-      {activeClick === "upcoming" && (
-        <Section
-          label="Upcoming Fixtures"
-          labelColor="text-emerald-500"
-          matches={scheduledMatches}
-          emptyText="No upcoming matches scheduled."
-          renderMatch={(m) => {
-            const canFinalize = isMatchFinished(m.date, m.time);
-            return (
-              <UpcomingMatchCard
-                key={m.id}
-                match={m}
-                roundLabel={getMatchRoundLabel(m)}
-                canFinalize={canFinalize}
-                isLive={false}
-                onEnterResult={() => handleOpenResult(m.id)}
-                onDelete={() => handleDelete(m.id)}
-              />
-            );
-          }}
-        />
-      )}
-
-      {/* ── Match History ── */}
-      {activeClick === "history" && completedMatches.length > 0 && (
-        <Section
-          label="Match History — Completed Fixtures"
-          labelColor="text-orange-500"
-          matches={completedMatches}
-          renderMatch={(m) => (
-            <CompletedMatchCard
-              key={m.id}
-              match={m}
-              roundLabel={getMatchRoundLabel(m)}
-              onDelete={() => handleDelete(m.id)}
-            />
-          )}
-        />
-      )}
-
-      {/* ── Result Modal ── */}
+      {/* Result Modal */}
       {showResultModal && (
         <ResultModal
           match={showResultModal}
@@ -435,317 +451,395 @@ const MatchesTab = () => {
   );
 };
 
-// ─── Section wrapper ──────────────────────────────────────────
-const Section = ({ label, labelColor, matches, emptyText, renderMatch }) => (
-  <div className="mb-12">
-    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ml-2 mb-6 ${labelColor}`}>
-      {label}
-    </p>
-    <div className="grid grid-cols-1 gap-6">
-      {matches.length === 0 && emptyText && (
-        <p className="text-slate-600 text-center py-10 font-bold">{emptyText}</p>
-      )}
-      {matches.map(renderMatch)}
-    </div>
-  </div>
-);
-
-// ─── Upcoming / Live Match Card ───────────────────────────────
-const UpcomingMatchCard = ({ match, roundLabel, canFinalize, isLive, onEnterResult, onDelete }) => (
-  <div className={`glass rounded-[3rem] p-8 border-2 transition-all shadow-2xl bg-slate-900/40 ${isLive ? 'border-red-500/30' : 'border-white/5'
+// Match Card Component 
+const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete }) => {
+  const isLive = type === 'live';
+  const isCompleted = type === 'completed';
+  
+  return (
+    <div className={`bg-[#121821] backdrop-blur-sm rounded-2xl border overflow-hidden transition-all hover:border-[#00FF9C]/30 ${
+      isLive ? 'border-red-500/50 shadow-lg shadow-red-500/10' : 'border-white/10'
     }`}>
-    <div className="flex items-center gap-3 mb-4">
-      {roundLabel && (
-        <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-          {roundLabel}
-        </span>
-      )}
-      {isLive && (
-        <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 flex items-center gap-1">
-          <FaFire /> Live
-        </span>
-      )}
-      {match.pitch && (
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          📍 {match.pitch}
-        </span>
-      )}
-    </div>
-
-    <MatchTeamsRow match={match} scoreColor="blue" completed={false} />
-
-    <div className="flex gap-4 mt-8 pt-8 border-t border-white/5">
-      <button
-        onClick={onEnterResult}
-        disabled={!canFinalize}
-        className={`flex-[4] py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${!canFinalize
-          ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
-          : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xl shadow-emerald-900/20'
-          }`}
-      >
-        {!canFinalize ? 'Waiting for kick-off' : 'Enter Results'}
-      </button>
-      <DeleteBtn onClick={onDelete} />
-    </div>
-  </div>
-);
-
-// ─── Completed Match Card ─────────────────────────────────────
-const CompletedMatchCard = ({ match, roundLabel, onDelete }) => (
-  <div className="glass rounded-[3rem] p-8 border-2 border-emerald-500/20 transition-all shadow-2xl bg-slate-900/40">
-    {(roundLabel || match.pitch) && (
-      <div className="flex items-center gap-3 mb-4">
-        {roundLabel && (
-          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-            {roundLabel}
+      {/* Status Bar */}
+      <div className={`px-4 py-2 border-b flex justify-between items-center ${
+        isLive ? 'bg-red-500/20 border-red-500/30' : 'bg-white/5 border-white/10'
+      }`}>
+        <div className="flex items-center gap-2">
+          {roundLabel && (
+            <span className="text-[9px] font-bold text-[#00FF9C] uppercase bg-[#00FF9C]/10 px-2 py-0.5 rounded-full">
+              {roundLabel}
+            </span>
+          )}
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${
+            isLive ? 'text-red-400 animate-pulse' : isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
+          }`}>
+            {isLive ? '🔴 LIVE' : isCompleted ? '✅ FINISHED' : '📅 UPCOMING'}
           </span>
-        )}
-        {match.pitch && (
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            📍 {match.pitch}
-          </span>
-        )}
-      </div>
-    )}
-
-    <MatchTeamsRow match={match} scoreColor="emerald" completed />
-
-    {match.penalties && (
-      <div className="text-center mt-2">
-        <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 px-4 py-1 rounded-full border border-amber-500/20">
-          Penalties: {match.penalties}
-        </span>
-      </div>
-    )}
-
-    {match.statsSnapshot && Object.keys(match.statsSnapshot).length > 0 && (
-      <div className="mt-6 pt-6 border-t border-white/5">
-        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Player Stats</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {Object.entries(match.statsSnapshot).map(([pId, stats]) => (
-            <div key={pId} className="bg-slate-950/60 rounded-2xl p-3 border border-white/5 flex items-center justify-between">
-              <span className="text-white text-xs font-bold truncate">{stats.name}</span>
-              <div className="flex gap-2 text-[10px] font-black ml-2 flex-shrink-0">
-                {stats.goals > 0 && <span className="text-emerald-400">⚽ {stats.goals}</span>}
-                {stats.yellow > 0 && <span className="text-yellow-400">🟨 {stats.yellow}</span>}
-                {stats.red > 0 && <span className="text-red-400">🟥 {stats.red}</span>}
-              </div>
-            </div>
-          ))}
         </div>
+        <button onClick={onDelete} className="text-gray-500 hover:text-red-400 transition-colors">
+          <FaTrash size={12} />
+        </button>
       </div>
-    )}
 
-    <div className="flex gap-4 mt-6 pt-6 border-t border-white/5">
-      <button disabled className="flex-[4] py-4 rounded-2xl font-black uppercase text-xs tracking-widest bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center gap-2">
-        <FaCheckCircle /> Finalized
-      </button>
-      <DeleteBtn onClick={onDelete} />
-    </div>
-  </div>
-);
+      {/* Teams */}
+      <div className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          {/* Team 1 */}
+          <div className="flex-1 text-center">
+            <div className="w-14 h-14 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-2 shadow-lg">
+              <FaFutbol className="text-black text-2xl" />
+            </div>
+            <p className="text-white font-bold text-sm truncate">{match.team1Name}</p>
+            {isCompleted && match.score && (
+              <p className="text-2xl font-black text-white mt-1">{match.score.split('-')[0]}</p>
+            )}
+          </div>
 
-// ─── Shared sub-components ────────────────────────────────────
-const MatchTeamsRow = ({ match, scoreColor, completed }) => (
-  <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-    <div className="flex-1 text-center md:text-right">
-      <p className="text-black font-black text-2xl uppercase tracking-tighter">{match.team1Name}</p>
-      <p className="text-slate-500 text-[10px] font-black uppercase mt-1">Home Team</p>
-    </div>
-    <div className="flex flex-col items-center gap-2">
-      <div className={`text-4xl font-black px-10 py-4 rounded-[2rem] shadow-inner ${completed
-        ? `text-${scoreColor}-500 bg-${scoreColor}-500/10`
-        : `text-${scoreColor}-500 bg-slate-950 border border-white/5`
-        }`}>
-        {completed ? match.score : 'VS'}
+          {/* VS */}
+          <div className="text-center">
+            <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center">
+              <span className="text-gray-500 text-[10px] font-black">VS</span>
+            </div>
+          </div>
+
+          {/* Team 2 */}
+          <div className="flex-1 text-center">
+            <div className="w-14 h-14 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-2 shadow-lg">
+              <FaFutbol className="text-black text-2xl" />
+            </div>
+            <p className="text-white font-bold text-sm truncate">{match.team2Name}</p>
+            {isCompleted && match.score && (
+              <p className="text-2xl font-black text-white mt-1">{match.score.split('-')[1]}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Match Info */}
+        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-center gap-4 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1">
+            <FaCalendarAlt size={8} />
+            <span>{match.date}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <FaClock size={8} />
+            <span>{match.time}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <FaMapMarkerAlt size={8} />
+            <span>{match.pitch || 'Main Field'}</span>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        {!isCompleted && (
+          <button
+            onClick={onEnterResult}
+            className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${
+              isLive
+                ? 'bg-red-600 hover:bg-red-500 text-white'
+                : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
+            }`}
+          >
+            {isLive ? 'Enter Results' : 'Enter Results'}
+          </button>
+        )}
+
+        {isCompleted && match.penalties && (
+          <div className="mt-3 text-center">
+            <span className="text-[9px] font-bold text-amber-400 uppercase bg-amber-500/10 px-2 py-0.5 rounded-full">
+              Penalties: {match.penalties}
+            </span>
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-3 text-slate-500 font-bold text-[10px] uppercase tracking-widest bg-slate-950 px-4 py-2 rounded-full border border-white/5">
-        <FaCalendarAlt className={`text-${scoreColor}-500`} /> {match.date}
-        <FaClock className={`text-${scoreColor}-500 ml-2`} /> {match.time}
-      </div>
-      {completed && (
-        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1">
-          <FaCheckCircle /> Finalized
-        </span>
-      )}
     </div>
-    <div className="flex-1 text-center md:text-left">
-      <p className="text-black font-black text-2xl uppercase tracking-tighter">{match.team2Name}</p>
-      <p className="text-slate-500 text-[10px] font-black uppercase mt-1">Away Team</p>
-    </div>
-  </div>
-);
+  );
+};
 
-const DeleteBtn = ({ onClick }) => (
-  <button
-    onClick={onClick}
-    className="flex-1 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/10 flex items-center justify-center"
-  >
-    <FaTrash size={18} />
-  </button>
-);
-
-// ─── Result Modal ─────────────────────────────────────────────
 const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
   const [isDraw, setIsDraw] = useState(false);
+  const [score1, setScore1] = useState('');
+  const [score2, setScore2] = useState('');
 
-  const activePlayers = players.filter(
-    (p) =>
-      (p.teamId === match.team1Id || p.teamId === match.team2Id) &&
-      !p.suspendedForNextMatch,
+  const team1Players = players.filter(
+    (p) => p.teamId === match.team1Id && !p.suspendedForNextMatch,
   );
-  const suspendedPlayers = players.filter(
-    (p) =>
-      (p.teamId === match.team1Id || p.teamId === match.team2Id) &&
-      p.suspendedForNextMatch === true,
+  
+  const team2Players = players.filter(
+    (p) => p.teamId === match.team2Id && !p.suspendedForNextMatch,
   );
 
   const handleScoreChange = (e) => {
-    const form = e.target.closest('form');
-    if (!form) return;
-    const s1 = parseInt(form.score1?.value);
-    const s2 = parseInt(form.score2?.value);
-    if (!isNaN(s1) && !isNaN(s2)) setIsDraw(s1 === s2);
+    const s1 = parseInt(e.target.form?.score1?.value) || 0;
+    const s2 = parseInt(e.target.form?.score2?.value) || 0;
+    setScore1(s1);
+    setScore2(s2);
+    setIsDraw(s1 === s2 && s1 > 0);
+  };
+
+  const handleSubmitWithValidation = async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+    const score1Val = parseInt(formData.get('score1')) || 0;
+    const score2Val = parseInt(formData.get('score2')) || 0;
+    
+    if (score1Val === score2Val) {
+      const pen1 = formData.get('pen1');
+      const pen2 = formData.get('pen2');
+      if (!pen1 || !pen2 || pen1 === '' || pen2 === '') {
+        alert('Please enter penalty shootout scores for both teams');
+        return;
+      }
+    }
+    await onSubmit(e);
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
-      <div className="bg-slate-900 border-2 border-white/10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[4rem] p-12 relative shadow-2xl">
-        <button onClick={onClose} className="absolute top-10 right-10 text-slate-500 hover:text-white transition-all scale-150">
-          <FaTimes />
+    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gradient-to-br from-[#121821] to-[#0a0f16] border border-white/10 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white z-10 p-2 rounded-lg hover:bg-white/5 transition-all">
+          <FaTimes size={20} />
         </button>
 
-        <div className="text-center mb-10">
-          <h3 className="text-white font-black uppercase text-2xl tracking-tighter flex items-center justify-center gap-3">
-            <FaFutbol className="text-emerald-500" /> Post-Match Report
-          </h3>
-          <p className="text-slate-500 text-xl font-black uppercase mt-2">
-            {match.team1Name} VS {match.team2Name}
-          </p>
+        {/* Header */}
+        <div className="p-6 border-b border-white/10 text-center sticky top-0 bg-gradient-to-br from-[#121821] to-[#0a0f16] z-10">
+          <h3 className="text-2xl font-bold text-white mb-2">Post-Match Report</h3>
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center">
+                <FaFutbol className="text-black" />
+              </div>
+              <span className="text-white font-bold text-lg">{match.team1Name}</span>
+            </div>
+            <span className="text-gray-500 text-sm">VS</span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center">
+                <FaFutbol className="text-black" />
+              </div>
+              <span className="text-white font-bold text-lg">{match.team2Name}</span>
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-10">
-          <div
-            className="flex items-center justify-center gap-8 bg-slate-950 p-10 rounded-[3rem] border border-white/5 shadow-inner"
-            onChange={handleScoreChange}
-          >
-            {[
-              { name: 'score1', label: match.team1Name },
-              { name: 'score2', label: match.team2Name },
-            ].map((s, i) => (
-              <React.Fragment key={s.name}>
-                {i === 1 && <div className="text-3xl font-black text-slate-700 mt-6">-</div>}
-                <div className="text-center space-y-3">
-                  <label className="text-[10px] text-slate-500 font-black uppercase">{s.label}</label>
-                  <input
-                    name={s.name}
-                    type="number" min="0" placeholder="0" required
-                    className="bg-slate-900 text-center text-5xl font-black text-white w-24 h-24 rounded-3xl outline-none focus:border-emerald-500 border-2 border-transparent transition-all"
+        <form onSubmit={handleSubmitWithValidation} className="p-6 space-y-6">
+          {/* Score Inputs - Larger */}
+          <div className="bg-black/30 rounded-2xl p-6 border border-white/10">
+            <label className="block text-[#00FF9C] text-xs font-bold mb-4 uppercase tracking-wider">Match Score</label>
+            <div className="flex items-center justify-center gap-8">
+              <div className="text-center">
+                <p className="text-gray-400 text-sm mb-3">{match.team1Name}</p>
+                <input 
+                  name="score1" 
+                  type="number" 
+                  min="0" 
+                  required 
+                  value={score1}
+                  onChange={handleScoreChange}
+                  className="w-28 h-28 text-center text-4xl font-black text-white bg-slate-800 rounded-2xl border-2 border-white/10 focus:border-[#00FF9C] focus:outline-none transition-all" 
+                />
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center">
+                  <span className="text-gray-400 text-xl font-black">VS</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-gray-400 text-sm mb-3">{match.team2Name}</p>
+                <input 
+                  name="score2" 
+                  type="number" 
+                  min="0" 
+                  required 
+                  value={score2}
+                  onChange={handleScoreChange}
+                  className="w-28 h-28 text-center text-4xl font-black text-white bg-slate-800 rounded-2xl border-2 border-white/10 focus:border-[#00FF9C] focus:outline-none transition-all" 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Penalties if draw */}
+          {isDraw && (
+            <div className="bg-amber-500/10 rounded-2xl p-6 border-2 border-amber-500/20">
+              <label className="block text-amber-400 text-xs font-bold mb-4 uppercase tracking-wider">Penalty Shootout</label>
+              <div className="flex items-center justify-center gap-8">
+                <div className="text-center">
+                  <p className="text-gray-400 text-xs mb-2">{match.team1Name}</p>
+                  <input 
+                    name="pen1" 
+                    type="number" 
+                    min="0" 
+                    required={isDraw}
+                    placeholder="0" 
+                    className="w-24 h-24 text-center text-3xl font-bold text-white bg-slate-800 rounded-2xl border-2 border-amber-500/30 focus:border-amber-500 focus:outline-none" 
                   />
                 </div>
-              </React.Fragment>
-            ))}
-          </div>
-
-          {isDraw && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-[2rem] p-8">
-              <p className="text-amber-400 font-black text-xs uppercase tracking-widest mb-6 text-center">
-                ⚽ تعادل — أدخل نتيجة ضربات الجزاء
-              </p>
-              <div className="flex items-center justify-center gap-8">
-                {[
-                  { name: 'pen1', label: match.team1Name },
-                  { name: 'pen2', label: match.team2Name },
-                ].map((s, i) => (
-                  <React.Fragment key={s.name}>
-                    {i === 1 && <div className="text-2xl font-black text-slate-700">-</div>}
-                    <div className="text-center space-y-2">
-                      <label className="text-[10px] text-amber-400 font-black uppercase">{s.label}</label>
-                      <input
-                        name={s.name}
-                        type="number" min="0" placeholder="0"
-                        className="bg-slate-900 text-center text-3xl font-black text-white w-20 h-20 rounded-3xl outline-none focus:border-amber-500 border-2 border-amber-500/30 transition-all"
-                      />
-                    </div>
-                  </React.Fragment>
-                ))}
+                <span className="text-gray-500 text-2xl font-bold">-</span>
+                <div className="text-center">
+                  <p className="text-gray-400 text-xs mb-2">{match.team2Name}</p>
+                  <input 
+                    name="pen2" 
+                    type="number" 
+                    min="0" 
+                    required={isDraw}
+                    placeholder="0" 
+                    className="w-24 h-24 text-center text-3xl font-bold text-white bg-slate-800 rounded-2xl border-2 border-amber-500/30 focus:border-amber-500 focus:outline-none" 
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {suspendedPlayers.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs text-red-500 font-black uppercase ml-4 tracking-[0.2em] flex items-center gap-2">
-                <FaBan /> Suspended Players — Cannot Play
-              </p>
-              <div className="grid grid-cols-1 gap-2">
-                {suspendedPlayers.map((player) => (
-                  <div key={player.id} className="bg-red-500/5 p-4 rounded-[1.5rem] flex items-center justify-between border border-red-500/20">
-                    <div>
-                      <p className="text-red-400 text-sm font-bold">{player.name}</p>
-                      <p className="text-[9px] text-red-500/60 font-black uppercase tracking-widest">
-                        {player.assignedTeam} — Suspended this match
-                      </p>
+          {/* Player Statistics - With Team Names */}
+          <div className="bg-black/30 rounded-2xl p-6 border border-white/10">
+            <label className="block text-[#00FF9C] text-xs font-bold mb-4 uppercase tracking-wider">Player Statistics</label>
+            
+            {/* Team 1 Players */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
+                <div className="w-6 h-6 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg flex items-center justify-center">
+                  <FaFutbol className="text-black text-xs" />
+                </div>
+                <h4 className="text-white font-bold text-sm">{match.team1Name}</h4>
+                <span className="text-gray-500 text-xs">({team1Players.length} players)</span>
+              </div>
+              <div className="space-y-2">
+                {team1Players.map(player => (
+                  <div key={player.id} className="bg-slate-800/50 rounded-xl p-3 flex items-center justify-between hover:bg-slate-800 transition-all">
+                    <div className="flex-1">
+                      <p className="text-white font-medium text-sm">{player.name}</p>
+                      <p className="text-[#00FF9C] text-[10px] opacity-60">{match.team1Name}</p>
                     </div>
-                    <FaBan className="text-red-500/50 text-xl" />
+                    <div className="flex gap-3">
+                      <div className="text-center">
+                        <input 
+                          name={`goals-${player.id}`} 
+                          type="number" 
+                          min="0" 
+                          defaultValue="0" 
+                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-[#00FF9C] focus:outline-none" 
+                          placeholder="⚽"
+                        />
+                        <p className="text-[8px] text-gray-500 mt-1">Goals</p>
+                      </div>
+                      <div className="text-center">
+                        <input 
+                          name={`yellow-${player.id}`} 
+                          type="number" 
+                          min="0" 
+                          max="2" 
+                          defaultValue="0" 
+                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-yellow-400 focus:outline-none text-yellow-400" 
+                          placeholder="🟨"
+                        />
+                        <p className="text-[8px] text-gray-500 mt-1">Yellow</p>
+                      </div>
+                      <div className="text-center">
+                        <input 
+                          name={`red-${player.id}`} 
+                          type="number" 
+                          min="0" 
+                          max="1" 
+                          defaultValue="0" 
+                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-red-400 focus:outline-none text-red-400" 
+                          placeholder="🟥"
+                        />
+                        <p className="text-[8px] text-gray-500 mt-1">Red</p>
+                      </div>
+                    </div>
                   </div>
                 ))}
+                {team1Players.length === 0 && (
+                  <div className="text-center py-4 bg-slate-800/30 rounded-xl">
+                    <p className="text-gray-500 text-sm">No players available</p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          <div className="space-y-4">
-            <p className="text-xs text-emerald-500 font-black uppercase ml-4 tracking-[0.2em]">
-              Individual Player Statistics
-            </p>
-            <div className="grid grid-cols-1 gap-3">
-              {activePlayers.map((player) => (
-                <PlayerStatRow key={player.id} player={player} />
-              ))}
+            {/* Team 2 Players */}
+            <div>
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
+                <div className="w-6 h-6 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg flex items-center justify-center">
+                  <FaFutbol className="text-black text-xs" />
+                </div>
+                <h4 className="text-white font-bold text-sm">{match.team2Name}</h4>
+                <span className="text-gray-500 text-xs">({team2Players.length} players)</span>
+              </div>
+              <div className="space-y-2">
+                {team2Players.map(player => (
+                  <div key={player.id} className="bg-slate-800/50 rounded-xl p-3 flex items-center justify-between hover:bg-slate-800 transition-all">
+                    <div className="flex-1">
+                      <p className="text-white font-medium text-sm">{player.name}</p>
+                      <p className="text-[#00FF9C] text-[10px] opacity-60">{match.team2Name}</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="text-center">
+                        <input 
+                          name={`goals-${player.id}`} 
+                          type="number" 
+                          min="0" 
+                          defaultValue="0" 
+                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-[#00FF9C] focus:outline-none" 
+                          placeholder="⚽"
+                        />
+                        <p className="text-[8px] text-gray-500 mt-1">Goals</p>
+                      </div>
+                      <div className="text-center">
+                        <input 
+                          name={`yellow-${player.id}`} 
+                          type="number" 
+                          min="0" 
+                          max="2" 
+                          defaultValue="0" 
+                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-yellow-400 focus:outline-none text-yellow-400" 
+                          placeholder="🟨"
+                        />
+                        <p className="text-[8px] text-gray-500 mt-1">Yellow</p>
+                      </div>
+                      <div className="text-center">
+                        <input 
+                          name={`red-${player.id}`} 
+                          type="number" 
+                          min="0" 
+                          max="1" 
+                          defaultValue="0" 
+                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-red-400 focus:outline-none text-red-400" 
+                          placeholder="🟥"
+                        />
+                        <p className="text-[8px] text-gray-500 mt-1">Red</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {team2Players.length === 0 && (
+                  <div className="text-center py-4 bg-slate-800/30 rounded-xl">
+                    <p className="text-gray-500 text-sm">No players available</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-6 rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl shadow-emerald-900/40 transition-all active:scale-95 disabled:opacity-60"
+          {/* Submit Button - Larger */}
+          <button 
+            type="submit" 
+            disabled={isSubmitting} 
+            className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black py-4 rounded-xl font-bold text-base transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
           >
-            {isSubmitting ? 'Syncing with Database...' : 'Publish Match Results'}
+            {isSubmitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                Processing...
+              </div>
+            ) : (
+              'Publish Results'
+            )}
           </button>
         </form>
       </div>
     </div>
   );
 };
-
-const PlayerStatRow = ({ player }) => (
-  <div className="bg-slate-950/60 p-6 rounded-[2rem] flex items-center justify-between border border-white/5 hover:border-emerald-500/30 transition-all">
-    <div className="min-w-0 flex-1">
-      <p className="text-white text-lg font-bold truncate tracking-tight">{player.name}</p>
-      <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest flex items-center gap-2">
-        {player.assignedTeam}
-        {(player.yellowCards || 0) === 1 && (
-          <span className="text-yellow-500">🟨 1 yellow — caution</span>
-        )}
-      </p>
-    </div>
-    <div className="flex gap-4">
-      {[
-        { name: `goals-${player.id}`, label: 'GOALS', color: 'slate', max: undefined },
-        { name: `yellow-${player.id}`, label: 'YEL', color: 'yellow', max: 2 },
-        { name: `red-${player.id}`, label: 'RED', color: 'red', max: 1 },
-      ].map((field) => (
-        <div key={field.name} className="text-center">
-          <span className={`text-[8px] text-${field.color}-500 font-black block mb-1`}>{field.label}</span>
-          <input
-            name={field.name}
-            type="number" min="0" max={field.max} defaultValue="0"
-            className="w-12 bg-slate-900 rounded-xl p-3 text-center text-sm font-black text-white border border-white/5"
-          />
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
 export default MatchesTab;

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { FaLock, FaUnlock, FaDatabase, FaUserShield, FaSitemap, FaSignOutAlt, FaKey, FaSave, FaTools, FaExclamationTriangle } from 'react-icons/fa';
+import { FaLock, FaUnlock, FaDatabase, FaUserShield, FaSitemap, FaSignOutAlt, FaKey, FaSave, FaTools, FaExclamationTriangle, FaArrowLeft } from 'react-icons/fa';
 import { auth, db } from '../firebase';
 import { signOut, updatePassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 
-const SettingsTab = () => {
+const SettingsTab = ({ onBack }) => {
   const [isLocked, setIsLocked] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -37,6 +37,7 @@ const SettingsTab = () => {
     }
     setIsUpdating(false);
   };
+
   const handleFixDatabase = async () => {
     setIsFixing(true);
     try {
@@ -137,101 +138,151 @@ const SettingsTab = () => {
   };
 
   return (
-    <div className="animate-in slide-in-from-bottom-8 duration-500 max-w-2xl mx-auto pb-40 px-4">
-      <h2 className="text-2xl font-bold mb-8 flex items-center gap-3 text-white">
-        <FaUserShield className="text-blue-500" /> Admin Control Room
-      </h2>
-
-      <div className="flex flex-col gap-4">
-
-        {/* Security Section */}
-        <div className="relative rounded-2xl p-6 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-white/10
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all   flex items-center justify-between group hover:bg-red-500/10">
-          <div className="flex items-center gap-3 mb-2">
-            <FaKey className="text-yellow-500" />
-            <p className="text-white text-2xl font-bold">Admin Security</p>
-          </div>
-          <div className="flex gap-5">
-            <input
-              type="password"
-              placeholder="Enter New Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-blue-500"
-            />
-            <button onClick={handleUpdatePassword} disabled={isUpdating} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-xl flex items-center gap-2 text-xs font-bold transition-all">
-              <FaSave /> {isUpdating ? "Saving..." : "Update"}
-            </button>
-          </div>
-        </div>
-
-        {/* Maintenance Tools - NEW SECTION */}
-        <div className="grid grid-cols-2 gap-4">
-          <button onClick={handleFixDatabase} disabled={isFixing} className="relative rounded-2xl p-6 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-emerald-500/20
-        shadow-md hover:shadow-xl hover:bg-emerald-500/10
-        transition-all   flex items-center justify-between group hover:bg-red-500/10">
-            <FaTools className={`text-emerald-500 ${isFixing ? 'animate-spin' : ''}`} />
-            <span className="text-[20px] text-white font-bold uppercase">Fix Ghost Players</span>
+    <div className="w-full min-h-screen bg-gradient-to-br from-black via-slate-900 to-emerald-950/30">
+      <div className="relative max-w-4xl mx-auto px-4 py-8">
+        
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={onBack}
+            className="p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+          >
+            <FaArrowLeft className="text-lg group-hover:-translate-x-1 transition-transform" />
           </button>
-
-          <button onClick={() => setIsLocked(!isLocked)} className={`relative rounded-2xl p-6 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-white/10
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all   flex items-center justify-between group hover:bg-red-500/10 ${isLocked ? 'bg-red-500/10 border-red-500/30' : 'hover:bg-white/5'}`}>
-            {isLocked ? <FaLock className="text-red-500" /> : <FaUnlock className="text-blue-500" />}
-            <span className="text-[20px] text-white font-bold uppercase">{isLocked ? "System Locked" : "System Open"}</span>
-          </button>
-        </div>
-
-        {/* Generate Brackets */}
-        <button onClick={handleGenerateBrackets} disabled={isGenerating} className="relative rounded-2xl p-6 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-blue-500/20
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all   flex items-center justify-between group hover:bg-blue-600/10 ">
           <div>
-            <p className="text-blue-400 text-2xl font-bold">Generate Tournament Brackets</p>
-            <p className="text-slate-500 text-[15px] uppercase font-black">Randomized match allocation</p>
+            <h1 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
+              <FaUserShield className="text-emerald-500" /> 
+              Admin Control Room
+            </h1>
+            <p className="text-slate-500 text-sm mt-2">
+              Manage security, database, and tournament settings
+            </p>
           </div>
-          <div className="bg-blue-600/20 p-4 rounded-2xl text-blue-500 group-hover:rotate-180 transition-all duration-500">
-            <FaSitemap className={isGenerating ? "animate-spin" : ""} />
-          </div>
-        </button>
-
-
-
-        {/* Reset Section */}
-        <div className="relative rounded-2xl p-6 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-white/10
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all   flex items-center justify-between group hover:bg-red-500/10">
-          <div>
-            <p className="text-white font-bold flex items-center gap-2">Reset Tournament <FaExclamationTriangle className="text-red-500 text-2xl" /></p>
-            <p className="text-red-500 text-[15px] uppercase font-black tracking-widest italic opacity-60">Clear all data & reset stats</p>
-          </div>
-          <button onClick={handleResetSystem} disabled={isResetting} className="bg-red-500/10 text-red-500 p-4 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-inner">
-            {isResetting ? "Wait..." : <FaDatabase />}
-          </button>
         </div>
 
-        {/* Logout */}
-        <button onClick={handleLogout} className="relative rounded-2xl p-6 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-white/10
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all   flex items-center justify-between group hover:bg-red-500/10 ">
-          <p className="text-slate-400 group-hover:text-red-500 font-bold  text-2xl transition-colors">Sign Out</p>
-          <div className="bg-white/5 p-4 rounded-2xl text-slate-500 group-hover:text-red-500 transition-all">
-            <FaSignOutAlt />
+        <div className="flex flex-col gap-5">
+          {/* Security Section */}
+          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden hover:border-emerald-500/30 transition-all">
+            <div className="p-5 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <FaKey className="text-emerald-500 text-lg" />
+                <h3 className="text-white font-bold text-lg">Admin Security</h3>
+              </div>
+              <p className="text-slate-500 text-xs mt-1">Change your account password</p>
+            </div>
+            <div className="p-5">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="password"
+                  placeholder="Enter New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-emerald-500 transition-all"
+                />
+                <button 
+                  onClick={handleUpdatePassword} 
+                  disabled={isUpdating} 
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all disabled:opacity-50"
+                >
+                  <FaSave size={14} /> {isUpdating ? "Saving..." : "Update Password"}
+                </button>
+              </div>
+            </div>
           </div>
-        </button>
+
+          {/* Maintenance Tools */}
+          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden hover:border-emerald-500/30 transition-all">
+            <div className="p-5 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <FaTools className="text-emerald-500 text-lg" />
+                <h3 className="text-white font-bold text-lg">Maintenance Tools</h3>
+              </div>
+              <p className="text-slate-500 text-xs mt-1">Database cleanup and system utilities</p>
+            </div>
+            <div className="p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button 
+                  onClick={handleFixDatabase} 
+                  disabled={isFixing} 
+                  className="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all disabled:opacity-50"
+                >
+                  <FaTools className={isFixing ? "animate-spin" : ""} size={14} />
+                  {isFixing ? "Fixing..." : "Fix Ghost Players"}
+                </button>
+
+                <button 
+                  onClick={() => setIsLocked(!isLocked)} 
+                  className={`px-4 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${
+                    isLocked 
+                      ? 'bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30' 
+                      : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30'
+                  }`}
+                >
+                  {isLocked ? <FaLock size={14} /> : <FaUnlock size={14} />}
+                  {isLocked ? "System Locked" : "System Open"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tournament Management */}
+          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden hover:border-emerald-500/30 transition-all">
+            <div className="p-5 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <FaSitemap className="text-emerald-500 text-lg" />
+                <h3 className="text-white font-bold text-lg">Tournament Management</h3>
+              </div>
+              <p className="text-slate-500 text-xs mt-1">Generate brackets and manage tournament structure</p>
+            </div>
+            <div className="p-5">
+              <button 
+                onClick={handleGenerateBrackets} 
+                disabled={isGenerating} 
+                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-3 text-sm font-bold transition-all disabled:opacity-50"
+              >
+                <FaSitemap className={isGenerating ? "animate-spin" : ""} size={16} />
+                {isGenerating ? "Generating..." : "Generate Tournament Brackets"}
+              </button>
+              <p className="text-slate-600 text-[10px] text-center mt-3 uppercase tracking-wider">
+                ⚡ Randomized match allocation from approved teams
+              </p>
+            </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-red-500/20 overflow-hidden hover:border-red-500/40 transition-all">
+            <div className="p-5 border-b border-red-500/20 bg-red-500/5">
+              <div className="flex items-center gap-2">
+                <FaExclamationTriangle className="text-red-500 text-lg" />
+                <h3 className="text-red-500 font-bold text-lg">Danger Zone</h3>
+              </div>
+              <p className="text-red-500/60 text-xs mt-1">Irreversible actions - proceed with caution</p>
+            </div>
+            <div className="p-5">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button 
+                  onClick={handleResetSystem} 
+                  disabled={isResetting} 
+                  className="flex-1 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-6 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all disabled:opacity-50"
+                >
+                  <FaDatabase size={14} />
+                  {isResetting ? "Resetting..." : "Reset Tournament"}
+                </button>
+                
+                <button 
+                  onClick={handleLogout} 
+                  className="flex-1 bg-slate-800 border border-white/10 text-gray-400 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 px-6 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all"
+                >
+                  <FaSignOutAlt size={14} />
+                  Sign Out
+                </button>
+              </div>
+              <p className="text-slate-600 text-[10px] text-center mt-3 uppercase tracking-wider">
+                ⚠️ Reset will clear all teams, matches, and player stats
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

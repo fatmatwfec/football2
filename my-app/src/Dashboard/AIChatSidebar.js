@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaRobot, FaTimes, FaLightbulb, FaExclamationTriangle, FaTrophy } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaLightbulb, FaExclamationTriangle, FaTrophy, FaChartLine, FaUsers } from 'react-icons/fa';
 
 const AIChatSidebar = ({ isOpen, onClose, stats, players, teams }) => {
   const [advice, setAdvice] = useState("");
@@ -56,69 +56,122 @@ const AIChatSidebar = ({ isOpen, onClose, stats, players, teams }) => {
   }, [isOpen, players, teams]);
 
   return (
-    <aside className={`fixed top-0 right-0 h-full w-full md:w-[380px] z-[500] transition-transform duration-500 shadow-2xl ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-      <div className="h-full bg-slate-900 border-l border-white/10 flex flex-col">
+    <aside className={`fixed top-0 right-0 h-full w-full md:w-[420px] z-[500] transition-transform duration-500 ease-out ${
+      isOpen ? 'translate-x-0' : 'translate-x-full'
+    }`}>
+      <div className="h-full bg-gradient-to-b from-[#0a0f16] to-[#121821] border-l border-white/10 flex flex-col shadow-2xl">
         
-    
-        <div className="p-6 border-b border-white/5 bg-blue-600/10 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg shadow-lg">
-              <FaRobot className="text-white text-xl" />
+        {/* Header */}
+        <div className="relative p-6 border-b border-white/10 bg-gradient-to-r from-[#00FF9C]/5 to-transparent">
+          <div className="flex justify-between items-center">
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-white transition-all p-2 rounded-lg hover:bg-white/5"
+            >
+              <FaTimes size={20} />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-[#00FF9C] to-emerald-600 p-2.5 rounded-xl shadow-lg">
+                <FaRobot className="text-black text-xl" />
+              </div>
+              <div className="text-right">
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider">المحلل الفني الذكي</h3>
+                <p className="text-[#00FF9C] text-[10px] tracking-wider">AI Sports Analyst</p>
+              </div>
             </div>
-            <h3 className="text-white font-bold text-[11px] uppercase tracking-widest">المحلل الفني الذكي</h3>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-all p-2">
-            <FaTimes size={20} />
-          </button>
         </div>
 
-        
-        <div className="flex-1 overflow-y-auto p-6 bg-black/20 custom-scrollbar space-y-5">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-5">
           
+          {/* Stats Overview */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#121821] border border-white/10 rounded-xl p-3 text-center">
+              <FaUsers className="text-[#00FF9C] text-lg mx-auto mb-1" />
+              <p className="text-2xl font-black text-white">{stats?.total || 0}</p>
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider">Total Players</p>
+            </div>
+            <div className="bg-[#121821] border border-white/10 rounded-xl p-3 text-center">
+              <FaChartLine className="text-[#00FF9C] text-lg mx-auto mb-1" />
+              <p className="text-2xl font-black text-white">{teams?.length || 0}</p>
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider">Total Teams</p>
+            </div>
+          </div>
           
+          {/* Best Team Card */}
           {bestTeam && (
-            <div className="bg-gradient-to-br from-yellow-600/20 to-transparent border border-yellow-500/30 p-5 rounded-2xl shadow-xl">
-              <div className="flex items-center gap-2 text-yellow-500 mb-2 font-bold text-[10px] uppercase tracking-widest">
-                <FaTrophy className="text-lg" /> الفريق الأفضل حالياً:
+            <div className="bg-gradient-to-br from-[#00FF9C]/10 to-transparent border border-[#00FF9C]/20 rounded-xl p-5 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <FaTrophy className="text-[#00FF9C] text-lg" />
+                  <span className="text-[#00FF9C] text-[10px] font-bold uppercase tracking-wider">Best Team</span>
+                </div>
+                <div className="w-8 h-8 bg-[#00FF9C]/20 rounded-lg flex items-center justify-center">
+                  <span className="text-[#00FF9C] font-black text-sm">#1</span>
+                </div>
               </div>
-              <p className="text-white text-xl font-black text-right">{bestTeam.teamName}</p>
-              <p className="text-yellow-500/70 text-[10px] text-right mt-1 font-medium">متصدر الترتيب بناءً على النتائج</p>
+              <p className="text-white text-xl font-bold text-right">{bestTeam.teamName}</p>
+              <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/10">
+                <p className="text-[#00FF9C] text-[10px] font-medium">Points: {bestTeam.points || 0}</p>
+                <p className="text-gray-400 text-[10px]">GD: {bestTeam.goalsFor || 0}</p>
+              </div>
             </div>
           )}
 
-        
-          <div className="bg-slate-800/80 border border-white/10 p-6 rounded-2xl shadow-xl">
-            <div className="flex items-center gap-2 text-blue-400 mb-4 font-bold text-xs">
-              <FaLightbulb /> ملخص الأداء:
+          {/* AI Analysis Card */}
+          <div className="bg-[#121821] border border-white/10 rounded-xl p-5 shadow-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-6 h-6 bg-[#00FF9C]/10 rounded-lg flex items-center justify-center">
+                <FaLightbulb className="text-[#00FF9C] text-xs" />
+              </div>
+              <span className="text-[#00FF9C] text-[10px] font-bold uppercase tracking-wider">AI Analysis</span>
             </div>
-            <p className="text-slate-200 text-[13px] leading-relaxed whitespace-pre-line text-right" dir="rtl">
+            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line text-right" dir="rtl">
               {advice}
             </p>
           </div>
 
+          {/* Suspended Players */}
           {suspendedPlayers.length > 0 && (
-            <div className="bg-red-900/20 border border-red-500/30 p-5 rounded-2xl">
-              <div className="flex items-center gap-2 text-red-500 mb-3 font-bold text-[10px] uppercase">
-                <FaExclamationTriangle /> غيابات للإيقاف:
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 bg-red-500/20 rounded-lg flex items-center justify-center">
+                  <FaExclamationTriangle className="text-red-400 text-xs" />
+                </div>
+                <span className="text-red-400 text-[10px] font-bold uppercase tracking-wider">
+                  Suspended ({suspendedPlayers.length})
+                </span>
               </div>
               <div className="space-y-2">
                 {suspendedPlayers.map((p, idx) => (
-                  <div key={idx} className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
-                    <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-md font-bold uppercase tracking-tighter">Out</span>
-                    <span className="text-slate-200 text-[12px] font-medium">{p.name}</span>
+                  <div key={idx} className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-white/5">
+                    <span className="text-[10px] bg-red-500/80 text-white px-2 py-0.5 rounded-md font-bold uppercase tracking-tighter">
+                      Out
+                    </span>
+                    <span className="text-gray-200 text-sm font-medium">{p.name}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="py-4 text-center">
-             <p className="text-[9px] text-slate-600 italic uppercase tracking-widest">
-               Real-time tournament data analysis
-             </p>
+          {/* Free Agents Alert */}
+          {players?.filter(p => !p.teamId).length > 0 && (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+              <p className="text-blue-400 text-xs text-center">
+                🏃 {players.filter(p => !p.teamId).length} Free Agents available for recruitment
+              </p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="pt-4 text-center border-t border-white/5">
+            <p className="text-[9px] text-gray-600 italic uppercase tracking-widest">
+              Real-time tournament data analysis
+            </p>
           </div>
         </div>
-
       </div>
     </aside>
   );

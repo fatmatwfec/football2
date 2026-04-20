@@ -8,7 +8,8 @@ import TeamsTab from "./TeamsTab";
 import TournamentTab from "./TournamentTab";
 import AIChatSidebar from "./AIChatSidebar";
 import AddActionModal from "./AddActionModal";
-import { FaUsers, FaUserPlus, FaCheck, FaRegCalendarAlt, FaCog, FaShieldAlt, FaPlus, FaRobot, FaSitemap } from 'react-icons/fa';
+import {  FaUsers, FaRegCalendarAlt, FaUserPlus, FaCheck, FaRobot, 
+  FaShieldAlt, FaSitemap, FaCog, FaFutbol, FaHistory} from 'react-icons/fa';
 import { BsGridFill } from 'react-icons/bs';
 
 const AdminDashboard = () => {
@@ -22,7 +23,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ total: 0, pending: 0, free: 0 });
   const [pendingTeams, setPendingTeams] = useState([]);
   const [approvedTeams, setApprovedTeams] = useState([]);
-  const [allTeams, setAllTeams] = useState([]); // ✅ كل الفرق عشان نعمل resolve للأسماء
+  const [allTeams, setAllTeams] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [matches, setMatches] = useState([]);
 
@@ -35,7 +36,7 @@ const AdminDashboard = () => {
 
     const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setAllTeams(all); // ✅ احفظ كل الفرق
+      setAllTeams(all);
       setPendingTeams(all.filter(t => t.status === "pending"));
       setApprovedTeams(all.filter(t => t.status === "approved"));
       setStats(prev => ({ ...prev, pending: all.filter(t => t.status === "pending").length }));
@@ -49,7 +50,6 @@ const AdminDashboard = () => {
     return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
   }, []);
 
-  // ✅ FIX: resolve اسم التيم دايماً من teams collection مش من الماتش
   const resolveTeamName = useCallback(
     (teamId, fallback) => {
       const found = allTeams.find(t => t.id === teamId);
@@ -58,7 +58,6 @@ const AdminDashboard = () => {
     [allTeams],
   );
 
-  // ✅ FIX: enrichedMatches بتعرض الأسماء الحالية دايماً
   const enrichedMatches = useMemo(() =>
     matches.map(m => ({
       ...m,
@@ -84,6 +83,7 @@ const AdminDashboard = () => {
     enrichedMatches.filter(m => (m.status || "").trim().toLowerCase() === "completed"),
     [enrichedMatches],
   );
+  const countMatces = finishedMatches.length + liveMatches.length;
 
   const filteredPlayers = allUsers.filter(u => u.role !== 'admin');
 
@@ -116,65 +116,491 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-slate-50 flex flex-col font-['Lexend'] text-slate-800">
+    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend']">
       <style>{`
-.stadium-bg {
-  position: relative;
-  min-height: 100vh;
-  background-image: url("/staduimPicture.jpg");
-  background-size: cover;
-  background-position: center;
-}
-
-.glass {
-  background: linear-gradient(145deg, #ffffff, #f1f5f9);
-  border: 1px solid #e2e8f0;
-  box-shadow: 
-    0 4px 10px rgba(0, 0, 0, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.06);
-  backdrop-filter: blur(4px);
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #3b82f6, #2563eb);
-  border-radius: 10px;
-}
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #121821;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #00FF9C;
+          border-radius: 10px;
+        }
+        .glow-on-hover:hover {
+          box-shadow: 0 0 12px rgba(0, 255, 156, 0.3);
+        }
+        @keyframes fadeSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-slide-up {
+          animation: fadeSlideUp 0.6s ease-out forwards;
+        }
       `}</style>
 
-      <div className="flex-1 flex flex-col stadium-bg overflow-hidden relative">
-        <header className="w-full flex items-center p-6 md:p-8 justify-between 
-bg-transparent 
-border-b border-white/10 
-backdrop-blur-sm 
-shrink-0">
-          <div className="flex items-center gap-4">
-            <button active={false} onClick={() => setIsSidebarOpen(true)} className="text-green-200">
-              <BsGridFill className="size-9 text-green-100" /> Menu
-            </button>
-            <div>
-              <h1 className="text-gray-200 text-2xl font-black">Admin Area</h1>
-              <p className="text-gray-300 text-xs font-bold uppercase mt-1 tracking-widest">Management Command Center</p>
+      <div className="relative h-full w-full overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-[#00FF9C]/10 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]"></div>
+        </div>
+
+        {/* Header / Navbar */}
+        <header className="relative z-20 w-full backdrop-blur-md bg-black/30 border-b border-white/10 sticky top-0">
+          <div className="w-full px-6 lg:px-8 py-4 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center">
+                <span className="text-black font-black text-xl">SFC</span>
+              </div>
+              <div>
+                <h1 className="text-white text-xl font-bold tracking-tight">Science FC League</h1>
+              </div>
+            </div>
+
+           {/* Center Navigation */}
+              <div className="hidden md:flex items-center gap-8">
+                {['Home', 'Matches', 'Teams', 'Players', 'Tournament', 'Settings'].map((item) => (
+                <button
+                   key={item}
+                  onClick={() => {
+                    if (item === 'Home') setActiveTab('dashboard');
+                    if (item === 'Matches') setActiveTab('schedule');
+                    if (item === 'Teams') setActiveTab('teams');
+                    if (item === 'Players') setActiveTab('players');
+                    if (item === 'Tournament') setActiveTab('tournament');
+                    if (item === 'Settings') setActiveTab('settings');
+                  }}
+                  className={`text-gray-300 hover:text-white font-medium transition-colors pb-1 border-b-2 ${
+                    (item === 'Home' && activeTab === 'dashboard') ||
+                    (item === 'Matches' && activeTab === 'schedule') ||
+                    (item === 'Teams' && activeTab === 'teams') ||
+                    (item === 'Players' && activeTab === 'players') ||
+                    (item === 'Tournament' && activeTab === 'tournament') ||
+                    (item === 'Settings' && activeTab === 'settings')
+                      ? 'border-[#00FF9C] text-white'
+                      : 'border-transparent'
+                  }`}
+                >
+                  {item}
+                </button>
+                ))}
+              </div>
+
+            {/* Right Buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsAIChatOpen(true)}
+                className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <FaRobot className="text-lg" />
+              </button>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-6 py-2.5 rounded-xl hover:scale-105 transition-all duration-300 glow-on-hover"
+              >
+                + Create Team
+              </button>
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden p-2.5 rounded-xl bg-white/5 border border-white/10 text-white"
+              >
+                <BsGridFill />
+              </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsAIChatOpen(true)} className="rounded-xl bg-slate-100 hover:bg-blue-100 p-3 border border-slate-200 flex transition">
-              <FaRobot className="text-blue-600 text-xl" />
-            </button>
-            <button onClick={() => setIsModalOpen(true)} className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest shadow-md transition">
-              <FaPlus className="inline mr-2" /> Create New Team
-            </button>
-          </div>
         </header>
+
+        <main className="relative z-10 w-full h-[calc(100vh-73px)] overflow-y-auto custom-scrollbar">
+          <div className="w-full px-6 lg:px-8 py-8">
+            {/* HERO SECTION */}
+            {activeTab === "dashboard" && (
+              <div className="animate-fade-slide-up w-full">
+                <div className="text-center py-12 md:py-20">
+                  <div className="inline-flex items-center gap-2 bg-[#00FF9C]/10 backdrop-blur-sm border border-[#00FF9C]/20 rounded-full px-4 py-1.5 mb-6">
+                    <span className="w-2 h-2 bg-[#00FF9C] rounded-full animate-pulse"></span>
+                    <span className="text-[#00FF9C] text-sm font-medium tracking-wide">LIVE TOURNAMENT</span>
+                  </div>
+                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 leading-tight">
+                    Science Faculty Football
+                  </h1>
+                  <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto mb-8">
+                    The ultimate battle of skill, strategy, and passion. Watch your favorite faculty teams compete for glory.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={() => setActiveClick("live")}
+                      className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-6 md:px-8 py-3 md:py-4 rounded-xl text-base md:text-lg hover:scale-105 transition-all duration-300 glow-on-hover flex items-center justify-center gap-2"
+                    >
+                      <FaFutbol /> View Matches
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("teams")}
+                      className="bg-white/5 border border-white/10 text-white font-bold px-6 md:px-8 py-3 md:py-4 rounded-xl text-base md:text-lg hover:bg-white/10 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+                    >
+                      Browse Teams
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mt-6">
+                  <div className="bg-[#121821] border border-white/10 rounded-2xl p-5 md:p-6 hover:border-[#00FF9C]/30 transition-all group">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <span className="text-gray-400 text-xs md:text-sm font-medium">Total Players</span>
+                      <FaUsers className="text-[#00FF9C] text-xl md:text-2xl group-hover:scale-110 transition-transform" />
+                    </div>
+                    <p className="text-3xl md:text-4xl font-black text-white">{stats.total}</p>
+                    <p className="text-gray-500 text-xs mt-2">Registered athletes</p>
+                  </div>
+
+                  <div className="bg-[#121821] border border-white/10 rounded-2xl p-5 md:p-6 hover:border-[#00FF9C]/30 transition-all group">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <span className="text-gray-400 text-xs md:text-sm font-medium">Pending Approval</span>
+                      <FaRegCalendarAlt className="text-yellow-400 text-xl md:text-2xl group-hover:scale-110 transition-transform" />
+                    </div>
+                    <p className="text-3xl md:text-4xl font-black text-white">{stats.pending}</p>
+                    <p className="text-gray-500 text-xs mt-2">Awaiting verification</p>
+                  </div>
+
+                  <div className="bg-[#121821] border border-white/10 rounded-2xl p-5 md:p-6 hover:border-[#00FF9C]/30 transition-all group">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <span className="text-gray-400 text-xs md:text-sm font-medium">Free Agents</span>
+                      <FaUserPlus className="text-[#00FF9C] text-xl md:text-2xl group-hover:scale-110 transition-transform" />
+                    </div>
+                    <p className="text-3xl md:text-4xl font-black text-white">{stats.free}</p>
+                    <p className="text-gray-500 text-xs mt-2">Available players</p>
+                  </div>
+
+                  <div className="bg-[#121821] border border-white/10 rounded-2xl p-5 md:p-6 hover:border-[#00FF9C]/30 transition-all group">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                      <span className="text-gray-400 text-xs md:text-sm font-medium">Total Matches</span>
+                      <FaCheck className="text-purple-400 text-xl md:text-2xl group-hover:scale-110 transition-transform" />
+                    </div>
+                    <p className="text-3xl md:text-4xl font-black text-white">{countMatces}</p>
+                    <p className="text-gray-500 text-xs mt-2">Scheduled & played</p>
+                  </div>
+                </div>
+
+                {/* Tabs Navigation */}
+                <div className="flex gap-6 md:gap-8 border-b border-white/10 mt-8 md:mt-12 mb-6 md:mb-8">
+                  <button
+                    onClick={() => setActiveClick("live")}
+                    className={`pb-2 md:pb-3 px-1 font-bold text-base md:text-lg transition-all ${
+                      activeClick === "live"
+                        ? "text-[#00FF9C] border-b-2 border-[#00FF9C]"
+                        : "text-gray-400 hover:text-gray-300"
+                    }`}
+                  >
+                    Live Matches
+                  </button>
+                  <button
+                    onClick={() => setActiveClick("history")}
+                    className={`pb-2 md:pb-3 px-1 font-bold text-base md:text-lg transition-all ${
+                      activeClick === "history"
+                        ? "text-[#00FF9C] border-b-2 border-[#00FF9C]"
+                        : "text-gray-400 hover:text-gray-300"
+                    }`}
+                  >
+                    Match History
+                  </button>
+                  <button
+                    onClick={() => setActiveClick("requests")}
+                    className={`pb-2 md:pb-3 px-1 font-bold text-base md:text-lg transition-all relative ${
+                      activeClick === "requests"
+                        ? "text-[#00FF9C] border-b-2 border-[#00FF9C]"
+                        : "text-gray-400 hover:text-gray-300"
+                    }`}
+                  >
+                    Team Requests
+                    {pendingTeams.length > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-[#00FF9C] text-black text-xs font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center">
+                        {pendingTeams.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* LIVE MATCHES */}
+                {activeClick === "live" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {liveMatches.length === 0 ? (
+                      <div className="col-span-full text-center py-12 md:py-16 bg-[#121821] rounded-2xl border border-white/10">
+                        <FaFutbol className="text-4xl md:text-5xl text-gray-600 mx-auto mb-3 md:mb-4" />
+                        <p className="text-gray-400 text-base md:text-lg">No live matches at the moment</p>
+                        <p className="text-gray-500 text-sm">Check back during match hours</p>
+                      </div>
+                    ) : (
+                      liveMatches.map(match => (
+                        <div key={match.id} className="bg-[#121821] border border-white/10 rounded-2xl overflow-hidden hover:border-[#00FF9C]/30 transition-all group">
+                          <div className="p-4 md:p-6">
+                            <div className="flex justify-between items-center mb-4 md:mb-6">
+                              <span className="text-xs font-bold text-[#00FF9C] bg-[#00FF9C]/10 px-2 md:px-3 py-1 rounded-full flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-[#00FF9C] rounded-full animate-pulse"></span>
+                                LIVE NOW
+                              </span>
+                              <span className="text-gray-500 text-xs">Week {match.week || 1}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 md:gap-4">
+                              <div className="text-center flex-1">
+                                <p className="text-white font-bold text-base md:text-xl mb-2">{match.team1Name}</p>
+                                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl mx-auto flex items-center justify-center">
+                                  <span className="text-xl md:text-2xl">⚽</span>
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-2xl md:text-3xl font-black text-[#00FF9C]">{match.score || "0 - 0"}</p>
+                                <p className="text-gray-500 text-xs mt-1">vs</p>
+                              </div>
+                              <div className="text-center flex-1">
+                                <p className="text-white font-bold text-base md:text-xl mb-2">{match.team2Name}</p>
+                                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl mx-auto flex items-center justify-center">
+                                  <span className="text-xl md:text-2xl">⚽</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* MATCH HISTORY */}
+                {activeClick === "history" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {finishedMatches.length === 0 ? (
+                      <div className="col-span-full text-center py-12 md:py-16 bg-[#121821] rounded-2xl border border-white/10">
+                        <FaHistory className="text-4xl md:text-5xl text-gray-600 mx-auto mb-3 md:mb-4" />
+                        <p className="text-gray-400 text-base md:text-lg">No finished matches yet</p>
+                        <p className="text-gray-500 text-sm">Completed matches will appear here</p>
+                      </div>
+                    ) : (
+                      finishedMatches.map(match => (
+                        <div key={match.id} className="bg-[#121821] border border-white/10 rounded-2xl p-4 md:p-6 hover:border-white/20 transition-all">
+                          <div className="flex items-center justify-between mb-3 md:mb-4">
+                            <span className="font-bold text-white text-base md:text-lg">{match.team1Name}</span>
+                            <span className="text-gray-500 text-xs md:text-sm">VS</span>
+                            <span className="font-bold text-white text-base md:text-lg">{match.team2Name}</span>
+                          </div>
+                          <div className="text-center mb-3 md:mb-4">
+                            <p className="text-2xl md:text-3xl font-black text-yellow-400">{match.score || "0 - 0"}</p>
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-xs font-medium text-gray-400 bg-white/5 px-2 md:px-3 py-1 rounded-full">Finished</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* TEAM REQUESTS */}
+                {activeClick === "requests" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                    {pendingTeams.length > 0 ? (
+                      pendingTeams.map(team => (
+                        <div key={team.id} className="bg-[#121821] border border-white/10 rounded-2xl overflow-hidden">
+                          <div className="p-4 md:p-6">
+                            <div className="flex flex-wrap justify-between items-start gap-3 md:gap-4 mb-3 md:mb-4">
+                              <div>
+                                <h3 className="text-white font-bold text-xl md:text-2xl">{team.teamName}</h3>
+                                <p className="text-gray-400 text-xs md:text-sm mt-1">Captain: {team.captainName || "Unknown"}</p>
+                              </div>
+                              <span className="bg-[#00FF9C]/10 text-[#00FF9C] px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium">
+                                {team.memberIds?.length || 0} Players
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1 md:gap-2 mb-4 md:mb-6">
+                              {team.members?.slice(0, 5).map((name, i) => (
+                                <span key={i} className="text-xs bg-white/5 text-gray-300 px-2 py-1 rounded-lg">
+                                  {name}
+                                </span>
+                              ))}
+                              {team.members?.length > 5 && (
+                                <span className="text-xs bg-white/5 text-gray-400 px-2 py-1 rounded-lg">
+                                  +{team.members.length - 5} more
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => handleApproveTeam(team.id)}
+                                className="flex-1 bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold py-2 rounded-xl hover:scale-105 transition-all text-sm md:text-base"
+                              >
+                                Approve Team
+                              </button>
+                              <button
+                                onClick={() => handleRejectTeam(team)}
+                                className="flex-1 bg-white/5 border border-white/10 text-gray-300 font-bold py-2 rounded-xl hover:bg-red-500/20 hover:text-red-400 transition-all text-sm md:text-base"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center py-12 md:py-16 bg-[#121821] rounded-2xl border border-white/10">
+                        <FaUsers className="text-4xl md:text-5xl text-gray-600 mx-auto mb-3 md:mb-4" />
+                        <p className="text-gray-400 text-base md:text-lg">No pending team requests</p>
+                        <p className="text-gray-500 text-sm">All teams have been reviewed</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+
+            {/*  PLAYERS TAB  */}
+            {activeTab === "players" && (
+              <div className="animate-fade-slide-up">
+                <PlayersTab players={filteredPlayers} matches={enrichedMatches} />
+              </div>
+            )}
+
+            {/*  TEAMS TAB  */}
+            {activeTab === "teams" && (
+              <div className="animate-fade-slide-up">
+                <TeamsTab teams={approvedTeams} players={filteredPlayers} matches={enrichedMatches} />
+              </div>
+            )}
+
+            {activeTab === "tournament" && (
+              <div className="animate-fade-slide-up">
+                <TournamentTab teams={approvedTeams} />
+              </div>
+            )}
+
+            {activeTab === "schedule" && (
+              <div className="animate-fade-slide-up">
+                <MatchesTab matches={matches} teams={approvedTeams} players={filteredPlayers} />
+              </div>
+            )}
+
+            {activeTab === "settings" && (
+              <div className="animate-fade-slide-up">
+                <SettingsTab />
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Sidebar Overlay */}
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] transition-all duration-300 ${
+            isSidebarOpen ? "opacity-100 visible" : "opacity-0 invisible"
+          }`}
+        />
+
+        {/* Mobile Sidebar */}
+        <div
+          className={`fixed top-0 left-0 h-full w-80 z-[100] transform transition-transform duration-500 ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="h-full bg-[#0a0f16] border-r border-white/10 p-6 flex flex-col gap-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg flex items-center justify-center">
+                  <span className="text-black font-black text-sm">SFC</span>
+                </div>
+                <h2 className="text-white font-bold">Menu</h2>
+              </div>
+              <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 text-2xl hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeTab === "dashboard"
+                    ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <BsGridFill className="text-xl" />
+                <span className="font-medium">HOME</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab("players"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeTab === "players"
+                    ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <FaUserPlus className="text-xl" />
+                <span className="font-medium">PLAYERS</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab("teams"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeTab === "teams"
+                    ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <FaShieldAlt className="text-xl" />
+                <span className="font-medium">TEAMS</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab("tournament"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeTab === "tournament"
+                    ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <FaSitemap className="text-xl" />
+                <span className="font-medium">TOURNAMENT</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab("schedule"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeTab === "schedule"
+                    ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <FaRegCalendarAlt className="text-xl" />
+                <span className="font-medium">MATCHES</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeTab === "settings"
+                    ? 'bg-[#00FF9C]/10 text-[#00FF9C] border border-[#00FF9C]/20'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <FaCog className="text-xl" />
+                <span className="font-medium">SETTINGS</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <AIChatSidebar
           isOpen={isAIChatOpen}
           onClose={() => setIsAIChatOpen(false)}
-          stats={stats} players={filteredPlayers} matches={enrichedMatches} teams={approvedTeams}
+          stats={stats}
+          players={filteredPlayers}
+          matches={enrichedMatches}
+          teams={approvedTeams}
         />
 
         <AddActionModal
@@ -183,298 +609,9 @@ shrink-0">
           currentTeamsCount={pendingTeams.length + approvedTeams.length}
           freeAgents={filteredPlayers.filter(p => !p.hasTeam)}
         />
-
-        <main className="flex-1 overflow-y-auto px-6 md:px-12 py-10 pb-48 custom-scrollbar">
-          {activeTab === "dashboard" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-
-              {/* Stats */}
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-5 shadow-md hover:scale-[1.02] transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-white text-xl font-bold">Total Players</span>
-                    <FaUsers className="text-blue-400 text-xl" />
-                  </div>
-                  <p className="text-3xl font-black text-white">{stats.total}</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-5 shadow-md hover:scale-[1.02] transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-white text-xl font-bold">Pending Approval</span>
-                    <FaRegCalendarAlt className="text-yellow-400 text-xl" />
-                  </div>
-                  <p className="text-3xl font-black text-white">{stats.pending}</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-5 shadow-md hover:scale-[1.02] transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-white text-xl font-bold">Free Agents</span>
-                    <FaUserPlus className="text-green-400 text-xl" />
-                  </div>
-                  <p className="text-3xl font-black text-white">{stats.free}</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-5 shadow-md hover:scale-[1.02] transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-white text-xl font-bold">Matches</span>
-                    <FaCheck className="text-purple-400 text-xl" />
-                  </div>
-                  <p className="text-3xl font-black text-white">{matches.length}</p>
-                </div>
-              </section>
-
-              {/* Tabs */}
-              <div className="flex gap-10 border-b pb-2 mb-3 mt-3">
-                <button
-                  onClick={() => setActiveClick("live")}
-                  className={`font-bold text-3xl tracking-wide ${activeClick === "live"
-                    ? "text-green-500 border-b-4 border-green-500 pb-1"
-                    : "text-gray-300"
-                    }`}
-                >
-                  Live
-                </button>
-
-                <button
-                  onClick={() => setActiveClick("history")}
-                  className={`font-bold text-3xl tracking-wide ${activeClick === "history"
-                    ? "text-green-500 border-b-4 border-green-500 pb-1"
-                    : "text-gray-300"
-                    }`}
-                >
-                  Match History
-                </button>
-
-                <button
-                  onClick={() => setActiveClick("requests")}
-                  className={`font-bold text-3xl tracking-wide ${activeClick === "requests"
-                    ? "text-green-800 border-b-4 border-green-500 pb-1"
-                    : "text-black"
-                    }`}
-                >
-                  Team Request ({pendingTeams.length})
-                </button>
-              </div>
-
-              {/* LIVE */}
-              {activeClick === "live" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {liveMatches.length === 0 && (
-                    <p className="text-gray-300 text-xl italic col-span-4 text-center py-10">No live matches right now.</p>
-                  )}
-                  {liveMatches.map(match => (
-                    <div key={match.id}
-                      className="relative rounded-2xl p-5 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-white/10
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all duration-300"
-                    >
-                      <div className="flex justify-between items-center mb-4">
-                        <p className="text-white font-semibold text-2xl"></p>
-                        <span className="text-xs font-bold 
-            text-green-400 
-            border border-green-400/30 
-            bg-green-500/10 
-            p-3 rounded-full flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                          LIVE
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="text-center flex-1">
-                          <div className="flex justify-between items-center mb-4">
-                            {/* ✅ الأسماء بتيجي من enrichedMatches دايماً محدثة */}
-                            <p className="text-white font-semibold text-2xl flex items-center gap-2">
-                              {match.team1Name}
-                            </p>
-                            <p className="text-white font-semibold text-2xl flex items-center gap-2">
-                              {match.team2Name}
-                            </p>
-                          </div>
-                          <p className="text-3xl font-black text-blue-400 tracking-wider">
-                            {match.score || "0 - 0"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* HISTORY */}
-              {activeClick === "history" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {finishedMatches.length === 0 && (
-                    <p className="text-gray-300 text-xl italic col-span-4 text-center py-10">No finished matches yet.</p>
-                  )}
-                  {finishedMatches.map(match => (
-                    <div
-                      key={match.id}
-                      className="relative rounded-2xl p-5 
-        bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/40
-        border border-white/10
-        shadow-md hover:shadow-xl hover:shadow-blue-500/10
-        transition-all duration-300"
-                    >
-                      <div className="flex justify-between items-center mb-4">
-                        {/* ✅ الأسماء بتيجي من enrichedMatches دايماً محدثة */}
-                        <span className="font-bold text-white text-2xl">
-                          {match.team1Name}
-                        </span>
-                        <span className="text-s text-slate-400">VS</span>
-                        <span className="font-bold text-white text-2xl">
-                          {match.team2Name}
-                        </span>
-                      </div>
-
-                      <div className="text-center mb-4">
-                        <p className="text-3xl font-black text-yellow-400 tracking-wider">
-                          {match.score || "0 - 0"}
-                        </p>
-                      </div>
-
-                      <div className="flex justify-center">
-                        <span className="text-xs font-bold text-yellow-300 border border-yellow-400 px-3 py-1 rounded-full">
-                          Finished
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* TEAM REQUEST */}
-              {activeClick === "requests" && (
-                <div className="grid grid-cols-2 gap-6">
-                  {pendingTeams.length > 0 ? (
-                    pendingTeams.map(team => (
-                      <div
-                        key={team.id}
-                        className="bg-gray rounded-xl p-6 shadow-sm border border-l-8 border-l-blue-600 hover:scale-[1.01] transition-all"
-                      >
-                        <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
-                          <div>
-                            <h3 className="text-slate-100 font-bold text-2xl">
-                              {team.teamName}
-                            </h3>
-                            <p className="text-slate-500 text-sm">
-                              Captain: {team.captainName || "Unknown"}
-                            </p>
-                          </div>
-                          <span className="bg-blue-100 text-blue-600 px-4 py-1 rounded-lg text-sm font-bold">
-                            {team.memberIds?.length || 0} Players
-                          </span>
-                        </div>
-
-                        <div className="flex gap-2 flex-wrap mb-4">
-                          {team.members?.map((name, i) => (
-                            <span
-                              key={i}
-                              className="text-sm font-bold bg-slate-700 text-slate-100 px-3 py-1 rounded-lg border border-white/5"
-                            >
-                              • {name}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="flex gap-4">
-                          <button
-                            onClick={() => handleApproveTeam(team.id)}
-                            className="flex-1 bg-blue-600 text-white font-bold uppercase py-2 rounded-lg hover:bg-blue-500 transition-all shadow-lg"
-                          >
-                            Approve Team
-                          </button>
-                          <button
-                            onClick={() => handleRejectTeam(team)}
-                            className="flex-1 bg-red-500/10 font-bold uppercase py-2 text-red-400 hover:text-white rounded-lg hover:bg-red-500 transition-all border border-slate-300"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-slate-400 text-xl italic text-center py-10">
-                      No pending requests at the moment.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "players" && <PlayersTab players={filteredPlayers} />}
-          {activeTab === "teams" && <TeamsTab teams={approvedTeams} players={filteredPlayers} />}
-          {activeTab === "tournament" && <TournamentTab teams={approvedTeams} />}
-          {activeTab === "schedule" && <MatchesTab matches={matches} teams={approvedTeams} players={filteredPlayers} />}
-          {activeTab === "settings" && <SettingsTab />}
-        </main>
-
-        {/* Overlay */}
-        <div
-          onClick={() => setIsSidebarOpen(false)}
-          className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] transition-all duration-300 ${isSidebarOpen ? "opacity-100 visible" : "opacity-0 invisible"
-            }`}
-        />
-
-        {/* Sidebar */}
-        <div
-          className={`fixed top-0 left-0 h-full w-72 z-[100] transform transition-transform duration-500 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
-        >
-          <div className="h-full bg-white border-r border-slate-200 shadow-xl p-6 flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-white font-black text-lg tracking-widest">MENU</h2>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="text-Black text-xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex flex-col space-y-3 gap-4 mt-6">
-              <NavButton active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }} icon={<BsGridFill />} label="HOME" />
-              <NavButton active={activeTab === "players"} onClick={() => { setActiveTab("players"); setIsSidebarOpen(false); }} icon={<FaUserPlus />} label="PLAYERS" />
-              <NavButton active={activeTab === "teams"} onClick={() => { setActiveTab("teams"); setIsSidebarOpen(false); }} icon={<FaShieldAlt />} label="TEAMS" />
-              <NavButton active={activeTab === "tournament"} onClick={() => { setActiveTab("tournament"); setIsSidebarOpen(false); }} icon={<FaSitemap />} label="TOURNAMENT" />
-              <NavButton active={activeTab === "schedule"} onClick={() => { setActiveTab("schedule"); setIsSidebarOpen(false); }} icon={<FaRegCalendarAlt />} label="MATCHES" />
-              <NavButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} icon={<FaCog />} label="SETTINGS" />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
-
-const StatCard = ({ icon, label, value, color }) => (
-  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition">
-    <div>
-      <p className="text-blue-500 text-xs font-bold uppercase tracking-widest">{label}</p>
-      <p className="text-slate-900 text-xl font-black">{value}</p>
-    </div>
-    <div className={`text-3xl ${color} group-hover:scale-110 transition-transform`}>
-      {icon}
-    </div>
-  </div>
-);
-
-const NavButton = ({ icon, label, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center gap-3 px-3 py-2 transition-all w-full rounded-lg
-      ${active
-        ? 'bg-blue-50 text-blue-600'
-        : 'text-slate-600 hover:bg-slate-100'}`}
-  >
-    <div className="text-2xl">{icon}</div>
-    <span className="text-xl font-bold uppercase tracking-wide">
-      {label}
-    </span>
-  </button>
-);
 
 export default AdminDashboard;
