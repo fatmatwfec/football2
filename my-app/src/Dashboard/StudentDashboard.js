@@ -625,7 +625,7 @@ const StudentDashboard = () => {
                     </div>
                 ) : (
                     <div className="animate-fade-slide-up">
-                        <TournamentTab teams={approvedTeams} onBack={() => setActiveView("dashboard")} />
+                        <TournamentTab teams={approvedTeams} onBack={() => setActiveView("dashboard")} readOnly={true} />
                     </div>
                 )}
             </div>
