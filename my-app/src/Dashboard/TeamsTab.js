@@ -22,7 +22,7 @@ const getSuspensionType = (player) => {
 
 const isSuspended = (player) => !!player.suspendedForNextMatch;
 
-const TeamsTab = ({ teams, players, matches = [] }) => {
+const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
   const [selectedPlayers, setSelectedPlayers] = useState({});
   const [selectedMember, setSelectedMember] = useState(null);
   const [teamSearch, setTeamSearch] = useState('');
@@ -100,6 +100,7 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   }, [teams, getTeamStats]);
 
   const handleDeleteTeam = async (teamId, teamName) => {
+    if (readOnly) return;
     if (!window.confirm(`Are you sure you want to delete ${teamName}? All members will become Free Agents.`)) return;
     try {
       const batch = writeBatch(db);
@@ -115,6 +116,7 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   };
 
   const handleAddPlayer = async (teamId, teamName) => {
+    if (readOnly) return;
     const currentPlayerId = selectedPlayers[teamId];
     if (!currentPlayerId) return alert('Please select a player first!');
 
@@ -140,6 +142,7 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   };
 
   const handleRemovePlayer = async (teamId, teamName, player) => {
+    if (readOnly) return;
     if (!window.confirm(`Remove ${player.name} from ${teamName}?`)) return;
     try {
       const batch = writeBatch(db);
@@ -155,6 +158,7 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   };
 
   const handleRenameTeam = async (teamId, e) => {
+    if (readOnly) return;
     e?.stopPropagation();
     const newName = renameValue.trim();
     if (!newName) return alert('Team name cannot be empty!');
@@ -185,6 +189,7 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   };
 
   const startRename = (team, e) => {
+    if (readOnly) return;
     e.stopPropagation();
     setRenamingTeamId(team.id);
     setRenameValue(team.teamName);
@@ -346,18 +351,22 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
                         ) : (
                           <>
                             <h3 className="text-white font-black text-2xl">{team.teamName}</h3>
-                            <button onClick={(e) => startRename(team, e)} className="text-slate-500 hover:text-emerald-400">
-                              <FaPen size={12} />
-                            </button>
+                            {!readOnly && (
+                              <button onClick={(e) => startRename(team, e)} className="text-slate-500 hover:text-emerald-400">
+                                <FaPen size={12} />
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleDeleteTeam(team.id, team.teamName)}
-                        className="text-slate-500 hover:text-red-400 transition-colors"
-                      >
-                        <FaTrashAlt size={14} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          onClick={() => handleDeleteTeam(team.id, team.teamName)}
+                          className="text-slate-500 hover:text-red-400 transition-colors"
+                        >
+                          <FaTrashAlt size={14} />
+                        </button>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2">
@@ -417,12 +426,14 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
                                   <span className="text-yellow-400 text-[8px] font-bold">🟨 Suspended</span>
                                 )}
                               </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleRemovePlayer(team.id, team.teamName, member); }}
-                                className="text-slate-600 hover:text-red-400"
-                              >
-                                <FaUserMinus size={12} />
-                              </button>
+                              {!readOnly && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleRemovePlayer(team.id, team.teamName, member); }}
+                                  className="text-slate-600 hover:text-red-400"
+                                >
+                                  <FaUserMinus size={12} />
+                                </button>
+                              )}
                             </div>
                           );
                         })}
@@ -434,26 +445,28 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
                   </div>
 
                   {/* Add Player */}
-                  <div className="p-5 pt-2 border-t border-white/10 mt-2">
-                    <div className="flex gap-2">
-                      <select
-                        value={selectedPlayers[team.id] || ''}
-                        onChange={(e) => setSelectedPlayers(prev => ({ ...prev, [team.id]: e.target.value }))}
-                        className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-emerald-500"
-                      >
-                        <option value="">+ Add Free Agent</option>
-                        {freeAgents.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => handleAddPlayer(team.id, team.teamName)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 rounded-xl transition-all"
-                      >
-                        <FaUserPlus size={14} />
-                      </button>
+                  {!readOnly && (
+                    <div className="p-5 pt-2 border-t border-white/10 mt-2">
+                      <div className="flex gap-2">
+                        <select
+                          value={selectedPlayers[team.id] || ''}
+                          onChange={(e) => setSelectedPlayers(prev => ({ ...prev, [team.id]: e.target.value }))}
+                          className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-emerald-500"
+                        >
+                          <option value="">+ Add Free Agent</option>
+                          {freeAgents.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAddPlayer(team.id, team.teamName)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 rounded-xl transition-all"
+                        >
+                          <FaUserPlus size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             }) : (
