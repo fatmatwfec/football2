@@ -5,7 +5,7 @@ import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCi
 import { scheduleMatch, prepareMatchForResult, finalizeMatch, deleteMatch, syncMatchStatuses } from '../services/matchService';
 import { getRoundLabel, buildMatchCache, getMatchRoundFromCache } from '../services/tournamentService';
 
-const MatchesTab = () => {
+const MatchesTab = ({ readOnly = false }) => {
   const [matches, setMatches] = useState([]);
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -116,7 +116,7 @@ const MatchesTab = () => {
     enrichedMatches.filter((m) => {
       if (!m.date || !m.time) return false;
       const matchTime = new Date(`${m.date} ${m.time}`).getTime();
-      const matchEndTime = matchTime + 120 * 60 * 1000; // 2 hours match duration
+      const matchEndTime = matchTime + 120 * 60 * 1000; 
       
       const isLiveTime = now >= matchTime && now <= matchEndTime;
       const isNotCompleted = m.status !== 'completed' && m.status !== 'cancelled';
@@ -138,6 +138,7 @@ const MatchesTab = () => {
   };
 
   const handleSchedule = async (e) => {
+    if (readOnly) return;
     e.preventDefault();
     try {
       await scheduleMatch(newMatch);
@@ -149,6 +150,7 @@ const MatchesTab = () => {
   };
 
   const handleOpenResult = async (matchId) => {
+    if (readOnly) return;
     const rawMatch = matches.find(m => m.id === matchId);
     if (!rawMatch) return alert('Match not found');
     try {
@@ -161,6 +163,7 @@ const MatchesTab = () => {
   };
 
   const handleFinalize = async (e) => {
+    if (readOnly) return;
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -190,6 +193,7 @@ const MatchesTab = () => {
   };
 
   const handleDelete = async (matchId) => {
+    if (readOnly) return;
     if (!window.confirm('Are you sure? Stats will be rolled back.')) return;
     const rawMatch = matches.find(m => m.id === matchId);
     if (!rawMatch) return alert('Match not found in database.');
@@ -200,7 +204,6 @@ const MatchesTab = () => {
     }
   };
 
-  // Get display count for tabs
   const getTabCount = (tab) => {
     switch(tab) {
       case 'upcoming': return upcomingMatches.length;
@@ -226,20 +229,22 @@ const MatchesTab = () => {
             </p>
           </div>
           
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className={`px-6 py-3 rounded-xl font-bold text-sm uppercase transition-all shadow-lg ${
-              showAddForm
-                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
-            }`}
-          >
-            {showAddForm ? 'Cancel' : '+ Schedule Match'}
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className={`px-6 py-3 rounded-xl font-bold text-sm uppercase transition-all shadow-lg ${
+                showAddForm
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
+              }`}
+            >
+              {showAddForm ? 'Cancel' : '+ Schedule Match'}
+            </button>
+          )}
         </div> 
 
         {/* Add Match Form */}
-        {showAddForm && (
+        {showAddForm && !readOnly && (
           <div className="bg-[#121821] backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
             <form onSubmit={handleSchedule} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <select
@@ -380,6 +385,7 @@ const MatchesTab = () => {
               roundLabel={getMatchRoundLabel(match)}
               onEnterResult={() => handleOpenResult(match.id)}
               onDelete={() => handleDelete(match.id)}
+              readOnly={readOnly}
             />
           ))}
           
@@ -391,6 +397,7 @@ const MatchesTab = () => {
               roundLabel={getMatchRoundLabel(match)}
               onEnterResult={() => handleOpenResult(match.id)}
               onDelete={() => handleDelete(match.id)}
+              readOnly={readOnly}
             />
           ))}
           
@@ -401,6 +408,7 @@ const MatchesTab = () => {
               type="completed"
               roundLabel={getMatchRoundLabel(match)}
               onDelete={() => handleDelete(match.id)}
+              readOnly={readOnly}
             />
           ))}
         </div>
@@ -438,7 +446,7 @@ const MatchesTab = () => {
       </div>
 
       {/* Result Modal */}
-      {showResultModal && (
+      {showResultModal && !readOnly && (
         <ResultModal
           match={showResultModal}
           players={players}
@@ -452,7 +460,7 @@ const MatchesTab = () => {
 };
 
 // Match Card Component 
-const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete }) => {
+const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly }) => {
   const isLive = type === 'live';
   const isCompleted = type === 'completed';
   
@@ -476,9 +484,11 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete }) => {
             {isLive ? '🔴 LIVE' : isCompleted ? '✅ FINISHED' : '📅 UPCOMING'}
           </span>
         </div>
-        <button onClick={onDelete} className="text-gray-500 hover:text-red-400 transition-colors">
-          <FaTrash size={12} />
-        </button>
+        {!readOnly && (
+          <button onClick={onDelete} className="text-gray-500 hover:text-red-400 transition-colors">
+            <FaTrash size={12} />
+          </button>
+        )}
       </div>
 
       {/* Teams */}
@@ -531,7 +541,7 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete }) => {
         </div>
 
         {/* Action Button */}
-        {!isCompleted && (
+        {!isCompleted && !readOnly && (
           <button
             onClick={onEnterResult}
             className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${
@@ -822,24 +832,17 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
             </div>
           </div>
 
-          {/* Submit Button - Larger */}
           <button 
             type="submit" 
-            disabled={isSubmitting} 
-            className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black py-4 rounded-xl font-bold text-base transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+            disabled={isSubmitting}
+            className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black py-4 rounded-xl font-bold text-lg shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50"
           >
-            {isSubmitting ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
-                Processing...
-              </div>
-            ) : (
-              'Publish Results'
-            )}
+            {isSubmitting ? 'Processing Report...' : 'Finalize & Archive Match'}
           </button>
         </form>
       </div>
     </div>
   );
 };
+
 export default MatchesTab;
