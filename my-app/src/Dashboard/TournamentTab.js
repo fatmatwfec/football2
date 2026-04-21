@@ -5,7 +5,7 @@ import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers,
 import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel,} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
 
-const TournamentTab = ({ teams,onBack }) => {
+const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [tournament,    setTournament]    = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [wizardStep,    setWizardStep]    = useState(1);
@@ -36,14 +36,13 @@ const TournamentTab = ({ teams,onBack }) => {
   const tournamentWinner = useMemo(() => getTournamentWinner(tournament), [tournament]);
 
   const handleRunDraw = async () => {
-    if (numTeams < 3) return;
-    setWizardStep(2); // Step 2: The animation/shuffling phase
+    if (readOnly || numTeams < 3) return;
+    setWizardStep(2); 
     setIsGenerating(true);
     try {
-      // Professional delay for shuffling animation momentum
       await new Promise((r) => setTimeout(r, 4500));
       await generateBracket(teams);
-      setWizardStep(3); // Step 3: Final Bracket
+      setWizardStep(3); 
     } catch (e) {
       console.error(e);
       alert('Error generating tournament: ' + (e.message ?? 'Unknown error'));
@@ -53,7 +52,7 @@ const TournamentTab = ({ teams,onBack }) => {
   };
 
   const handleManualAdvance = async (match, winnerTeam) => {
-    if (!match.team1 || !match.team2 || match.winner) return;
+    if (readOnly || !match.team1 || !match.team2 || match.winner) return;
     if (!window.confirm(`Manually advance ${winnerTeam.name}?`)) return;
     try {
       await manualAdvanceWinner(tournament, match, winnerTeam);
@@ -63,6 +62,7 @@ const TournamentTab = ({ teams,onBack }) => {
   };
 
   const handleClear = async () => {
+    if (readOnly) return;
     if (!window.confirm('DANGER: End this tournament? It will be saved to the archive.')) return;
     try {
       await clearTournament();
@@ -75,6 +75,7 @@ const TournamentTab = ({ teams,onBack }) => {
   };
 
   const handleScheduleFromBracket = (bracketMatch) => {
+    if (readOnly) return;
     setScheduleModal({
       team1Id:   bracketMatch.team1.id,
       team1Name: bracketMatch.team1.name,
@@ -110,7 +111,7 @@ const TournamentTab = ({ teams,onBack }) => {
               {tournament ? 'Tournament Live' : 'Tournament Setup'}
             </h1>
             <p className="text-slate-500 text-sm mt-2">
-              {tournament ? 'The brackets are locked and the competition is live!' : 'Register teams and initiate the automated random draw.'}
+              {tournament ? 'The brackets are locked and the competition is live!' : readOnly ? 'Tournament bracket is currently being prepared by officials.' : 'Register teams and initiate the automated random draw.'}
             </p>
           </div>
         </div>
@@ -128,7 +129,7 @@ const TournamentTab = ({ teams,onBack }) => {
         )}
 
         {/* Wizard Steps */}
-        {!tournament && (
+        {!tournament && !readOnly && (
           <div className="mb-8 flex justify-center">
             <div className="flex items-center gap-4 flex-wrap justify-center">
               <WizardStep step={1} currentStep={wizardStep} label="Ready Teams" />
@@ -147,23 +148,26 @@ const TournamentTab = ({ teams,onBack }) => {
               <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6 border-2 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                 <FaUsers className="text-4xl text-emerald-500" />
               </div>
-              <h3 className="text-3xl font-black text-white uppercase mb-3">Initialize Tournament</h3>
+              <h3 className="text-3xl font-black text-white uppercase mb-3">{readOnly ? 'Waiting for Officials' : 'Initialize Tournament'}</h3>
               <p className="text-slate-400 mb-8 max-w-md">
-                We have <span className="text-emerald-400 font-black">{numTeams}</span> approved teams. 
-                Ready to lock registration and perform the random draw?
+                {readOnly 
+                  ? 'Registration is currently closing. The official draw will appear here shortly once completed by the administrators.' 
+                  : `We have ${numTeams} approved teams. Ready to lock registration and perform the random draw?`}
               </p>
-              <button
-                disabled={numTeams < 3}
-                onClick={handleRunDraw}
-                className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center gap-3 ${
-                  numTeams < 3
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-105 shadow-xl shadow-emerald-900/40'
-                }`}
-              >
-                <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
-                {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : 'Initiate Automated Draw'}
-              </button>
+              {!readOnly && (
+                <button
+                  disabled={numTeams < 3}
+                  onClick={handleRunDraw}
+                  className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center gap-3 ${
+                    numTeams < 3
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-105 shadow-xl shadow-emerald-900/40'
+                  }`}
+                >
+                  <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
+                  {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : 'Initiate Automated Draw'}
+                </button>
+              )}
             </div>
           )}
 
@@ -203,13 +207,14 @@ const TournamentTab = ({ teams,onBack }) => {
                 onAdvanceWinner={handleManualAdvance}
                 onScheduleMatch={handleScheduleFromBracket}
                 onClear={handleClear}
+                readOnly={readOnly}
               />
             </div>
           )}
         </div>
 
         {/* Schedule Modal */}
-        {scheduleModal && (
+        {scheduleModal && !readOnly && (
           <ScheduleMatchModal
             prefill={scheduleModal}
             onClose={() => setScheduleModal(null)}
@@ -245,6 +250,8 @@ const TournamentTab = ({ teams,onBack }) => {
     </div>
   );
 };
+
+// ... (Rest of components from before)
 
 // ─── Schedule Match Modal ─────────────────────────────────────
 const ScheduleMatchModal = ({ prefill, onClose }) => {
@@ -347,7 +354,7 @@ const ArchivedTournamentCard = ({ tournament }) => {
       })
     : '—';
 
- return (
+  return (
     <div className="bg-slate-900/40 rounded-xl border border-white/10 overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/5 transition-all" onClick={() => setExpanded(v => !v)}>
         <div className="flex items-center gap-3">
@@ -375,7 +382,7 @@ const ArchivedTournamentCard = ({ tournament }) => {
                         if (!team && match.isBye && i === 1) {
                           return <div key="bye" className="px-2 py-1 rounded-lg bg-slate-900/40 border border-dashed border-slate-700 text-slate-600 text-[10px] font-bold uppercase text-center">BYE</div>;
                         }
-                        const isWinner = match.winner?.id === team?.id;
+                        const isWinner = match.winner?.id && match.winner.id === team?.id;
                         return (
                           <div key={i} className={`flex items-center justify-between px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
                             isWinner ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-slate-900/40 border border-white/5 text-slate-400'
@@ -399,7 +406,7 @@ const ArchivedTournamentCard = ({ tournament }) => {
 
 
 // ─── Bracket View ─────────────────────────────────────────────
-const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear }) => {
+const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear, readOnly }) => {
   const totalRounds = Object.keys(tournament.rounds).length;
 
    return (
@@ -413,14 +420,16 @@ const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear }) 
             Live Tournament • {tournament.numTeams} Teams
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onClear}
-            className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
-          >
-            Reset Tournament
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClear}
+              className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+            >
+              Reset Tournament
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto pb-6">
@@ -433,6 +442,7 @@ const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear }) 
               totalRounds={totalRounds}
               onAdvanceWinner={onAdvanceWinner}
               onScheduleMatch={onScheduleMatch}
+              readOnly={readOnly}
             />
           ))}
         </div>
@@ -441,7 +451,7 @@ const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear }) 
   );
 };
 
-const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch }) => (
+const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch, readOnly }) => (
   <div className="flex flex-col justify-around gap-6 relative" style={{ width: '220px' }}>
     <div className="text-center mb-2">
       <h3 className="text-emerald-500 font-bold uppercase text-[10px] tracking-[0.2em] bg-slate-800/50 inline-block px-4 py-1 rounded-full">
@@ -456,15 +466,16 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, o
         totalRounds={totalRounds}
         onAdvanceWinner={onAdvanceWinner}
         onScheduleMatch={onScheduleMatch}
+        readOnly={readOnly}
       />
     ))}
   </div>
 );
 
 // ─── Match Card ───────────────────────────────────────────────
-const MatchCard = ({ match, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch }) => {
-  const canClick     = (team) => match.team1 && match.team2 && !match.winner && team;
-  const canSchedule  = match.team1 && match.team2 && !match.isBye && !match.winner;
+const MatchCard = ({ match, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch, readOnly }) => {
+  const canClick     = (team) => !readOnly && match.team1 && match.team2 && !match.winner && team;
+  const canSchedule  = !readOnly && match.team1 && match.team2 && !match.isBye && !match.winner;
 
  return (
     <div className="bg-slate-800/50 border rounded-xl overflow-hidden transition-all hover:border-emerald-500/30 border-white/10">
