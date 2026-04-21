@@ -37,6 +37,19 @@ function Login() {
 
       const userData = querySnapshot.docs[0].data();
       const userEmail = userData.email;
+      const userRole = userData.role;
+
+      if (userType === "admin" && userRole !== "admin") {
+        setError("Access denied. This Student ID is not associated with an admin account.");
+        setLoading(false);
+        return;
+      }
+
+      if (userType === "student" && userRole !== "student") {
+        setError("Access denied. This is an admin account. Please use the Admin tab to login.");
+        setLoading(false);
+        return;
+      }
 
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -61,7 +74,15 @@ function Login() {
 
     } catch (err) {
       console.error(err.code);
-      setError("Invalid Student ID or Password.");
+      if (err.code === 'auth/wrong-password') {
+        setError("Incorrect password. Please try again.");
+      } else if (err.code === 'auth/user-not-found') {
+        setError("Invalid Student ID or Password.");
+      } else if (err.code === 'auth/invalid-credential') {
+        setError("Invalid Student ID or Password.");
+      } else {
+        setError("Invalid Student ID or Password.");
+      }
     } finally {
       setLoading(false);
     }
@@ -94,25 +115,37 @@ function Login() {
               <div className="flex gap-1">
                 <button
                   type="button"
-                  onClick={() => setUserType("student")}
+                  onClick={() => {
+                    setUserType("student");
+                    setError("");
+                  }}
                   className={`flex-1 py-2 rounded-md font-medium transition-all text-sm ${
                     userType === "student"
                       ? "bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black"
                       : "text-gray-400 hover:text-white"
                   }`}
                 >
-                  Student
+                  <div className="flex items-center justify-center gap-2">
+                    <FaGraduationCap className="text-sm" />
+                    Student
+                  </div>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUserType("admin")}
+                  onClick={() => {
+                    setUserType("admin");
+                    setError("");
+                  }}
                   className={`flex-1 py-2 rounded-md font-medium transition-all text-sm ${
                     userType === "admin"
                       ? "bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black"
                       : "text-gray-400 hover:text-white"
                   }`}
                 >
-                  Admin
+                  <div className="flex items-center justify-center gap-2">
+                    <FaShieldAlt className="text-sm" />
+                    Admin
+                  </div>
                 </button>
               </div>
             </div>
@@ -123,18 +156,22 @@ function Login() {
             {/* Student ID Field */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
-                Student ID
+                {userType === "student" ? "Student ID" : "Admin ID"}
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Enter your student ID"
+                  placeholder={userType === "student" ? "Enter your student ID" : "Enter your admin ID"}
                   required
                   value={studentCode}
                   onChange={(e) => setStudentCode(e.target.value)}
                   className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2.5 pl-10 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all"
                 />
-                <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+                {userType === "student" ? (
+                  <FaGraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+                ) : (
+                  <FaShieldAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+                )}
               </div>
             </div>
 
@@ -175,7 +212,7 @@ function Login() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 animate-shake">
                 <p className="text-red-400 text-sm text-center">{error}</p>
               </div>
             )}
@@ -196,15 +233,26 @@ function Login() {
               )}
             </button>
 
-            {/* Sign Up Link */}
-            <div className="text-center pt-2">
-              <p className="text-sm text-gray-400">
-                Don't have an account?{" "}
-                <Link to="/register" className="text-[#00FF9C] hover:text-[#00FF9C]/80 font-medium transition-colors">
-                  Sign up
-                </Link>
-              </p>
-            </div>
+            {/* Sign Up  */}
+            {userType === "student" && (
+              <div className="text-center pt-2">
+                <p className="text-sm text-gray-400">
+                  Don't have an account?{" "}
+                  <Link to="/register" className="text-[#00FF9C] hover:text-[#00FF9C]/80 font-medium transition-colors">
+                    Sign up
+                  </Link>
+                </p>
+              </div>
+            )}
+
+            {/* Admin Note */}
+            {userType === "admin" && (
+              <div className="text-center pt-2">
+                <p className="text-xs text-gray-500">
+                  Admin accounts are created by system administrators only
+                </p>
+              </div>
+            )}
           </form>
         </div>
 
@@ -217,6 +265,16 @@ function Login() {
       <style>{`
         .glow-on-hover:hover {
           box-shadow: 0 0 12px rgba(0, 255, 156, 0.3);
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+          20%, 40%, 60%, 80% { transform: translateX(2px); }
+        }
+        
+        .animate-shake {
+          animation: shake 0.5s ease-in-out;
         }
       `}</style>
     </div>
