@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft} from 'react-icons/fa';
+import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash } from 'react-icons/fa';
 import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel,} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
 
@@ -16,12 +16,12 @@ const TournamentTab = ({ teams,onBack }) => {
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
-      if (snap.exists() && snap.data().status === 'locked') {
-        setTournament(snap.data());
-        setWizardStep(4);
+      if (snap.exists()) {
+        setTournament({ id: snap.id, ...snap.data() });
+        setWizardStep(3);
       } else {
         setTournament(null);
-        setWizardStep((prev) => (prev === 4 ? 1 : prev));
+        setWizardStep((prev) => (prev === 3 ? 1 : prev));
       }
       setLoading(false);
     });
@@ -37,11 +37,13 @@ const TournamentTab = ({ teams,onBack }) => {
 
   const handleRunDraw = async () => {
     if (numTeams < 3) return;
-    setWizardStep(3);
+    setWizardStep(2); // Step 2: The animation/shuffling phase
     setIsGenerating(true);
     try {
-      await new Promise((r) => setTimeout(r, 2500));
+      // Professional delay for shuffling animation momentum
+      await new Promise((r) => setTimeout(r, 4500));
       await generateBracket(teams);
+      setWizardStep(3); // Step 3: Final Bracket
     } catch (e) {
       console.error(e);
       alert('Error generating tournament: ' + (e.message ?? 'Unknown error'));
@@ -94,19 +96,21 @@ const TournamentTab = ({ teams,onBack }) => {
         
         {/* Header with Back Button */}
         <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={onBack}
-            className="p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
-          >
-            <FaArrowLeft className="text-lg group-hover:-translate-x-1 transition-transform" />
-          </button>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+            >
+              <FaArrowLeft className="text-lg group-hover:-translate-x-1 transition-transform" />
+            </button>
+          )}
           <div>
             <h1 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
               <FaSitemap className="text-emerald-500" /> 
-              Tournament Bracket
+              {tournament ? 'Tournament Live' : 'Tournament Setup'}
             </h1>
             <p className="text-slate-500 text-sm mt-2">
-              Automated bracket generation & tamper-proof draw system
+              {tournament ? 'The brackets are locked and the competition is live!' : 'Register teams and initiate the automated random draw.'}
             </p>
           </div>
         </div>
@@ -124,87 +128,83 @@ const TournamentTab = ({ teams,onBack }) => {
         )}
 
         {/* Wizard Steps */}
-        <div className="mb-8 flex justify-center">
-          <div className="flex items-center gap-4 flex-wrap justify-center">
-            <WizardStep step={1} currentStep={wizardStep} label="Register Teams" />
-            <div className="text-emerald-500/50 text-2xl font-black">❯</div>
-            <WizardStep step={2} currentStep={wizardStep} label="Lock Registration" />
-            <div className="text-emerald-500/50 text-2xl font-black">❯</div>
-            <WizardStep step={3} currentStep={wizardStep} label="Run Automated Draw" />
-            <div className="text-emerald-500/50 text-2xl font-black">❯</div>
-            <WizardStep step={4} currentStep={wizardStep} label="Generate Bracket" />
+        {!tournament && (
+          <div className="mb-8 flex justify-center">
+            <div className="flex items-center gap-4 flex-wrap justify-center">
+              <WizardStep step={1} currentStep={wizardStep} label="Ready Teams" />
+              <div className="text-emerald-500/50 text-2xl font-black">❯</div>
+              <WizardStep step={2} currentStep={wizardStep} label="Perform Draw" />
+              <div className="text-emerald-500/50 text-2xl font-black">❯</div>
+              <WizardStep step={3} currentStep={wizardStep} label="Live Bracket" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Wizard Content */}
         <div className="bg-slate-900/40 backdrop-blur-sm rounded-2xl border border-white/10 p-8 mb-8">
-          {wizardStep === 1 && (
-            <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 border-2 border-emerald-500/20">
-                <FaUsers className="text-3xl text-emerald-500" />
+          {wizardStep === 1 && !tournament && (
+            <div className="flex flex-col items-center text-center py-10">
+              <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6 border-2 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                <FaUsers className="text-4xl text-emerald-500" />
               </div>
-              <h3 className="text-2xl font-black text-white uppercase mb-2">Team Registration</h3>
-              <p className="text-slate-400 mb-6">
-                There are currently{' '}
-                <span className="text-emerald-400 text-2xl mx-1 font-black">{numTeams}</span>
-                approved teams ready for the draw.
+              <h3 className="text-3xl font-black text-white uppercase mb-3">Initialize Tournament</h3>
+              <p className="text-slate-400 mb-8 max-w-md">
+                We have <span className="text-emerald-400 font-black">{numTeams}</span> approved teams. 
+                Ready to lock registration and perform the random draw?
               </p>
               <button
                 disabled={numTeams < 3}
-                onClick={() => setWizardStep(2)}
-                className={`px-8 py-3 rounded-xl font-black uppercase tracking-wider text-sm transition-all ${
+                onClick={handleRunDraw}
+                className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center gap-3 ${
                   numTeams < 3
                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-105 shadow-lg shadow-emerald-900/30'
+                    : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-105 shadow-xl shadow-emerald-900/40'
                 }`}
               >
-                {numTeams < 3 ? `Need at least 3 teams (${numTeams}/3)` : 'Proceed to Lock Registration'}
+                <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
+                {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : 'Initiate Automated Draw'}
               </button>
             </div>
           )}
 
-          {wizardStep === 2 && (
-            <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center mb-4 border-2 border-amber-500/20">
-                <FaLock className="text-3xl text-amber-500" />
+          {wizardStep === 2 && isGenerating && (
+            <div className="flex flex-col items-center text-center py-16 animate-fade-slide-up">
+              <div className="relative w-48 h-48 mb-12">
+                <div className="absolute inset-0 rounded-full border-4 border-emerald-500/5 border-t-emerald-500 animate-[spin_2s_cubic-bezier(0.4,0,0.2,1)_infinite]"></div>
+                <div className="absolute inset-4 rounded-full border-4 border-emerald-400/5 border-b-emerald-400 animate-[spin_3s_linear_infinite_reverse]"></div>
+                <div className="absolute inset-8 rounded-full border-4 border-emerald-300/5 border-r-emerald-300 animate-[spin_1.5s_ease-in-out_infinite]"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <FaRandom className="text-5xl text-emerald-400 animate-pulse" />
+                </div>
               </div>
-              <h3 className="text-2xl font-black text-white uppercase mb-2">Lock Data & Registration</h3>
-              <p className="text-slate-400 mb-6 max-w-lg">
-                Once locked, no further modifications can be made. Byes will be handled automatically.
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setWizardStep(1)}
-                  className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRunDraw}
-                  className="px-8 py-3 bg-gradient-to-r from-amber-600 to-yellow-600 text-white rounded-xl font-black uppercase tracking-wider text-sm hover:scale-105 shadow-lg shadow-amber-900/30 transition-all"
-                >
-                  Lock & Proceed
-                </button>
+              
+              <h3 className="text-4xl font-black text-white uppercase tracking-tighter mb-6 bg-gradient-to-r from-white to-slate-500 text-transparent bg-clip-text">
+                Generating Final Bracket
+              </h3>
+              
+              <div className="flex flex-col items-center gap-4 max-w-sm">
+                <div className="flex items-center gap-3 px-6 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  <p className="text-emerald-400 font-bold tracking-widest uppercase text-[10px]">
+                    Randomizing Team Seeds
+                  </p>
+                </div>
+                <p className="text-slate-500 text-[10px] uppercase font-black tracking-[0.2em] animate-pulse">
+                  Applying Tournament Algorithm
+                </p>
               </div>
             </div>
           )}
 
-          {wizardStep === 3 && (
-            <div className="flex flex-col items-center text-center py-8">
-              <div className="w-24 h-24 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin flex items-center justify-center mb-6 relative">
-                <FaRandom className="text-3xl text-emerald-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-              </div>
-              <h3 className="text-2xl font-black text-white uppercase animate-pulse">Running Random Draw...</h3>
-              <p className="text-emerald-400 font-bold mt-3 tracking-wider uppercase text-xs">Assigning Seeds & Calculating Byes</p>
+          {(wizardStep === 3 || tournament) && !isGenerating && (
+            <div className="relative animate-fade-in">
+              <BracketView
+                tournament={tournament}
+                onAdvanceWinner={handleManualAdvance}
+                onScheduleMatch={handleScheduleFromBracket}
+                onClear={handleClear}
+              />
             </div>
-          )}
-
-          {wizardStep === 4 && tournament && (
-            <BracketView
-              tournament={tournament}
-              onAdvanceWinner={handleManualAdvance}
-              onScheduleMatch={handleScheduleFromBracket}
-            />
           )}
         </div>
 
@@ -399,21 +399,28 @@ const ArchivedTournamentCard = ({ tournament }) => {
 
 
 // ─── Bracket View ─────────────────────────────────────────────
-const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch }) => {
+const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear }) => {
   const totalRounds = Object.keys(tournament.rounds).length;
 
    return (
     <div className="w-full">
-      <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+      <div className="flex flex-col md:flex-row items-center justify-between border-b border-white/10 pb-4 mb-6 gap-4">
         <div>
-          <h3 className="text-xl font-black text-white uppercase">Official Bracket</h3>
-          <p className="text-slate-500 text-xs mt-1">
-            Updates automatically when match results are entered
+          <h3 className="text-xl font-black text-white uppercase flex items-center gap-2">
+            <FaSitemap className="text-emerald-500 text-sm" /> Official Bracket
+          </h3>
+          <p className="text-slate-500 text-[10px] mt-1 font-bold uppercase tracking-wider">
+            Live Tournament • {tournament.numTeams} Teams
           </p>
         </div>
-        <span className="bg-emerald-600 text-white px-3 py-1 rounded-lg text-[10px] font-bold uppercase">
-          {tournament.numTeams} Teams
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClear}
+            className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+          >
+            Reset Tournament
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto pb-6">
@@ -434,9 +441,8 @@ const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch }) => {
   );
 };
 
-// ─── Round Column ─────────────────────────────────────────────
 const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch }) => (
-  <div className="flex flex-col justify-around gap-6 relative" style={{ width: '280px' }}>
+  <div className="flex flex-col justify-around gap-6 relative" style={{ width: '220px' }}>
     <div className="text-center mb-2">
       <h3 className="text-emerald-500 font-bold uppercase text-[10px] tracking-[0.2em] bg-slate-800/50 inline-block px-4 py-1 rounded-full">
         {getRoundLabel(roundIndex, totalRounds)}
