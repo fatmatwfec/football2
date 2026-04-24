@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -9,6 +9,7 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   const [customTeamName, setCustomTeamName] = useState("");
   const [playerCount, setPlayerCount] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statsFilter, setStatsFilter] = useState("total"); // "total" or tournament name
 
   const allPlayers = players.filter(p => p.role === "student" || p.role === "player");
 
@@ -21,14 +22,34 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
     ).length;
   };
   
-  const sortedAllPlayers = [...allPlayers].sort((a, b) => {
-    const goalsA = Number(a.goals) || 0;
-    const goalsB = Number(b.goals) || 0;
-    return goalsB - goalsA;
+  const availableTournaments = useMemo(() => {
+    const names = new Set();
+    allPlayers.forEach(p => {
+      if (p.tournamentStats) {
+        Object.keys(p.tournamentStats).forEach(name => names.add(name));
+      }
+    });
+    return Array.from(names).sort();
+  }, [allPlayers]);
+
+  const getStat = (player, statType) => {
+    if (statsFilter === "total") {
+      if (statType === 'goals') return Number(player.goals) || 0;
+      if (statType === 'yellow') return Number(player.yellowCards) || 0;
+      if (statType === 'red') return Number(player.redCards) || 0;
+      return 0;
+    }
+    return Number(player.tournamentStats?.[statsFilter]?.[statType]) || 0;
+  };
+
+  const sortedByFilter = [...allPlayers].sort((a, b) => {
+    const valA = getStat(a, 'goals');
+    const valB = getStat(b, 'goals');
+    return valB - valA;
   });
 
   const getPlayerRank = (playerId) => {
-    const index = sortedAllPlayers.findIndex(p => p.id === playerId);
+    const index = sortedByFilter.findIndex(p => p.id === playerId);
     return index !== -1 ? index + 1 : '--';
   };
 
@@ -135,6 +156,20 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
               className="w-full bg-black/40 backdrop-blur-sm border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-slate-600 outline-none focus:border-emerald-500 transition-all"
             />
           </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Stats Period:</label>
+            <select 
+              value={statsFilter}
+              onChange={(e) => setStatsFilter(e.target.value)}
+              className="bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
+            >
+              <option value="total">All-Time (Total)</option>
+              {availableTournaments.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
           
           {searchTerm && (
             <button 
@@ -165,11 +200,11 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
               <tbody>
                 {displayedPlayers.length > 0 ? (
                   [...displayedPlayers].sort((a, b) => {
-                    const goalsA = Number(a.goals) || 0;
-                    const goalsB = Number(b.goals) || 0;
-                    return goalsB - goalsA;
+                    const valA = getStat(a, 'goals');
+                    const valB = getStat(b, 'goals');
+                    return valB - valA;
                   }).map((player) => {
-                    const playerGoals = Number(player.goals) || 0;
+                    const playerGoals = getStat(player, 'goals');
                     const playerRank = getPlayerRank(player.id);
                     
                     return (
