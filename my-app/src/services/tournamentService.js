@@ -24,7 +24,7 @@ const computeRoundDateMap = (numRounds, sortedDates) => {
   return map;
 };
 
-const autoScheduleRound0 = async (round0Matches, date) => {
+const autoScheduleRound0 = async (round0Matches, date, tournamentName) => {
   for (const match of round0Matches) {
     if (match.isBye || !match.team1 || !match.team2) continue;
     
@@ -36,14 +36,16 @@ const autoScheduleRound0 = async (round0Matches, date) => {
       pitch: 'Main Pitch',
       score: '', 
       status: 'scheduled', 
+      tournamentName,
       createdAt: new Date(),
     });
   }
 };
 
 // ─── main export ──────────────────────────────────────────────
-export const generateBracket = async (teams, tournamentDates = []) => {
+export const generateBracket = async (teams, tournamentDates = [], tournamentName = "") => {
   if (!teams || teams.length < 3) throw new Error('يجب وجود 3 فرق على الأقل.');
+  if (!tournamentName) tournamentName = `Tournament ${new Date().toLocaleDateString()}`;
 
   const numTeams   = teams.length;
   let bracketSize  = 4;
@@ -86,22 +88,27 @@ export const generateBracket = async (teams, tournamentDates = []) => {
   const sortedDates  = [...tournamentDates].sort();
   const roundDateMap = computeRoundDateMap(numRounds, sortedDates);
 
-  // حساب وقت افتراضي لكل ماتش (50 دقيقة فاصل)
+  // حساب وقت افتراضي لكل ماتش (50 دقيقة فاصل) مع مراعاة الأيام
+  const dayTimeMap = {};
   for (let r = 0; r < numRounds; r++) {
-    let timeMins = 9 * 60; 
+    const rDate = roundDateMap[r] || (sortedDates.length > 0 ? sortedDates[0] : null);
+    if (rDate && !dayTimeMap[rDate]) dayTimeMap[rDate] = 9 * 60; 
+
     rounds[`${r}`].forEach(match => {
-      const h = String(Math.floor(timeMins / 60)).padStart(2, '0');
-      const m = String(timeMins % 60).padStart(2, '0');
+      const currentTime = dayTimeMap[rDate] || (9 * 60);
+      const h = String(Math.floor(currentTime / 60)).padStart(2, '0');
+      const m = String(currentTime % 60).padStart(2, '0');
       match.projectedTime = `${h}:${m}`;
-      timeMins += 50;
+      if (rDate) dayTimeMap[rDate] += 30;
     });
   }
 
   if (sortedDates.length > 0) {
-    await autoScheduleRound0(rounds['0'], roundDateMap[0] ?? sortedDates[0]);
+    await autoScheduleRound0(rounds['0'], roundDateMap[0] ?? sortedDates[0], tournamentName);
   }
 
   await setDoc(doc(db, 'tournaments', 'main'), {
+    name: tournamentName,
     status: 'locked', bracketSize, numTeams, rounds,
     createdAt: new Date(),
     tournamentDates: sortedDates,
