@@ -11,6 +11,7 @@ const StudentDashboard = () => {
     const [teamData, setTeamData] = useState(null);
     const [newMemberCode, setNewMemberCode] = useState("");
     const [nextMatch, setNextMatch] = useState(null);
+    const [savingPosition, setSavingPosition] = useState(false);
     const navigate = useNavigate();
     const [matches, setMatches] = useState([]);
     const [liveMatches, setLiveMatches] = useState([]);
@@ -177,6 +178,19 @@ const StudentDashboard = () => {
             teamId: "",
             assignedTeam: "",
         });
+    };
+
+    const handlePositionChange = async (newPosition) => {
+        const user = auth.currentUser;
+        if (!user || !newPosition) return;
+        setSavingPosition(true);
+        try {
+            await updateDoc(doc(db, "users", user.uid), { position: newPosition });
+        } catch (err) {
+            console.error(err);
+            alert("Failed to update position.");
+        }
+        setSavingPosition(false);
     };
 
     const deleteTeam = async () => {
@@ -400,7 +414,27 @@ const StudentDashboard = () => {
                             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                                 <h3 className="text-lg font-bold mb-4 text-left">Settings</h3>
                                 <div className="space-y-3">
-                                    <button onClick={() => navigate("/EditProfile")} className="w-full bg-white/5 hover:bg-white/10 p-3 rounded-xl transition text-left" >
+                                    {/* Position Selector */}
+                                    <div>
+                                        <label className="text-gray-400 text-xs font-bold uppercase block mb-2">Your Position</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {['Forward', 'Defender', 'Goalkeeper'].map((pos) => (
+                                                <button
+                                                    key={pos}
+                                                    onClick={() => handlePositionChange(pos)}
+                                                    disabled={savingPosition}
+                                                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                        userData?.position === pos
+                                                            ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                                            : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
+                                                    }`}
+                                                >
+                                                    {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : '🧤 Goalkeeper'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button onClick={() => navigate("/EditProfile")} className="w-full bg-white/5 hover:bg-white/10 p-3 rounded-xl transition text-left">
                                         Edit Profile
                                     </button>
                                     <button
