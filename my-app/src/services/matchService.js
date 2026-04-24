@@ -22,6 +22,7 @@ export const scheduleMatch = async (newMatch) => {
     date, time, pitch,
     score:     '',
     status:    'scheduled',
+    tournamentName: newMatch.tournamentName || "Friendly",
     createdAt: new Date(),
   });
 };
@@ -109,19 +110,62 @@ export const finalizeMatch = async (match, formData, activePlayers) => {
         winnerName = match.team2Name;
       }
     }
+
+    // تجهيز إحصائيات اللاعبين
+    const statsSnapshot = {};
+    const batch = writeBatch(db);
+    const tName = match.tournamentName || "General";
+
+    activePlayers.forEach(player => {
+      const g = parseInt(formData[`goals-${player.id}`]) || 0;
+      const y = parseInt(formData[`yellow-${player.id}`]) || 0;
+      const r = parseInt(formData[`red-${player.id}`]) || 0;
+
+      if (g > 0 || y > 0 || r > 0) {
+        statsSnapshot[player.id] = { goals: g, yellow: y, red: r };
+        
+        // تحديث اللاعب - إحصائيات عامة + إحصائيات البطولة دي بالذات
+        const playerRef = doc(db, 'users', player.id);
+        
+        // بنستخدم Dot Notation عشان نحدث خانة البطولة المعينة في الـ Map
+        batch.update(playerRef, {
+          goals: increment(g),
+          yellowCards: increment(y),
+          redCards: increment(r),
+          [`tournamentStats.${tName}.goals`]: increment(g),
+          [`tournamentStats.${tName}.yellow`]: increment(y),
+          [`tournamentStats.${tName}.red`]: increment(r),
+        });
+      }
+    });
+
+    // تطبيق الإنذارات/الإيقافات
+    await applySuspensions(formData, activePlayers, batch);
     
     const updateData = {
       status: 'completed',
       score: `${score1} - ${score2}`,
       completedAt: new Date(),
       winnerName: winnerName || null, 
+      statsSnapshot,
     };
     
     if (formData.pen1 && formData.pen2) {
       updateData.penalties = `${formData.pen1} - ${formData.pen2}`;
     }
     
-    await updateDoc(doc(db, 'matches', match.id), updateData);
+    batch.update(doc(db, 'matches', match.id), updateData);
+
+    // إذا كانت مباراة بطولة، نحدث الـ Bracket
+    if (match.tournamentName && match.tournamentName !== "Friendly") {
+      await advanceBracketWinner(
+        score1 > score2 ? match.team1Id : match.team2Id,
+        score1 > score2 ? match.team1Name : match.team2Name,
+        match.team1Id, match.team2Id
+      );
+    }
+
+    await batch.commit();
     return { ok: true };
   } catch (error) {
     console.error('Error finalizing match:', error);
@@ -129,10 +173,7 @@ export const finalizeMatch = async (match, formData, activePlayers) => {
   }
 };
 
-const applySuspensions = async (raw, activePlayers) => {
-  const batch    = writeBatch(db);
-  let anyApplied = false;
-
+const applySuspensions = async (raw, activePlayers, batch) => {
   for (const player of activePlayers) {
     const yellowInMatch = parseInt(raw[`yellow-${player.id}`]) || 0;
     const redInMatch    = parseInt(raw[`red-${player.id}`])    || 0;
@@ -153,11 +194,8 @@ const applySuspensions = async (raw, activePlayers) => {
         suspendedForNextMatch: true,
         suspendReason,
       });
-      anyApplied = true;
     }
   }
-
-  if (anyApplied) await batch.commit();
 };
 
 export const deleteMatch = async (match) => {
@@ -173,11 +211,15 @@ export const deleteMatch = async (match) => {
   const batch = writeBatch(db);
 
   if (match.status === 'completed' && match.statsSnapshot) {
+    const tName = match.tournamentName || "General";
     Object.entries(match.statsSnapshot).forEach(([pId, stats]) => {
       batch.update(doc(db, 'users', pId), {
         goals:       increment(-(stats.goals  || 0)),
         yellowCards: increment(-(stats.yellow || 0)),
         redCards:    increment(-(stats.red    || 0)),
+        [`tournamentStats.${tName}.goals`]: increment(-(stats.goals || 0)),
+        [`tournamentStats.${tName}.yellow`]: increment(-(stats.yellow || 0)),
+        [`tournamentStats.${tName}.red`]: increment(-(stats.red || 0)),
       });
     });
   }
@@ -187,20 +229,6 @@ export const deleteMatch = async (match) => {
 };
 
 export const syncMatchStatuses = async (matches) => {
-  const now   = new Date();
-  const batch = writeBatch(db);
-  let   any   = false;
-
-  matches.forEach(m => {
-    if (m.status !== 'scheduled') return;
-    const start = new Date(`${m.date} ${m.time}`);
-    const end   = new Date(start.getTime() + 90 * 60 * 1000);
-
-    if (now >= start && now < end) {
-      batch.update(doc(db, 'matches', m.id), { status: 'live' });
-      any = true;
-    }
-  });
-
-  if (any) await batch.commit();
+  // تم إيقاف التحديث التلقائي بناءً على طلب المستخدم لضمان التحكم اليدوي الكامل
+  return;
 };
