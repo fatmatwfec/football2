@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
-import { doc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
 import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt } from 'react-icons/fa';
 import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel, buildMatchCache} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
@@ -16,6 +16,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [tournamentDates, setTournamentDates] = useState([]);
   const [dateInput, setDateInput] = useState("");
   const [allMatches, setAllMatches] = useState([]);
+  const [tournamentName, setTournamentName] = useState("");
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
@@ -55,19 +56,23 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
   const handleRunDraw = async () => {
     if (readOnly || numTeams < 3) return;
+    if (!tournamentName.trim()) {
+      alert("Please enter a tournament name.");
+      return;
+    }
     if (tournamentDates.length === 0) {
-      alert("Please add at least one date for the tournament.");
+      alert("Please add at least one date.");
       return;
     }
     setWizardStep(2); 
     setIsGenerating(true);
     try {
       await new Promise((r) => setTimeout(r, 4500));
-      await generateBracket(teams, tournamentDates);
+      await generateBracket(teams, tournamentDates, tournamentName);
       setWizardStep(3); 
     } catch (e) {
       console.error(e);
-      alert('Error generating tournament: ' + (e.message ?? 'Unknown error'));
+      alert('Error: ' + (e.message ?? 'Unknown error'));
       setWizardStep(1);
     }
     setIsGenerating(false);
@@ -141,7 +146,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
           <div>
             <h1 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
               <FaSitemap className="text-emerald-500" /> 
-              {tournament ? 'Tournament Live' : 'Tournament Setup'}
+              {tournament ? (tournament.name || 'Tournament Live') : 'Tournament Setup'}
             </h1>
             <p className="text-slate-500 text-sm mt-2">
               {tournament ? 'The brackets are locked and the competition is live!' : readOnly ? 'Tournament bracket is currently being prepared by officials.' : 'Register teams and initiate the automated random draw.'}
@@ -188,21 +193,35 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                   : `We have ${numTeams} approved teams. Select the tournament dates below.`}
               </p>
 
-              {!readOnly && (
-                <div className="w-full max-w-md mb-8">
-                  <div className="flex gap-2 mb-4">
+               {!readOnly && (
+                <div className="w-full max-w-md mb-8 space-y-4">
+                  <div className="text-left">
+                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Title</label>
                     <input 
-                      type="date" 
-                      value={dateInput}
-                      onChange={(e) => setDateInput(e.target.value)}
-                      className="flex-1 bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                      type="text" 
+                      placeholder="e.g. Ramadan Cup 2024"
+                      value={tournamentName}
+                      onChange={(e) => setTournamentName(e.target.value)}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
                     />
-                    <button 
-                      onClick={addDate}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase"
-                    >
-                      Add Date
-                    </button>
+                  </div>
+
+                  <div className="text-left">
+                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Dates</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="date" 
+                        value={dateInput}
+                        onChange={(e) => setDateInput(e.target.value)}
+                        className="flex-1 bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                      />
+                      <button 
+                        onClick={addDate}
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase"
+                      >
+                        Add
+                      </button>
+                    </div>
                   </div>
                   
                   {tournamentDates.length > 0 && (
@@ -219,16 +238,16 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                   )}
 
                   <button
-                    disabled={numTeams < 3 || tournamentDates.length === 0}
+                    disabled={numTeams < 3 || tournamentDates.length === 0 || !tournamentName.trim()}
                     onClick={handleRunDraw}
                     className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-3 ${
-                      numTeams < 3 || tournamentDates.length === 0
+                      numTeams < 3 || tournamentDates.length === 0 || !tournamentName.trim()
                         ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-102 shadow-xl shadow-emerald-900/40'
                     }`}
                   >
                     <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
-                    {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : tournamentDates.length === 0 ? 'Select Dates First' : 'Initiate Automated Draw'}
+                    {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : tournamentDates.length === 0 ? 'Select Dates First' : !tournamentName.trim() ? 'Enter Title' : 'Initiate Automated Draw'}
                   </button>
                 </div>
               )}
@@ -282,6 +301,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
         {scheduleModal && !readOnly && (
           <ScheduleMatchModal
             prefill={scheduleModal}
+            tournamentName={tournament?.name}
             onClose={() => setScheduleModal(null)}
           />
         )}
@@ -305,7 +325,15 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
             {showArchive && (
               <div className="mt-4 space-y-3 animate-fade-in">
                 {archived.map((t) => (
-                  <ArchivedTournamentCard key={t.id} tournament={t} />
+                  <ArchivedTournamentCard 
+                    key={t.id} 
+                    tournament={t} 
+                    onDelete={async (id) => {
+                      if (!window.confirm('Delete this archived tournament?')) return;
+                      await deleteDoc(doc(db, 'tournaments_archive', id));
+                      setArchived(prev => prev.filter(x => x.id !== id));
+                    }}
+                  />
                 ))}
               </div>
             )}
@@ -317,7 +345,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 };
 
 // ─── Schedule Match Modal ─────────────────────────────────────
-const ScheduleMatchModal = ({ prefill, onClose }) => {
+const ScheduleMatchModal = ({ prefill, tournamentName, onClose }) => {
   const [date,        setDate]        = useState('');
   const [time,        setTime]        = useState('');
   const [pitch,       setPitch]       = useState('Main Pitch');
@@ -335,6 +363,7 @@ const ScheduleMatchModal = ({ prefill, onClose }) => {
         team1Name: prefill.team1Name,
         team2Name: prefill.team2Name,
         date, time, pitch,
+        tournamentName: tournamentName || "Main Tournament"
       });
       onClose();
     } catch (err) {
@@ -405,8 +434,9 @@ const ScheduleMatchModal = ({ prefill, onClose }) => {
     </div>
   );
 };
+
 // ─── Archived Tournament Card ─────────────────────────────────
-const ArchivedTournamentCard = ({ tournament }) => {
+const ArchivedTournamentCard = ({ tournament, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const winner    = tournament.finalWinner;
   const totalRounds = Object.keys(tournament.rounds || {}).length;
@@ -423,11 +453,19 @@ const ArchivedTournamentCard = ({ tournament }) => {
         <div className="flex items-center gap-3">
           <FaTrophy className={`text-lg ${winner ? 'text-yellow-500' : 'text-slate-600'}`} />
           <div>
-            <p className="text-white font-bold text-sm uppercase">{winner ? winner.name : 'Unfinished Tournament'}</p>
+            <p className="text-white font-bold text-sm uppercase">{tournament.name || (winner ? winner.name : 'Unfinished Tournament')}</p>
             <p className="text-slate-500 text-[8px] font-bold uppercase">{archivedDate} · {tournament.numTeams} teams · {totalRounds} rounds</p>
           </div>
         </div>
-        {expanded ? <FaChevronUp className="text-slate-500" /> : <FaChevronDown className="text-slate-500" />}
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDelete(tournament.id); }}
+            className="p-2 text-slate-500 hover:text-red-500 transition-colors"
+          >
+            <FaTrash size={12} />
+          </button>
+          {expanded ? <FaChevronUp className="text-slate-500" /> : <FaChevronDown className="text-slate-500" />}
+        </div>
       </div>
 
       {expanded && tournament.rounds && (
