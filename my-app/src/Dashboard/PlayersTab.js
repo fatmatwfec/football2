@@ -11,6 +11,8 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statsFilter, setStatsFilter] = useState("total"); // "total" or tournament name
 
+  const [showTop10, setShowTop10] = useState(false);
+
   const allPlayers = players.filter(p => p.role === "student" || p.role === "player");
 
   // حساب عدد الماتشات اللي لعبها الفريق من الـ matches collection الفعلية
@@ -21,7 +23,7 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
       (m.team1Id === teamId || m.team2Id === teamId)
     ).length;
   };
-  
+
   const availableTournaments = useMemo(() => {
     const names = new Set();
     allPlayers.forEach(p => {
@@ -56,8 +58,8 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   const displayedPlayers = allPlayers.filter(p => {
     if (searchTerm.trim() === "") return true;
     return p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           p.assignedTeam?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           p.position?.toLowerCase().includes(searchTerm.toLowerCase());
+      p.assignedTeam?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.position?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const freeAgentsCount = allPlayers.filter(p => !p.hasTeam).length;
@@ -120,8 +122,8 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   };
 
   const getPositionBadge = (position) => {
-    if (position === 'Forward')    return 'bg-green-500/20 text-green-400';
-    if (position === 'Defender')   return 'bg-blue-500/20 text-blue-400';
+    if (position === 'Forward') return 'bg-green-500/20 text-green-400';
+    if (position === 'Defender') return 'bg-blue-500/20 text-blue-400';
     if (position === 'Goalkeeper') return 'bg-yellow-500/20 text-yellow-400';
     return 'bg-slate-500/20 text-slate-400';
   };
@@ -129,17 +131,19 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-black via-slate-900 to-emerald-950/50">
       <div className="relative w-full px-4 py-6 max-w-7xl mx-auto">
-    
+
         {/* Title Section */}
         <div className="mb-6">
           <h2 className="text-4xl font-black text-white flex items-center gap-2">
-            <FaRunning className="text-emerald-500" size={32} /> 
-            {searchTerm ? 'Search Results' : 'All Players'}
+            <FaRunning className="text-emerald-500" size={32} />
+            {searchTerm ? 'Search Results' : showTop10 ? 'Top 10 Legends' : 'All Players'}
           </h2>
           <p className="text-slate-500 text-sm mt-1">
-            {searchTerm 
-              ? `Found ${displayedPlayers.length} player(s) matching "${searchTerm}"` 
-              : `Total ${allPlayers.length} players • ${freeAgentsCount} free agents`
+            {searchTerm
+              ? `Found ${displayedPlayers.length} player(s) matching "${searchTerm}"`
+              : showTop10 
+                ? `Showing the best 10 players of all time`
+                : `Total ${allPlayers.length} players • ${freeAgentsCount} free agents`
             }
           </p>
         </div>
@@ -157,23 +161,37 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Stats Period:</label>
-            <select 
-              value={statsFilter}
-              onChange={(e) => setStatsFilter(e.target.value)}
-              className="bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
-            >
-              <option value="total">All-Time (Total)</option>
-              {availableTournaments.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
-          
-          {searchTerm && (
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Stats Period:</label>
+              <select
+                value={statsFilter}
+                onChange={(e) => setStatsFilter(e.target.value)}
+                className="bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
+              >
+                <option value="total">All-Time (Total)</option>
+                {availableTournaments.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+
             <button 
-              onClick={() => setSearchTerm("")} 
+              onClick={() => setShowTop10(!showTop10)}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 whitespace-nowrap ${
+                showTop10 
+                  ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]' 
+                  : 'bg-black/40 text-slate-400 border-white/10 hover:border-emerald-500/50'
+              }`}
+            >
+              <FaMagic className={showTop10 ? 'animate-pulse' : ''} />
+              Top 10 Legends
+            </button>
+          </div>
+
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
               className="px-5 py-2.5 rounded-xl text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
             >
               Clear Search
@@ -191,25 +209,28 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Player</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Team</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Position</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Goals</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Matches</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Status</th>
+                  {showTop10 && (
+                    <>
+                      <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Goals</th>
+                      <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Matches</th>
+                      <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Status</th>
+                    </>
+                  )}
                   <th className="text-center py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {displayedPlayers.length > 0 ? (
-                  [...displayedPlayers].sort((a, b) => {
+                {(showTop10 ? sortedByFilter.slice(0, 10) : displayedPlayers).length > 0 ? (
+                  [...(showTop10 ? sortedByFilter.slice(0, 10) : displayedPlayers)].sort((a, b) => {
                     const valA = getStat(a, 'goals');
                     const valB = getStat(b, 'goals');
                     return valB - valA;
                   }).map((player) => {
-                    const playerGoals = getStat(player, 'goals');
                     const playerRank = getPlayerRank(player.id);
-                    
+
                     return (
-                      <tr 
-                        key={player.id} 
+                      <tr
+                        key={player.id}
                         className="border-b border-white/5 hover:bg-white/5 transition-colors group"
                       >
                         <td className="py-3 px-4">
@@ -217,7 +238,7 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                             #{playerRank}
                           </span>
                         </td>
-                        
+
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-600 to-green-700 flex items-center justify-center shadow-md">
@@ -231,17 +252,16 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="py-3 px-4">
-                          <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${
-                            player.hasTeam 
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                          <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${player.hasTeam
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : 'bg-slate-800/60 text-slate-500 border border-white/5'
-                          }`}>
+                            }`}>
                             {player.hasTeam ? (player.assignedTeam || 'Team') : 'Free Agent'}
                           </span>
                         </td>
-                        
+
                         <td className="py-3 px-4">
                           {!readOnly ? (
                             <select
@@ -260,39 +280,42 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                             </span>
                           )}
                         </td>
-                        
-                        <td className="py-3 px-4">
-                          <span className="text-white font-bold text-lg">{playerGoals}</span>
-                        </td>
-                        
-                        <td className="py-3 px-4 text-slate-400">{getMatchesPlayedByTeamId(player.teamId)}</td>
-                        
 
-                        <td className="py-3 px-4">
-                          {!player.isVerified ? (
-                            !readOnly ? (
-                              <button 
-                                onClick={() => handleManualVerify(player.id, player.name)} 
-                                className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap hover:bg-orange-500/30 transition-all"
-                              >
-                                <FaUserCheck className="inline mr-1" size={10} /> Activate
-                              </button>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
-                                <FaBan size={10} /> Inactive
-                              </span>
-                            )
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
-                              <FaCheckCircle size={10} /> Active
-                            </span>
-                          )}
-                        </td>
-                        
+                        {showTop10 && (
+                          <>
+                            <td className="py-3 px-4">
+                              <span className="text-white font-bold text-lg">{getStat(player, 'goals')}</span>
+                            </td>
+
+                            <td className="py-3 px-4 text-slate-400">{getMatchesPlayedByTeamId(player.teamId)}</td>
+
+                            <td className="py-3 px-4">
+                              {!player.isVerified ? (
+                                !readOnly ? (
+                                  <button
+                                    onClick={() => handleManualVerify(player.id, player.name)}
+                                    className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap hover:bg-orange-500/30 transition-all"
+                                  >
+                                    <FaUserCheck className="inline mr-1" size={10} /> Activate
+                                  </button>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
+                                    <FaBan size={10} /> Inactive
+                                  </span>
+                                )
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
+                                  <FaCheckCircle size={10} /> Active
+                                </span>
+                              )}
+                            </td>
+                          </>
+                        )}
+
                         <td className="py-3 px-4 text-center">
                           {!readOnly && (
-                            <button 
-                              onClick={() => handleAction(player)} 
+                            <button
+                              onClick={() => handleAction(player)}
                               className="text-slate-600 hover:text-red-400 transition-colors"
                               title={player.hasTeam ? "Remove from team" : "Delete player"}
                             >
@@ -321,8 +344,8 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
         {/* Auto-Build Button */}
         {freeAgentsCount >= 2 && !readOnly && (
           <div className="fixed bottom-8 right-8 z-40">
-            <button 
-              onClick={() => setShowBuildModal(true)} 
+            <button
+              onClick={() => setShowBuildModal(true)}
               className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl shadow-emerald-900/50 transition-all hover:scale-105 active:scale-95 group"
             >
               <FaMagic size={22} className="group-hover:rotate-12 transition-transform" />
@@ -335,13 +358,13 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
         {showBuildModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={() => setShowBuildModal(false)}>
             <div className="bg-black/80 border border-white/10 w-full max-w-sm rounded-2xl p-6 relative animate-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
-              <button 
-                onClick={() => setShowBuildModal(false)} 
+              <button
+                onClick={() => setShowBuildModal(false)}
                 className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
               >
                 <FaTimes size={18} />
               </button>
-              
+
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <FaMagic size={28} className="text-white" />
@@ -349,47 +372,46 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                 <h3 className="text-white text-xl font-bold">Create New Team</h3>
                 <p className="text-slate-500 text-sm mt-1">Build a squad from free agents</p>
               </div>
-              
+
               <div className="space-y-5">
                 <div>
                   <label className="text-slate-500 text-xs font-medium mb-1 block">Team Name</label>
-                  <input 
-                    type="text" 
-                    value={customTeamName} 
-                    onChange={(e) => setCustomTeamName(e.target.value)} 
-                    placeholder="e.g., Thunder FC" 
+                  <input
+                    type="text"
+                    value={customTeamName}
+                    onChange={(e) => setCustomTeamName(e.target.value)}
+                    placeholder="e.g., Thunder FC"
                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-emerald-500 transition-all"
                     autoFocus
                   />
                 </div>
-                
+
                 <div>
                   <label className="text-slate-500 text-xs font-medium mb-2 block">Team Size</label>
                   <div className="grid grid-cols-6 gap-2">
                     {[2, 3, 4, 5, 6, 7].map(num => (
-                      <button 
-                        key={num} 
-                        onClick={() => setPlayerCount(num)} 
-                        className={`h-10 rounded-lg text-sm font-bold transition-all ${
-                          playerCount === num 
-                            ? 'bg-emerald-600 text-white shadow-md' 
+                      <button
+                        key={num}
+                        onClick={() => setPlayerCount(num)}
+                        className={`h-10 rounded-lg text-sm font-bold transition-all ${playerCount === num
+                            ? 'bg-emerald-600 text-white shadow-md'
                             : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50'
-                        }`}
+                          }`}
                       >
                         {num}
                       </button>
                     ))}
                   </div>
                 </div>
-                
-                <button 
-                  onClick={handleAutoBuild} 
-                  disabled={isBuilding || freeAgentsCount < playerCount} 
+
+                <button
+                  onClick={handleAutoBuild}
+                  disabled={isBuilding || freeAgentsCount < playerCount}
                   className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isBuilding ? "Processing..." : `Confirm Build (${playerCount} Players)`}
                 </button>
-                
+
                 <p className="text-center text-slate-600 text-[11px]">
                   {freeAgentsCount} free agents available
                 </p>
