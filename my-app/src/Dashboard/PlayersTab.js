@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaStar, FaBan } from 'react-icons/fa';
+import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -158,7 +158,6 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Position</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Goals</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Matches</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rating</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Status</th>
                   <th className="text-center py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Actions</th>
                 </tr>
@@ -209,9 +208,22 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                         </td>
                         
                         <td className="py-3 px-4">
-                          <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${getPositionBadge(player.position)}`}>
-                            {player.position || 'N/A'}
-                          </span>
+                          {!readOnly ? (
+                            <select
+                              value={player.position || ''}
+                              onChange={(e) => updateDoc(doc(db, 'users', player.id), { position: e.target.value })}
+                              className="bg-slate-800 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white outline-none focus:border-emerald-500 transition-all"
+                            >
+                              <option value="">N/A</option>
+                              <option value="Forward">⚡ Forward</option>
+                              <option value="Defender">🛡️ Defender</option>
+                              <option value="Goalkeeper">🧤 Goalkeeper</option>
+                            </select>
+                          ) : (
+                            <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${getPositionBadge(player.position)}`}>
+                              {player.position || 'N/A'}
+                            </span>
+                          )}
                         </td>
                         
                         <td className="py-3 px-4">
@@ -220,13 +232,7 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                         
                         <td className="py-3 px-4 text-slate-400">{getMatchesPlayedByTeamId(player.teamId)}</td>
                         
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1">
-                            <FaStar className="text-yellow-400 text-xs" />
-                            <span className="text-white font-bold">{player.rating || 'N/A'}</span>
-                          </div>
-                        </td>
-                        
+
                         <td className="py-3 px-4">
                           {!player.isVerified ? (
                             !readOnly ? (
