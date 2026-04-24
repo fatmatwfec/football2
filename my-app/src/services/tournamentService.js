@@ -25,17 +25,19 @@ const computeRoundDateMap = (numRounds, sortedDates) => {
 };
 
 const autoScheduleRound0 = async (round0Matches, date) => {
-  let timeMins = 9 * 60; // 09:00
   for (const match of round0Matches) {
     if (match.isBye || !match.team1 || !match.team2) continue;
-    const h = String(Math.floor(timeMins / 60)).padStart(2, '0');
-    const m = String(timeMins % 60).padStart(2, '0');
+    
     await addDoc(collection(db, 'matches'), {
-      team1Id: match.team1.id, team2Id: match.team2.id,
-      date, time: `${h}:${m}`, pitch: 'Main Pitch',
-      score: '', status: 'scheduled', createdAt: new Date(),
+      team1Id: match.team1.id, 
+      team2Id: match.team2.id,
+      date, 
+      time: match.projectedTime || "09:00", 
+      pitch: 'Main Pitch',
+      score: '', 
+      status: 'scheduled', 
+      createdAt: new Date(),
     });
-    timeMins += 90;
   }
 };
 
@@ -83,6 +85,17 @@ export const generateBracket = async (teams, tournamentDates = []) => {
 
   const sortedDates  = [...tournamentDates].sort();
   const roundDateMap = computeRoundDateMap(numRounds, sortedDates);
+
+  // حساب وقت افتراضي لكل ماتش (50 دقيقة فاصل)
+  for (let r = 0; r < numRounds; r++) {
+    let timeMins = 9 * 60; 
+    rounds[`${r}`].forEach(match => {
+      const h = String(Math.floor(timeMins / 60)).padStart(2, '0');
+      const m = String(timeMins % 60).padStart(2, '0');
+      match.projectedTime = `${h}:${m}`;
+      timeMins += 50;
+    });
+  }
 
   if (sortedDates.length > 0) {
     await autoScheduleRound0(rounds['0'], roundDateMap[0] ?? sortedDates[0]);
