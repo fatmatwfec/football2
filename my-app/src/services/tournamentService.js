@@ -1,9 +1,46 @@
 import { db } from '../firebase';
 import {
-  doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, orderBy, query,
+  doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs,
 } from 'firebase/firestore';
 
-export const generateBracket = async (teams) => {
+// ─── helpers ──────────────────────────────────────────────────
+const computeRoundDateMap = (numRounds, sortedDates) => {
+  const map = {};
+  if (!sortedDates || sortedDates.length === 0) return map;
+  for (let r = 0; r < numRounds; r++) {
+    if (r === numRounds - 1) {
+      map[r] = sortedDates[sortedDates.length - 1]; // Final → last date
+    } else {
+      const avail = sortedDates.slice(0, sortedDates.length - 1);
+      if (avail.length === 0) { map[r] = sortedDates[0]; }
+      else {
+        const maxR = numRounds - 2;
+        const progress = maxR === 0 ? 0 : r / maxR;
+        const idx = Math.min(Math.floor(progress * avail.length), avail.length - 1);
+        map[r] = avail[idx];
+      }
+    }
+  }
+  return map;
+};
+
+const autoScheduleRound0 = async (round0Matches, date) => {
+  let timeMins = 9 * 60; // 09:00
+  for (const match of round0Matches) {
+    if (match.isBye || !match.team1 || !match.team2) continue;
+    const h = String(Math.floor(timeMins / 60)).padStart(2, '0');
+    const m = String(timeMins % 60).padStart(2, '0');
+    await addDoc(collection(db, 'matches'), {
+      team1Id: match.team1.id, team2Id: match.team2.id,
+      date, time: `${h}:${m}`, pitch: 'Main Pitch',
+      score: '', status: 'scheduled', createdAt: new Date(),
+    });
+    timeMins += 90;
+  }
+};
+
+// ─── main export ──────────────────────────────────────────────
+export const generateBracket = async (teams, tournamentDates = []) => {
   if (!teams || teams.length < 3) throw new Error('يجب وجود 3 فرق على الأقل.');
 
   const numTeams   = teams.length;
@@ -19,34 +56,19 @@ export const generateBracket = async (teams) => {
   for (let r = 0; r < numRounds; r++) {
     const numMatches = bracketSize / Math.pow(2, r + 1);
     rounds[`${r}`]   = [];
-
     for (let m = 0; m < numMatches; m++) {
       const match = {
-        id:            `r${r}_m${m}`,
-        round:         r,
-        matchIndex:    m,
-        team1:         null,
-        team2:         null,
-        winner:        null,
-        nextMatchId:   r < numRounds - 1 ? `r${r + 1}_m${Math.floor(m / 2)}` : null,
-        isBye:         false,
-        lockedByMatch: null,
+        id: `r${r}_m${m}`, round: r, matchIndex: m,
+        team1: null, team2: null, winner: null,
+        nextMatchId: r < numRounds - 1 ? `r${r + 1}_m${Math.floor(m / 2)}` : null,
+        isBye: false, lockedByMatch: null,
       };
-
       if (r === 0) {
-        if (m < numTeams) {
-          match.team1 = { id: shuffled[m].id, name: shuffled[m].teamName };
-        }
+        if (m < numTeams) match.team1 = { id: shuffled[m].id, name: shuffled[m].teamName };
         const t2Idx = m + numMatches;
-        if (t2Idx < numTeams) {
-          match.team2 = { id: shuffled[t2Idx].id, name: shuffled[t2Idx].teamName };
-        }
-        if (match.team1 && !match.team2) {
-          match.isBye  = true;
-          match.winner = match.team1;
-        }
+        if (t2Idx < numTeams) match.team2 = { id: shuffled[t2Idx].id, name: shuffled[t2Idx].teamName };
+        if (match.team1 && !match.team2) { match.isBye = true; match.winner = match.team1; }
       }
-
       rounds[`${r}`].push(match);
     }
   }
@@ -54,20 +76,23 @@ export const generateBracket = async (teams) => {
   rounds['0'].forEach(m => {
     if (m.winner && m.nextMatchId) {
       const [nextR, nextM] = parseNextMatchId(m.nextMatchId);
-      if (m.matchIndex % 2 === 0) {
-        rounds[nextR][nextM].team1 = m.winner;
-      } else {
-        rounds[nextR][nextM].team2 = m.winner;
-      }
+      if (m.matchIndex % 2 === 0) rounds[nextR][nextM].team1 = m.winner;
+      else rounds[nextR][nextM].team2 = m.winner;
     }
   });
 
+  const sortedDates  = [...tournamentDates].sort();
+  const roundDateMap = computeRoundDateMap(numRounds, sortedDates);
+
+  if (sortedDates.length > 0) {
+    await autoScheduleRound0(rounds['0'], roundDateMap[0] ?? sortedDates[0]);
+  }
+
   await setDoc(doc(db, 'tournaments', 'main'), {
-    status:      'locked',
-    bracketSize,
-    numTeams,
-    rounds,
-    createdAt:   new Date(),
+    status: 'locked', bracketSize, numTeams, rounds,
+    createdAt: new Date(),
+    tournamentDates: sortedDates,
+    roundDateMap,
   });
 };
 
