@@ -96,19 +96,32 @@ export const finalizeMatch = async (match, formData, activePlayers) => {
     const score1 = parseInt(formData.score1) || 0;
     const score2 = parseInt(formData.score2) || 0;
 
+    // تحديد الفائز (مع مراعاة ضربات الجزاء)
+    let winnerId = null;
     let winnerName = null;
+
     if (score1 > score2) {
+      winnerId = match.team1Id;
       winnerName = match.team1Name;
     } else if (score2 > score1) {
+      winnerId = match.team2Id;
       winnerName = match.team2Name;
     } else {
       const pen1 = parseInt(formData.pen1) || 0;
       const pen2 = parseInt(formData.pen2) || 0;
       if (pen1 > pen2) {
+        winnerId = match.team1Id;
         winnerName = match.team1Name;
-      } else if (pen2 > pen1) {
+      } else {
+        winnerId = match.team2Id;
         winnerName = match.team2Name;
       }
+    }
+
+    // تأمين الأسماء في حالة لو مش موجودة في الـ match doc
+    if (!winnerName) {
+      const teamSnap = await getDoc(doc(db, 'teams', winnerId));
+      winnerName = teamSnap.exists() ? teamSnap.data().teamName : 'Unknown Team';
     }
 
     // تجهيز إحصائيات اللاعبين
@@ -159,8 +172,8 @@ export const finalizeMatch = async (match, formData, activePlayers) => {
     // إذا كانت مباراة بطولة، نحدث الـ Bracket
     if (match.tournamentName && match.tournamentName !== "Friendly") {
       await advanceBracketWinner(
-        score1 > score2 ? match.team1Id : match.team2Id,
-        score1 > score2 ? match.team1Name : match.team2Name,
+        winnerId,
+        winnerName,
         match.team1Id, match.team2Id
       );
     }
@@ -229,6 +242,7 @@ export const deleteMatch = async (match) => {
 };
 
 export const syncMatchStatuses = async (matches) => {
-  // تم إيقاف التحديث التلقائي بناءً على طلب المستخدم لضمان التحكم اليدوي الكامل
+  // تم إيقاف التحديث التلقائي في قاعدة البيانات لتجنب مشاكل فروق التوقيت
+  // الاعتماد كلياً على توقيت جهاز المستخدم في العرض
   return;
 };
