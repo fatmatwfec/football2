@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash } from 'react-icons/fa';
-import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel,} from '../services/tournamentService';
+import { doc, onSnapshot, collection } from 'firebase/firestore';
+import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt } from 'react-icons/fa';
+import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel, buildMatchCache} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
 
 const TournamentTab = ({ teams, onBack, readOnly = false }) => {
@@ -13,6 +13,9 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [archived,      setArchived]      = useState([]);
   const [showArchive,   setShowArchive]   = useState(false);
   const [scheduleModal, setScheduleModal] = useState(null); 
+  const [tournamentDates, setTournamentDates] = useState([]);
+  const [dateInput, setDateInput] = useState("");
+  const [allMatches, setAllMatches] = useState([]);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
@@ -30,18 +33,37 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
   useEffect(() => {
     fetchArchivedTournaments().then(setArchived).catch(console.error);
+    const unsubMatches = onSnapshot(collection(db, 'matches'), (snap) => {
+      setAllMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsubMatches();
   }, []);
+
+  const matchCache = useMemo(() => {
+    const cache = {};
+    allMatches.forEach(m => {
+      if (m.team1Id && m.team2Id) {
+        const key = [m.team1Id, m.team2Id].sort().join('__');
+        cache[key] = m;
+      }
+    });
+    return cache;
+  }, [allMatches]);
 
   const numTeams         = teams?.length ?? 0;
   const tournamentWinner = useMemo(() => getTournamentWinner(tournament), [tournament]);
 
   const handleRunDraw = async () => {
     if (readOnly || numTeams < 3) return;
+    if (tournamentDates.length === 0) {
+      alert("Please add at least one date for the tournament.");
+      return;
+    }
     setWizardStep(2); 
     setIsGenerating(true);
     try {
       await new Promise((r) => setTimeout(r, 4500));
-      await generateBracket(teams);
+      await generateBracket(teams, tournamentDates);
       setWizardStep(3); 
     } catch (e) {
       console.error(e);
@@ -49,6 +71,17 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       setWizardStep(1);
     }
     setIsGenerating(false);
+  };
+
+  const addDate = () => {
+    if (!dateInput) return;
+    if (tournamentDates.includes(dateInput)) return;
+    setTournamentDates([...tournamentDates, dateInput].sort());
+    setDateInput("");
+  };
+
+  const removeDate = (date) => {
+    setTournamentDates(tournamentDates.filter(d => d !== date));
   };
 
   const handleManualAdvance = async (match, winnerTeam) => {
@@ -143,30 +176,61 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
         {/* Wizard Content */}
         <div className="bg-slate-900/40 backdrop-blur-sm rounded-2xl border border-white/10 p-8 mb-8">
-          {wizardStep === 1 && !tournament && (
-            <div className="flex flex-col items-center text-center py-10">
-              <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6 border-2 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
-                <FaUsers className="text-4xl text-emerald-500" />
+           {wizardStep === 1 && !tournament && (
+            <div className="flex flex-col items-center text-center py-6">
+              <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 border-2 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                <FaUsers className="text-3xl text-emerald-500" />
               </div>
-              <h3 className="text-3xl font-black text-white uppercase mb-3">{readOnly ? 'Waiting for Officials' : 'Initialize Tournament'}</h3>
-              <p className="text-slate-400 mb-8 max-w-md">
+              <h3 className="text-2xl font-black text-white uppercase mb-2">{readOnly ? 'Waiting for Officials' : 'Tournament Setup'}</h3>
+              <p className="text-slate-400 mb-6 max-w-md text-sm">
                 {readOnly 
-                  ? 'Registration is currently closing. The official draw will appear here shortly once completed by the administrators.' 
-                  : `We have ${numTeams} approved teams. Ready to lock registration and perform the random draw?`}
+                  ? 'Registration is currently closing. The official draw will appear here shortly.' 
+                  : `We have ${numTeams} approved teams. Select the tournament dates below.`}
               </p>
+
               {!readOnly && (
-                <button
-                  disabled={numTeams < 3}
-                  onClick={handleRunDraw}
-                  className={`px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center gap-3 ${
-                    numTeams < 3
-                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-105 shadow-xl shadow-emerald-900/40'
-                  }`}
-                >
-                  <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
-                  {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : 'Initiate Automated Draw'}
-                </button>
+                <div className="w-full max-w-md mb-8">
+                  <div className="flex gap-2 mb-4">
+                    <input 
+                      type="date" 
+                      value={dateInput}
+                      onChange={(e) => setDateInput(e.target.value)}
+                      className="flex-1 bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                    />
+                    <button 
+                      onClick={addDate}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase"
+                    >
+                      Add Date
+                    </button>
+                  </div>
+                  
+                  {tournamentDates.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                      {tournamentDates.map(date => (
+                        <div key={date} className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold">
+                          {date}
+                          <button onClick={() => removeDate(date)} className="hover:text-red-400 transition-colors">
+                            <FaTrash size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    disabled={numTeams < 3 || tournamentDates.length === 0}
+                    onClick={handleRunDraw}
+                    className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-3 ${
+                      numTeams < 3 || tournamentDates.length === 0
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-102 shadow-xl shadow-emerald-900/40'
+                    }`}
+                  >
+                    <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
+                    {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : tournamentDates.length === 0 ? 'Select Dates First' : 'Initiate Automated Draw'}
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -204,6 +268,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
             <div className="relative animate-fade-in">
               <BracketView
                 tournament={tournament}
+                matches={matchCache}
                 onAdvanceWinner={handleManualAdvance}
                 onScheduleMatch={handleScheduleFromBracket}
                 onClear={handleClear}
@@ -250,8 +315,6 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     </div>
   );
 };
-
-// ... (Rest of components from before)
 
 // ─── Schedule Match Modal ─────────────────────────────────────
 const ScheduleMatchModal = ({ prefill, onClose }) => {
@@ -406,7 +469,7 @@ const ArchivedTournamentCard = ({ tournament }) => {
 
 
 // ─── Bracket View ─────────────────────────────────────────────
-const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear, readOnly }) => {
+const BracketView = ({ tournament, matches, onAdvanceWinner, onScheduleMatch, onClear, readOnly }) => {
   const totalRounds = Object.keys(tournament.rounds).length;
 
    return (
@@ -440,6 +503,8 @@ const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear, re
               roundMatches={tournament.rounds[roundKey]}
               roundIndex={roundIndex}
               totalRounds={totalRounds}
+              roundDate={tournament.roundDateMap?.[roundKey]}
+              matches={matches}
               onAdvanceWinner={onAdvanceWinner}
               onScheduleMatch={onScheduleMatch}
               readOnly={readOnly}
@@ -451,12 +516,17 @@ const BracketView = ({ tournament, onAdvanceWinner, onScheduleMatch, onClear, re
   );
 };
 
-const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch, readOnly }) => (
+const RoundColumn = ({ roundMatches, roundIndex, totalRounds, roundDate, matches, onAdvanceWinner, onScheduleMatch, readOnly }) => (
   <div className="flex flex-col justify-around gap-6 relative" style={{ width: '220px' }}>
     <div className="text-center mb-2">
       <h3 className="text-emerald-500 font-bold uppercase text-[10px] tracking-[0.2em] bg-slate-800/50 inline-block px-4 py-1 rounded-full">
         {getRoundLabel(roundIndex, totalRounds)}
       </h3>
+      {roundDate && (
+        <p className="text-slate-500 text-[8px] font-bold mt-1 uppercase tracking-tighter">
+          📅 {new Date(roundDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+        </p>
+      )}
     </div>
     {roundMatches.map((match) => (
       <MatchCard
@@ -464,6 +534,7 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, o
         match={match}
         roundIndex={roundIndex}
         totalRounds={totalRounds}
+        matches={matches}
         onAdvanceWinner={onAdvanceWinner}
         onScheduleMatch={onScheduleMatch}
         readOnly={readOnly}
@@ -473,14 +544,16 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, onAdvanceWinner, o
 );
 
 // ─── Match Card ───────────────────────────────────────────────
-const MatchCard = ({ match, roundIndex, totalRounds, onAdvanceWinner, onScheduleMatch, readOnly }) => {
+const MatchCard = ({ match, roundIndex, totalRounds, matches, onAdvanceWinner, onScheduleMatch, readOnly }) => {
   const canClick     = (team) => !readOnly && match.team1 && match.team2 && !match.winner && team;
-  const canSchedule  = !readOnly && match.team1 && match.team2 && !match.isBye && !match.winner;
+  
+  const mKey = (match.team1 && match.team2) ? [match.team1.id, match.team2.id].sort().join('__') : null;
+  const scheduledMatch = mKey ? matches[mKey] : null;
 
  return (
     <div className="bg-slate-800/50 border rounded-xl overflow-hidden transition-all hover:border-emerald-500/30 border-white/10">
       <div className="px-3 py-1.5 bg-slate-800 border-b border-white/5 text-center">
-        <span className="text-[8px] font-bold text-slate-500 uppercase">Match</span>
+        <span className="text-[8px] font-bold text-slate-500 uppercase">Match Info</span>
       </div>
       <div className="p-3 space-y-2">
         <TeamSlot
@@ -502,11 +575,15 @@ const MatchCard = ({ match, roundIndex, totalRounds, onAdvanceWinner, onSchedule
           />
         )}
       </div>
-      {canSchedule && (
-        <div className="px-3 pb-3">
-          <button onClick={() => onScheduleMatch(match)} className="w-full py-1.5 rounded-lg font-bold text-[8px] uppercase tracking-wider transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white flex items-center justify-center gap-1">
-            <FaCalendarPlus size={9} /> Schedule
-          </button>
+      
+      {scheduledMatch && !match.winner && (
+        <div className="px-3 pb-3 flex items-center justify-center gap-3 border-t border-white/5 pt-3">
+           <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
+             <FaCalendarAlt size={10} /> {scheduledMatch.date}
+           </div>
+           <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
+             <FaClock size={10} /> {scheduledMatch.time}
+           </div>
         </div>
       )}
     </div>
