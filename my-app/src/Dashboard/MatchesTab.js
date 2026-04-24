@@ -104,26 +104,12 @@ const MatchesTab = ({ readOnly = false }) => {
 
   
   const upcomingMatches = filterByRound(
-    enrichedMatches.filter((m) => {
-      if (!m.date || !m.time) return false;
-      const matchTime = new Date(`${m.date} ${m.time}`).getTime();
-      return (m.status === 'scheduled' || m.status === 'upcoming') && matchTime > now;
-    })
+    enrichedMatches.filter((m) => (m.status === 'scheduled' || m.status === 'upcoming'))
   );
 
   
   const liveMatches = filterByRound(
-    enrichedMatches.filter((m) => {
-      if (!m.date || !m.time) return false;
-      const matchTime = new Date(`${m.date} ${m.time}`).getTime();
-      const matchEndTime = matchTime + 120 * 60 * 1000; 
-      
-      const isLiveTime = now >= matchTime && now <= matchEndTime;
-      const isNotCompleted = m.status !== 'completed' && m.status !== 'cancelled';
-      const isNotUpcoming = matchTime <= now;
-      
-      return isLiveTime && isNotCompleted && isNotUpcoming;
-    })
+    enrichedMatches.filter((m) => m.status === 'live')
   );
 
   const completedMatches = filterByRound(
@@ -141,7 +127,10 @@ const MatchesTab = ({ readOnly = false }) => {
     if (readOnly) return;
     e.preventDefault();
     try {
-      await scheduleMatch(newMatch);
+      await scheduleMatch({
+        ...newMatch,
+        tournamentName: tournament?.name || "Friendly"
+      });
       setShowAddForm(false);
       setNewMatch({ team1Id: '', team2Id: '', team1Name: '', team2Name: '', date: '', time: '', pitch: 'Main Pitch' });
     } catch (err) {
