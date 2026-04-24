@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { db } from '../firebase';
 import {
   doc, writeBatch, arrayUnion, arrayRemove,
@@ -7,7 +7,7 @@ import {
 import {
   FaUserPlus, FaShieldAlt, FaUserMinus, FaTrashAlt, FaFutbol, 
   FaSearch, FaTimes, FaBan, FaPen, FaCheck,
-  FaTrophy, FaUsers, FaChartLine, FaGamepad
+  FaTrophy, FaUsers, FaGamepad
 } from 'react-icons/fa';
 import { updateTeamNameInTournament } from '../services/tournamentService';
 
@@ -28,7 +28,6 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   const [teamSearch, setTeamSearch] = useState('');
   const [renamingTeamId, setRenamingTeamId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
-  const [viewMode, setViewMode] = useState('cards');
 
   const getTeamMembers = (team) =>
     players.filter(p => p.teamId && String(p.teamId).trim() === String(team.id).trim());
@@ -40,64 +39,6 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
   const filteredTeams = teams.filter(t =>
     t.teamName?.toLowerCase().includes(teamSearch.toLowerCase())
   );
-
-  const getTeamStats = useMemo(() => {
-    const statsMap = {};
-    
-    teams.forEach(team => {
-      const teamMatches = matches.filter(m => 
-        m.status === 'completed' && 
-        (m.team1Id === team.id || m.team2Id === team.id)
-      );
-      
-      let wins = 0, draws = 0, losses = 0;
-      let goalsFor = 0, goalsAgainst = 0;
-      
-      teamMatches.forEach(m => {
-        let score1 = 0, score2 = 0;
-        if (m.score && typeof m.score === 'string' && m.score.includes('-')) {
-          const parts = m.score.split('-');
-          score1 = parseInt(parts[0]) || 0;
-          score2 = parseInt(parts[1]) || 0;
-        } else if (m.score && typeof m.score === 'object') {
-          score1 = parseInt(m.score.team1) || 0;
-          score2 = parseInt(m.score.team2) || 0;
-        }
-        
-        const isTeam1 = m.team1Id === team.id;
-        const teamScore = isTeam1 ? score1 : score2;
-        const opponentScore = isTeam1 ? score2 : score1;
-        
-        goalsFor += teamScore;
-        goalsAgainst += opponentScore;
-        
-        if (teamScore > opponentScore) wins++;
-        else if (teamScore === opponentScore) draws++;
-        else losses++;
-      });
-      
-      const played = teamMatches.length;
-      const points = wins * 3 + draws;
-      const goalDiff = goalsFor - goalsAgainst;
-      
-      statsMap[team.id] = { 
-        played, wins, draws, losses, 
-        goalsFor, goalsAgainst, goalDiff, points 
-      };
-    });
-    
-    return statsMap;
-  }, [teams, matches]);
-
-  const sortedTeamsForTable = useMemo(() => {
-    return [...teams].sort((a, b) => {
-      const statsA = getTeamStats[a.id] || { points: 0, goalDiff: 0, goalsFor: 0 };
-      const statsB = getTeamStats[b.id] || { points: 0, goalDiff: 0, goalsFor: 0 };
-      if (statsA.points !== statsB.points) return statsB.points - statsA.points;
-      if (statsA.goalDiff !== statsB.goalDiff) return statsB.goalDiff - statsA.goalDiff;
-      return statsB.goalsFor - statsA.goalsFor;
-    });
-  }, [teams, getTeamStats]);
 
   const handleDeleteTeam = async (teamId, teamName) => {
     if (!window.confirm(`Are you sure you want to delete ${teamName}? All members will become Free Agents.`)) return;
@@ -213,25 +154,6 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
           </div>
           
           <div className="flex gap-3">
-            <div className="bg-white/5 rounded-xl p-1 flex gap-1">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${
-                  viewMode === 'cards' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <FaUsers className="inline mr-1" size={12} /> Cards
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${
-                  viewMode === 'table' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <FaChartLine className="inline mr-1" size={12} /> Leaderboard
-              </button>
-            </div>
-            
             <div className="relative w-64">
               <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs" />
               <input
@@ -250,68 +172,11 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
           </div>
         </div>
 
-        {/* Leaderboard Table View */}
-        {viewMode === 'table' && (
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-white/10 border-b border-white/10">
-                  <tr>
-                    <th className="text-left py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">Pos</th>
-                    <th className="text-left py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">Team</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">P</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">W</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">D</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">L</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">GF</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">GA</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">GD</th>
-                    <th className="text-center py-5 px-5 text-slate-300 font-bold text-sm uppercase tracking-wider">Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTeamsForTable.filter(t => t.teamName?.toLowerCase().includes(teamSearch.toLowerCase())).map((team, idx) => {
-                    const stats = getTeamStats[team.id] || { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0 };
-                    return (
-                      <tr key={team.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-5">
-                          <span className={`font-bold text-base ${idx < 3 ? 'text-yellow-400' : 'text-white'}`}>
-                            {idx + 1}
-                          </span>
-                        </td>
-                        <td className="py-4 px-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-green-700 flex items-center justify-center">
-                              <FaFutbol className="text-white text-lg" />
-                            </div>
-                            <span className="text-white font-bold text-base">{team.teamName}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-5 text-center text-white font-bold text-base">{stats.played}</td>
-                        <td className="py-4 px-5 text-center text-emerald-400 font-bold text-base">{stats.wins}</td>
-                        <td className="py-4 px-5 text-center text-yellow-400 font-bold text-base">{stats.draws}</td>
-                        <td className="py-4 px-5 text-center text-red-400 font-bold text-base">{stats.losses}</td>
-                        <td className="py-4 px-5 text-center text-white font-bold text-base">{stats.goalsFor}</td>
-                        <td className="py-4 px-5 text-center text-white font-bold text-base">{stats.goalsAgainst}</td>
-                        <td className={`py-4 px-5 text-center font-bold text-base ${stats.goalDiff >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {stats.goalDiff > 0 ? `+${stats.goalDiff}` : stats.goalDiff}
-                        </td>
-                        <td className="py-4 px-5 text-center text-white font-bold text-xl">{stats.points}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* Cards View */}
-        {viewMode === 'cards' && (
+        {(
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTeams.length > 0 ? filteredTeams.map((team) => {
               const currentMembers = getTeamMembers(team);
-              const stats = getTeamStats[team.id] || { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0 };
               const isRenaming = renamingTeamId === team.id;
 
               return (
@@ -363,26 +228,6 @@ const TeamsTab = ({ teams, players, matches = [] }) => {
                     <div className="flex items-center gap-2">
                       <FaGamepad size={18} className="text-emerald-500" />
                       <span className="text-slate-300 font-medium text-base">{currentMembers.length} Players</span>
-                    </div>
-                  </div>
-
-                  {/* Team Stats */}
-                  <div className="p-5 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium text-base">Points:</span>
-                      <span className="text-white font-black text-2xl">{stats.points}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium text-base">Wins:</span>
-                      <span className="text-white font-black text-2xl">{stats.wins}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium text-base">Goals:</span>
-                      <span className="text-white font-black text-2xl">{stats.goalsFor}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium text-base">Played:</span>
-                      <span className="text-white font-black text-2xl">{stats.played}</span>
                     </div>
                   </div>
 
