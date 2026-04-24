@@ -99,16 +99,9 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   };
 
   const getPositionBadge = (position) => {
-    const positionLower = (position || '').toLowerCase();
-    if (positionLower.includes('forward') || positionLower.includes('striker')) {
-      return 'bg-green-500/20 text-green-400';
-    } else if (positionLower.includes('midfielder') || positionLower.includes('mid')) {
-      return 'bg-emerald-500/20 text-emerald-400';
-    } else if (positionLower.includes('defender') || positionLower.includes('def')) {
-      return 'bg-teal-500/20 text-teal-400';
-    } else if (positionLower.includes('goalkeeper') || positionLower.includes('gk')) {
-      return 'bg-lime-500/20 text-lime-400';
-    }
+    if (position === 'Forward')    return 'bg-green-500/20 text-green-400';
+    if (position === 'Defender')   return 'bg-blue-500/20 text-blue-400';
+    if (position === 'Goalkeeper') return 'bg-yellow-500/20 text-yellow-400';
     return 'bg-slate-500/20 text-slate-400';
   };
 
