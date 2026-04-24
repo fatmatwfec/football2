@@ -15,6 +15,7 @@ const MatchesTab = ({ readOnly = false }) => {
   const [showResultModal, setShowResultModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roundFilter, setRoundFilter] = useState(null);
+  const [now, setNow] = useState(Date.now());
 
   const [newMatch, setNewMatch] = useState({
     team1Id: '', team2Id: '', team1Name: '', team2Name: '',
@@ -45,7 +46,10 @@ const MatchesTab = ({ readOnly = false }) => {
   useEffect(() => {
     if (!matches.length) return;
     syncMatchStatuses(matches);
-    const interval = setInterval(() => syncMatchStatuses(matches), 60000);
+    const interval = setInterval(() => {
+      setNow(Date.now());
+      syncMatchStatuses(matches);
+    }, 60000);
     return () => clearInterval(interval);
   }, [matches]);
 
@@ -89,7 +93,7 @@ const MatchesTab = ({ readOnly = false }) => {
     [matches, resolveTeamName],
   );
 
-  const now = Date.now();
+
 
   const filterByRound = useCallback(
     (list) => {
@@ -102,14 +106,30 @@ const MatchesTab = ({ readOnly = false }) => {
     [roundFilter, tournament, matchCache],
   );
 
-  
   const upcomingMatches = filterByRound(
-    enrichedMatches.filter((m) => (m.status === 'scheduled' || m.status === 'upcoming'))
+    enrichedMatches.filter((m) => {
+      if (m.status === 'completed') return false;
+      if (!m.date || !m.time) return true;
+      
+      const [y, mm, d] = m.date.split('-').map(Number);
+      const [h, min] = m.time.split(':').map(Number);
+      const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+      
+      return matchTime > now;
+    })
   );
 
-  
   const liveMatches = filterByRound(
-    enrichedMatches.filter((m) => m.status === 'live')
+    enrichedMatches.filter((m) => {
+      if (m.status === 'completed') return false;
+      if (!m.date || !m.time) return false;
+      
+      const [y, mm, d] = m.date.split('-').map(Number);
+      const [h, min] = m.time.split(':').map(Number);
+      const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+      
+      return matchTime <= now; 
+    })
   );
 
   const completedMatches = filterByRound(
@@ -467,6 +487,11 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
               {roundLabel}
             </span>
           )}
+          {match.tournamentName && (
+            <span className="text-[14px] font-black text-amber-400 uppercase bg-amber-500/10 px-3 py-1.5 rounded-xl border-2 border-amber-500/30 shadow-lg shadow-amber-500/5">
+              {match.tournamentName}
+            </span>
+          )}
           <span className={`text-[10px] font-bold uppercase tracking-wider ${
             isLive ? 'text-red-400 animate-pulse' : isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
           }`}>
@@ -573,7 +598,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
     const s2 = parseInt(e.target.form?.score2?.value) || 0;
     setScore1(s1);
     setScore2(s2);
-    setIsDraw(s1 === s2 && s1 > 0);
+    setIsDraw(s1 === s2);
   };
 
   const handleSubmitWithValidation = async (e) => {
@@ -627,33 +652,35 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
             <label className="block text-[#00FF9C] text-xs font-bold mb-4 uppercase tracking-wider">Match Score</label>
             <div className="flex items-center justify-center gap-8">
               <div className="text-center">
-                <p className="text-gray-400 text-sm mb-3">{match.team1Name}</p>
-                <input 
-                  name="score1" 
-                  type="number" 
-                  min="0" 
-                  required 
-                  value={score1}
-                  onChange={handleScoreChange}
-                  className="w-28 h-28 text-center text-4xl font-black text-white bg-slate-800 rounded-2xl border-2 border-white/10 focus:border-[#00FF9C] focus:outline-none transition-all" 
-                />
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center">
-                  <span className="text-gray-400 text-xl font-black">VS</span>
+                <div className="flex flex-col items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{match.team1Name}</span>
+                  <input 
+                    name="score1" 
+                    type="number" 
+                    min="0" 
+                    required 
+                    value={score1}
+                    onChange={handleScoreChange}
+                    className="w-32 h-32 text-center text-5xl font-black text-white bg-slate-800/50 rounded-3xl border-2 border-white/10 focus:border-[#00FF9C] focus:ring-4 focus:ring-[#00FF9C]/20 focus:outline-none transition-all shadow-2xl" 
+                  />
                 </div>
-              </div>
-              <div className="text-center">
-                <p className="text-gray-400 text-sm mb-3">{match.team2Name}</p>
-                <input 
-                  name="score2" 
-                  type="number" 
-                  min="0" 
-                  required 
-                  value={score2}
-                  onChange={handleScoreChange}
-                  className="w-28 h-28 text-center text-4xl font-black text-white bg-slate-800 rounded-2xl border-2 border-white/10 focus:border-[#00FF9C] focus:outline-none transition-all" 
-                />
+                
+                <div className="flex flex-col items-center pt-8">
+                  <span className="text-slate-600 font-black text-2xl italic">VS</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{match.team2Name}</span>
+                  <input 
+                    name="score2" 
+                    type="number" 
+                    min="0" 
+                    required 
+                    value={score2}
+                    onChange={handleScoreChange}
+                    className="w-32 h-32 text-center text-5xl font-black text-white bg-slate-800/50 rounded-3xl border-2 border-white/10 focus:border-[#00FF9C] focus:ring-4 focus:ring-[#00FF9C]/20 focus:outline-none transition-all shadow-2xl" 
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -691,60 +718,70 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
           )}
 
           {/* Player Statistics - With Team Names */}
-          <div className="bg-black/30 rounded-2xl p-6 border border-white/10">
-            <label className="block text-[#00FF9C] text-xs font-bold mb-4 uppercase tracking-wider">Player Statistics</label>
+          <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl p-8 border border-white/10 shadow-2xl">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 bg-[#00FF9C]/10 rounded-xl flex items-center justify-center border border-[#00FF9C]/20">
+                <FaFutbol className="text-[#00FF9C] text-xl" />
+              </div>
+              <div>
+                <h3 className="text-white font-black text-lg uppercase tracking-tight">Match Statistics</h3>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Player performance & Cards</p>
+              </div>
+            </div>
             
             {/* Team 1 Players */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
-                <div className="w-6 h-6 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg flex items-center justify-center">
-                  <FaFutbol className="text-black text-xs" />
-                </div>
-                <h4 className="text-white font-bold text-sm">{match.team1Name}</h4>
-                <span className="text-gray-500 text-xs">({team1Players.length} players)</span>
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4 px-2">
+                <h4 className="text-[#00FF9C] font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#00FF9C] animate-pulse" />
+                  {match.team1Name}
+                </h4>
+                <span className="text-slate-500 text-[10px] font-bold uppercase">{team1Players.length} Active Players</span>
               </div>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3">
                 {team1Players.map(player => (
-                  <div key={player.id} className="bg-slate-800/50 rounded-xl p-3 flex items-center justify-between hover:bg-slate-800 transition-all">
-                    <div className="flex-1">
-                      <p className="text-white font-medium text-sm">{player.name}</p>
-                      <p className="text-[#00FF9C] text-[10px] opacity-60">{match.team1Name}</p>
+                  <div key={player.id} className="bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 rounded-2xl p-4 flex items-center justify-between transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-white/10 text-slate-400 font-bold text-xs uppercase group-hover:border-[#00FF9C]/50 transition-colors">
+                        {player.name?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-white font-bold text-base leading-tight">{player.name}</p>
+                        <p className="text-slate-500 text-[10px] font-medium mt-0.5">{player.position || 'Player'}</p>
+                      </div>
                     </div>
-                    <div className="flex gap-3">
-                      <div className="text-center">
+                    <div className="flex gap-4">
+                      <div className="flex flex-col items-center">
                         <input 
                           name={`goals-${player.id}`} 
                           type="number" 
                           min="0" 
                           defaultValue="0" 
-                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-[#00FF9C] focus:outline-none" 
-                          placeholder="⚽"
+                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
                         />
-                        <p className="text-[8px] text-gray-500 mt-1">Goals</p>
+                        <span className="text-[8px] font-black text-slate-600 uppercase mt-1 tracking-tighter">Goals</span>
                       </div>
-                      <div className="text-center">
+                      <div className="flex flex-col items-center">
                         <input 
                           name={`yellow-${player.id}`} 
                           type="number" 
                           min="0" 
                           max="2" 
                           defaultValue="0" 
-                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-yellow-400 focus:outline-none text-yellow-400" 
-                          placeholder="🟨"
+                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-yellow-400 focus:outline-none text-yellow-400 transition-all shadow-lg" 
                         />
-                        <p className="text-[8px] text-gray-500 mt-1">Yellow</p>
+                        <span className="text-[8px] font-black text-slate-600 uppercase mt-1 tracking-tighter">Yellow</span>
                       </div>
-                      <div className="text-center">
+                      <div className="flex flex-col items-center">
                         <input 
                           name={`red-${player.id}`} 
                           type="number" 
                           min="0" 
                           max="1" 
                           defaultValue="0" 
-                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-red-400 focus:outline-none text-red-400" 
-                          placeholder="🟥"
+                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-red-400 focus:outline-none text-red-400 transition-all shadow-lg" 
                         />
-                        <p className="text-[8px] text-gray-500 mt-1">Red</p>
+                        <span className="text-[8px] font-black text-slate-600 uppercase mt-1 tracking-tighter">Red</span>
                       </div>
                     </div>
                   </div>
@@ -758,63 +795,65 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
             </div>
 
             {/* Team 2 Players */}
-            <div>
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
-                <div className="w-6 h-6 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg flex items-center justify-center">
-                  <FaFutbol className="text-black text-xs" />
-                </div>
-                <h4 className="text-white font-bold text-sm">{match.team2Name}</h4>
-                <span className="text-gray-500 text-xs">({team2Players.length} players)</span>
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4 px-2">
+                <h4 className="text-[#00FF9C] font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#00FF9C] animate-pulse" />
+                  {match.team2Name}
+                </h4>
+                <span className="text-slate-500 text-[10px] font-bold uppercase">{team2Players.length} Active Players</span>
               </div>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3">
                 {team2Players.map(player => (
-                  <div key={player.id} className="bg-slate-800/50 rounded-xl p-3 flex items-center justify-between hover:bg-slate-800 transition-all">
-                    <div className="flex-1">
-                      <p className="text-white font-medium text-sm">{player.name}</p>
-                      <p className="text-[#00FF9C] text-[10px] opacity-60">{match.team2Name}</p>
+                  <div key={player.id} className="bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 rounded-2xl p-4 flex items-center justify-between transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-white/10 text-slate-400 font-bold text-xs uppercase group-hover:border-[#00FF9C]/50 transition-colors">
+                        {player.name?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-white font-bold text-base leading-tight">{player.name}</p>
+                        <p className="text-slate-500 text-[10px] font-medium mt-0.5">{player.position || 'Player'}</p>
+                      </div>
                     </div>
-                    <div className="flex gap-3">
-                      <div className="text-center">
+                    <div className="flex gap-4">
+                      <div className="flex flex-col items-center">
                         <input 
                           name={`goals-${player.id}`} 
                           type="number" 
                           min="0" 
                           defaultValue="0" 
-                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-[#00FF9C] focus:outline-none" 
-                          placeholder="⚽"
+                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
                         />
-                        <p className="text-[8px] text-gray-500 mt-1">Goals</p>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-tighter">Goals</span>
                       </div>
-                      <div className="text-center">
+                      <div className="flex flex-col items-center">
                         <input 
                           name={`yellow-${player.id}`} 
                           type="number" 
                           min="0" 
                           max="2" 
                           defaultValue="0" 
-                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-yellow-400 focus:outline-none text-yellow-400" 
-                          placeholder="🟨"
+                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-yellow-400 focus:outline-none text-yellow-400 transition-all shadow-lg" 
                         />
-                        <p className="text-[8px] text-gray-500 mt-1">Yellow</p>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-tighter">Yellow</span>
                       </div>
-                      <div className="text-center">
+                      <div className="flex flex-col items-center">
                         <input 
                           name={`red-${player.id}`} 
                           type="number" 
                           min="0" 
                           max="1" 
                           defaultValue="0" 
-                          className="w-14 py-2 text-center text-sm font-bold bg-slate-700 rounded-lg border border-white/10 focus:border-red-400 focus:outline-none text-red-400" 
-                          placeholder="🟥"
+                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-red-400 focus:outline-none text-red-400 transition-all shadow-lg" 
                         />
-                        <p className="text-[8px] text-gray-500 mt-1">Red</p>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-tighter">Red</span>
                       </div>
                     </div>
                   </div>
                 ))}
                 {team2Players.length === 0 && (
-                  <div className="text-center py-4 bg-slate-800/30 rounded-xl">
-                    <p className="text-gray-500 text-sm">No players available</p>
+                  <div className="text-center py-8 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <p className="text-slate-600 text-sm italic">No players available</p>
                   </div>
                 )}
               </div>
