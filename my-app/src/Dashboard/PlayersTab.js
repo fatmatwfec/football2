@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaStar } from 'react-icons/fa';
+import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaStar, FaBan } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
-const PlayersTab = ({ players }) => {
+const PlayersTab = ({ players, readOnly = false }) => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [showBuildModal, setShowBuildModal] = useState(false);
   const [customTeamName, setCustomTeamName] = useState("");
@@ -33,6 +33,7 @@ const PlayersTab = ({ players }) => {
   const freeAgentsCount = allPlayers.filter(p => !p.hasTeam).length;
 
   const handleManualVerify = async (playerId, playerName) => {
+    if (readOnly) return;
     if (window.confirm(`Activate account for ${playerName} manually?`)) {
       try {
         await updateDoc(doc(db, "users", playerId), { isVerified: true, manualActivation: true });
@@ -41,6 +42,7 @@ const PlayersTab = ({ players }) => {
   };
 
   const handleAction = async (player) => {
+    if (readOnly) return;
     if (player.hasTeam) {
       if (window.confirm(`Remove ${player.name} from their team?`)) {
         try {
@@ -59,6 +61,7 @@ const PlayersTab = ({ players }) => {
   };
 
   const handleAutoBuild = async () => {
+    if (readOnly) return;
     const freeAgents = allPlayers.filter(p => !p.hasTeam);
     if (freeAgents.length < playerCount) return alert("Not enough free agents.");
     setIsBuilding(true);
@@ -100,7 +103,7 @@ const PlayersTab = ({ players }) => {
     return 'bg-slate-500/20 text-slate-400';
   };
 
- return (
+  return (
     <div className="w-full min-h-screen bg-gradient-to-br from-black via-slate-900 to-emerald-950/50">
       <div className="relative w-full px-4 py-6 max-w-7xl mx-auto">
     
@@ -227,12 +230,18 @@ const PlayersTab = ({ players }) => {
                         
                         <td className="py-3 px-4">
                           {!player.isVerified ? (
-                            <button 
-                              onClick={() => handleManualVerify(player.id, player.name)} 
-                              className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap hover:bg-orange-500/30 transition-all"
-                            >
-                              <FaUserCheck className="inline mr-1" size={10} /> Activate
-                            </button>
+                            !readOnly ? (
+                              <button 
+                                onClick={() => handleManualVerify(player.id, player.name)} 
+                                className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap hover:bg-orange-500/30 transition-all"
+                              >
+                                <FaUserCheck className="inline mr-1" size={10} /> Activate
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
+                                <FaBan size={10} /> Inactive
+                              </span>
+                            )
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
                               <FaCheckCircle size={10} /> Active
@@ -241,13 +250,15 @@ const PlayersTab = ({ players }) => {
                         </td>
                         
                         <td className="py-3 px-4 text-center">
-                          <button 
-                            onClick={() => handleAction(player)} 
-                            className="text-slate-600 hover:text-red-400 transition-colors"
-                            title={player.hasTeam ? "Remove from team" : "Delete player"}
-                          >
-                            {player.hasTeam ? <FaUserMinus size={16} /> : <FaTrashAlt size={16} />}
-                          </button>
+                          {!readOnly && (
+                            <button 
+                              onClick={() => handleAction(player)} 
+                              className="text-slate-600 hover:text-red-400 transition-colors"
+                              title={player.hasTeam ? "Remove from team" : "Delete player"}
+                            >
+                              {player.hasTeam ? <FaUserMinus size={16} /> : <FaTrashAlt size={16} />}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -268,7 +279,7 @@ const PlayersTab = ({ players }) => {
         </div>
 
         {/* Auto-Build Button */}
-        {freeAgentsCount >= 2 && (
+        {freeAgentsCount >= 2 && !readOnly && (
           <div className="fixed bottom-8 right-8 z-40">
             <button 
               onClick={() => setShowBuildModal(true)} 
@@ -278,6 +289,7 @@ const PlayersTab = ({ players }) => {
             </button>
           </div>
         )}
+
 
         {/* Build Modal */}
         {showBuildModal && (
