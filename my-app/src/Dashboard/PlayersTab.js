@@ -3,7 +3,7 @@ import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaKey, FaTrashAlt, FaTi
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
-const PlayersTab = ({ players, readOnly = false }) => {
+const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [showBuildModal, setShowBuildModal] = useState(false);
   const [customTeamName, setCustomTeamName] = useState("");
@@ -11,6 +11,15 @@ const PlayersTab = ({ players, readOnly = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const allPlayers = players.filter(p => p.role === "student" || p.role === "player");
+
+  // حساب عدد الماتشات اللي لعبها الفريق من الـ matches collection الفعلية
+  const getMatchesPlayedByTeamId = (teamId) => {
+    if (!teamId) return 0;
+    return matches.filter(m =>
+      (m.status || '').toLowerCase() === 'completed' &&
+      (m.team1Id === teamId || m.team2Id === teamId)
+    ).length;
+  };
   
   const sortedAllPlayers = [...allPlayers].sort((a, b) => {
     const goalsA = Number(a.goals) || 0;
@@ -219,7 +228,7 @@ const PlayersTab = ({ players, readOnly = false }) => {
                         
                         <td className="py-3 px-4 text-white font-medium">{player.assists || 0}</td>
                         
-                        <td className="py-3 px-4 text-slate-400">{player.matches || 0}</td>
+                        <td className="py-3 px-4 text-slate-400">{getMatchesPlayedByTeamId(player.teamId)}</td>
                         
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1">
