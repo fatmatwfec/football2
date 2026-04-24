@@ -534,6 +534,7 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, roundDate, matches
         match={match}
         roundIndex={roundIndex}
         totalRounds={totalRounds}
+        roundDate={roundDate}
         matches={matches}
         onAdvanceWinner={onAdvanceWinner}
         onScheduleMatch={onScheduleMatch}
@@ -544,11 +545,14 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, roundDate, matches
 );
 
 // ─── Match Card ───────────────────────────────────────────────
-const MatchCard = ({ match, roundIndex, totalRounds, matches, onAdvanceWinner, onScheduleMatch, readOnly }) => {
+const MatchCard = ({ match, roundIndex, totalRounds, roundDate, matches, onAdvanceWinner, onScheduleMatch, readOnly }) => {
   const canClick     = (team) => !readOnly && match.team1 && match.team2 && !match.winner && team;
   
   const mKey = (match.team1 && match.team2) ? [match.team1.id, match.team2.id].sort().join('__') : null;
   const scheduledMatch = mKey ? matches[mKey] : null;
+
+  const displayDate = scheduledMatch?.date || roundDate;
+  const displayTime = scheduledMatch?.time || match.projectedTime;
 
  return (
     <div className="bg-slate-800/50 border rounded-xl overflow-hidden transition-all hover:border-emerald-500/30 border-white/10">
@@ -576,14 +580,16 @@ const MatchCard = ({ match, roundIndex, totalRounds, matches, onAdvanceWinner, o
         )}
       </div>
       
-      {scheduledMatch && !match.winner && (
+      {displayDate && !match.winner && (
         <div className="px-3 pb-3 flex items-center justify-center gap-3 border-t border-white/5 pt-3">
            <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
-             <FaCalendarAlt size={10} /> {scheduledMatch.date}
+             <FaCalendarAlt size={10} /> {displayDate}
            </div>
-           <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
-             <FaClock size={10} /> {scheduledMatch.time}
-           </div>
+           {displayTime && (
+             <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
+               <FaClock size={10} /> {displayTime}
+             </div>
+           )}
         </div>
       )}
     </div>
