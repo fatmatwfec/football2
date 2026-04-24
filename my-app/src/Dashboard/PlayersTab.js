@@ -164,7 +164,6 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Team</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Position</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Goals</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Assists</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Matches</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rating</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Status</th>
@@ -225,8 +224,6 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                         <td className="py-3 px-4">
                           <span className="text-white font-bold text-lg">{playerGoals}</span>
                         </td>
-                        
-                        <td className="py-3 px-4 text-white font-medium">{player.assists || 0}</td>
                         
                         <td className="py-3 px-4 text-slate-400">{getMatchesPlayedByTeamId(player.teamId)}</td>
                         
