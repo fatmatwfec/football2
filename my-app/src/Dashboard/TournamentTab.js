@@ -65,6 +65,20 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       alert("Please add at least one date.");
       return;
     }
+
+    // التحقق من الوقت لو أول يوم هو النهاردة
+    const firstDate = tournamentDates[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (firstDate === todayStr) {
+      const now = new Date();
+      const [h, m] = tournamentStartTime.split(':').map(Number);
+      const start = new Date();
+      start.setHours(h, m, 0, 0);
+      if (start <= now) {
+        alert("The start time for today's matches must be in the future.");
+        return;
+      }
+    }
     setWizardStep(2); 
     setIsGenerating(true);
     try {
