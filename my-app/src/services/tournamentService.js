@@ -43,7 +43,7 @@ const autoScheduleRound0 = async (round0Matches, date, tournamentName) => {
 };
 
 // ─── main export ──────────────────────────────────────────────
-export const generateBracket = async (teams, tournamentDates = [], tournamentName = "") => {
+export const generateBracket = async (teams, tournamentDates = [], tournamentName = "", startTime = "09:00") => {
   if (!teams || teams.length < 3) throw new Error('يجب وجود 3 فرق على الأقل.');
   if (!tournamentName) tournamentName = `Tournament ${new Date().toLocaleDateString()}`;
 
@@ -88,11 +88,13 @@ export const generateBracket = async (teams, tournamentDates = [], tournamentNam
   const sortedDates  = [...tournamentDates].sort();
   const roundDateMap = computeRoundDateMap(numRounds, sortedDates);
 
-  // حساب وقت افتراضي لكل ماتش (50 دقيقة فاصل) مع مراعاة الأيام
+  const [startH, startM] = startTime.split(':').map(Number);
+  const startInMinutes = startH * 60 + startM;
+
   const dayTimeMap = {};
   for (let r = 0; r < numRounds; r++) {
     const rDate = roundDateMap[r] || (sortedDates.length > 0 ? sortedDates[0] : null);
-    if (rDate && !dayTimeMap[rDate]) dayTimeMap[rDate] = 9 * 60; 
+    if (rDate && !dayTimeMap[rDate]) dayTimeMap[rDate] = startInMinutes; 
 
     rounds[`${r}`].forEach(match => {
       const currentTime = dayTimeMap[rDate] || (9 * 60);
