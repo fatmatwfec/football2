@@ -106,6 +106,8 @@ const MatchesTab = ({ readOnly = false }) => {
     [roundFilter, tournament, matchCache],
   );
 
+  const DURATION = 20 * 60 * 1000; // 20 minutes
+
   const upcomingMatches = filterByRound(
     enrichedMatches.filter((m) => {
       if (m.status === 'completed') return false;
@@ -128,7 +130,20 @@ const MatchesTab = ({ readOnly = false }) => {
       const [h, min] = m.time.split(':').map(Number);
       const matchTime = new Date(y, mm - 1, d, h, min).getTime();
       
-      return matchTime <= now; 
+      return matchTime <= now && now < (matchTime + DURATION); 
+    })
+  );
+
+  const pendingMatches = filterByRound(
+    enrichedMatches.filter((m) => {
+      if (m.status === 'completed') return false;
+      if (!m.date || !m.time) return false;
+
+      const [y, mm, d] = m.date.split('-').map(Number);
+      const [h, min] = m.time.split(':').map(Number);
+      const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+
+      return now >= (matchTime + DURATION);
     })
   );
 
@@ -217,6 +232,7 @@ const MatchesTab = ({ readOnly = false }) => {
     switch(tab) {
       case 'upcoming': return upcomingMatches.length;
       case 'live': return liveMatches.length;
+      case 'pending': return pendingMatches.length;
       case 'completed': return completedMatches.length;
       default: return 0;
     }
@@ -331,57 +347,34 @@ const MatchesTab = ({ readOnly = false }) => {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 border-b border-white/10">
-          <button
-            onClick={() => setActiveTab('upcoming')}
-            className={`px-6 py-3 text-sm font-bold uppercase transition-all relative ${
-              activeTab === 'upcoming' 
-                ? 'text-[#00FF9C] border-b-2 border-[#00FF9C]'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              📅 Upcoming
-            </span>
-            <span className={`ml-2 text-xs ${activeTab === 'upcoming' ? 'text-[#00FF9C]/60' : 'text-gray-600'}`}>
-              ({getTabCount('upcoming')})
-            </span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('live')}
-            className={`px-6 py-3 text-sm font-bold uppercase transition-all relative ${
-              activeTab === 'live' 
-                ? 'text-red-400 border-b-2 border-red-400'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              🔴 Live
-              {liveMatches.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              )}
-            </span>
-            <span className={`ml-2 text-xs ${activeTab === 'live' ? 'text-red-400/60' : 'text-gray-600'}`}>
-              ({getTabCount('live')})
-            </span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`px-6 py-3 text-sm font-bold uppercase transition-all relative ${
-              activeTab === 'completed' 
-                ? 'text-[#00FF9C] border-b-2 border-[#00FF9C]'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              ✅ Completed
-            </span>
-            <span className={`ml-2 text-xs ${activeTab === 'completed' ? 'text-[#00FF9C]/60' : 'text-gray-600'}`}>
-              ({getTabCount('completed')})
-            </span>
-          </button>
+        <div className="flex gap-1 mb-8 border-b border-white/10 overflow-x-auto scrollbar-hide">
+          {[
+            { id: 'upcoming', label: 'Upcoming', icon: '📅', color: '#00FF9C' },
+            { id: 'live', label: 'Live', icon: '🔴', color: '#f87171' },
+            { id: 'pending', label: 'Pending Result', icon: '⏳', color: '#fbbf24' },
+            { id: 'completed', label: 'Completed', icon: '✅', color: '#00FF9C' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-6 py-3 text-sm font-bold uppercase transition-all relative whitespace-nowrap ${
+                activeTab === tab.id 
+                  ? `text-[${tab.color}] border-b-2`
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+              style={activeTab === tab.id ? { color: tab.color, borderColor: tab.color } : {}}
+            >
+              <span className="flex items-center gap-2">
+                {tab.icon} {tab.label}
+                {tab.id === 'live' && liveMatches.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                )}
+              </span>
+              <span className={`ml-2 text-xs opacity-60`}>
+                ({getTabCount(tab.id)})
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Matches Grid */}
@@ -409,6 +402,18 @@ const MatchesTab = ({ readOnly = false }) => {
               readOnly={readOnly}
             />
           ))}
+
+          {activeTab === 'pending' && pendingMatches.map(match => (
+            <MatchCard
+              key={match.id}
+              match={match}
+              type="pending"
+              roundLabel={getMatchRoundLabel(match)}
+              onEnterResult={() => handleOpenResult(match.id)}
+              onDelete={() => handleDelete(match.id)}
+              readOnly={readOnly}
+            />
+          ))}
           
           {activeTab === 'completed' && completedMatches.map(match => (
             <MatchCard
@@ -425,6 +430,7 @@ const MatchesTab = ({ readOnly = false }) => {
         {/* Empty State */}
         {((activeTab === 'upcoming' && upcomingMatches.length === 0) ||
           (activeTab === 'live' && liveMatches.length === 0) ||
+          (activeTab === 'pending' && pendingMatches.length === 0) ||
           (activeTab === 'completed' && completedMatches.length === 0)) && (
           <div className="text-center py-20">
             <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-4">
@@ -471,15 +477,20 @@ const MatchesTab = ({ readOnly = false }) => {
 // Match Card Component 
 const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly }) => {
   const isLive = type === 'live';
+  const isPending = type === 'pending';
   const isCompleted = type === 'completed';
   
   return (
     <div className={`bg-[#121821] backdrop-blur-sm rounded-2xl border overflow-hidden transition-all hover:border-[#00FF9C]/30 ${
-      isLive ? 'border-red-500/50 shadow-lg shadow-red-500/10' : 'border-white/10'
+      isLive ? 'border-red-500/50 shadow-lg shadow-red-500/10' : 
+      isPending ? 'border-amber-500/50 shadow-lg shadow-amber-500/10' :
+      'border-white/10'
     }`}>
       {/* Status Bar */}
       <div className={`px-4 py-2 border-b flex justify-between items-center ${
-        isLive ? 'bg-red-500/20 border-red-500/30' : 'bg-white/5 border-white/10'
+        isLive ? 'bg-red-500/20 border-red-500/30' : 
+        isPending ? 'bg-amber-500/20 border-amber-500/30' :
+        'bg-white/5 border-white/10'
       }`}>
         <div className="flex items-center gap-2">
           {roundLabel && (
@@ -493,9 +504,11 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
             </span>
           )}
           <span className={`text-[10px] font-bold uppercase tracking-wider ${
-            isLive ? 'text-red-400 animate-pulse' : isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
+            isLive ? 'text-red-400 animate-pulse' : 
+            isPending ? 'text-amber-400' :
+            isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
           }`}>
-            {isLive ? '🔴 LIVE' : isCompleted ? '✅ FINISHED' : '📅 UPCOMING'}
+            {isLive ? '🔴 LIVE' : isPending ? '⏳ PENDING RESULT' : isCompleted ? '✅ FINISHED' : '📅 UPCOMING'}
           </span>
         </div>
         {!readOnly && (
@@ -560,11 +573,13 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
             onClick={onEnterResult}
             className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${
               isLive
-                ? 'bg-red-600 hover:bg-red-500 text-white'
+                ? 'bg-red-600 hover:bg-red-500 text-white' :
+              isPending
+                ? 'bg-amber-500 hover:bg-amber-400 text-black'
                 : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
             }`}
           >
-            {isLive ? 'Enter Results' : 'Enter Results'}
+            {isLive ? 'Enter Results' : isPending ? 'Submit Match Score' : 'Enter Results'}
           </button>
         )}
 
