@@ -17,6 +17,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [dateInput, setDateInput] = useState("");
   const [allMatches, setAllMatches] = useState([]);
   const [tournamentName, setTournamentName] = useState("");
+  const [tournamentStartTime, setTournamentStartTime] = useState("09:00");
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
@@ -68,7 +69,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     setIsGenerating(true);
     try {
       await new Promise((r) => setTimeout(r, 4500));
-      await generateBracket(teams, tournamentDates, tournamentName);
+      await generateBracket(teams, tournamentDates, tournamentName, tournamentStartTime);
       setWizardStep(3); 
     } catch (e) {
       console.error(e);
@@ -208,19 +209,34 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
                   <div className="text-left">
                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Dates</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="date" 
-                        value={dateInput}
-                        onChange={(e) => setDateInput(e.target.value)}
-                        className="flex-1 bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
-                      />
-                      <button 
-                        onClick={addDate}
-                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase"
-                      >
-                        Add
-                      </button>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Select Date</label>
+                        <input 
+                          type="date" 
+                          value={dateInput}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setDateInput(e.target.value)}
+                          className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="w-1/3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">First Match Time</label>
+                        <input 
+                          type="time" 
+                          value={tournamentStartTime}
+                          onChange={(e) => setTournamentStartTime(e.target.value)}
+                          className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button 
+                          onClick={addDate}
+                          className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
