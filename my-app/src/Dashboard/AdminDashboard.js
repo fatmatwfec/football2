@@ -50,6 +50,16 @@ const AdminDashboard = () => {
     return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
   }, []);
 
+  // ✅ مفيش players state منفصلة — البيانات بتيجي من Firebase في allUsers
+  // لما الـ redCards بتتصفر في Firestore، الـ onSnapshot هيحدّث allUsers تلقائياً
+  const handleUpdatePlayer = async (updatedPlayer) => {
+    try {
+      await updateDoc(doc(db, "users", updatedPlayer.id), { redCards: 0 });
+    } catch (error) {
+      console.error("Error updating player:", error);
+    }
+  };
+
   const resolveTeamName = useCallback(
     (teamId, fallback) => {
       const found = allTeams.find(t => t.id === teamId);
@@ -461,7 +471,6 @@ const AdminDashboard = () => {
               </div>
             )}
 
-
             {/*  PLAYERS TAB  */}
             {activeTab === "players" && (
               <div className="animate-fade-slide-up">
@@ -601,6 +610,7 @@ const AdminDashboard = () => {
           players={filteredPlayers}
           matches={enrichedMatches}
           teams={approvedTeams}
+          onUpdatePlayer={handleUpdatePlayer}
         />
 
         <AddActionModal
