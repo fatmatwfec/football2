@@ -568,18 +568,16 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
         </div>
 
         {/* Action Button */}
-        {!isCompleted && !readOnly && (
+        {!isCompleted && !readOnly && !isLive && (
           <button
             onClick={onEnterResult}
             className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${
-              isLive
-                ? 'bg-red-600 hover:bg-red-500 text-white' :
               isPending
                 ? 'bg-amber-500 hover:bg-amber-400 text-black'
                 : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
             }`}
           >
-            {isLive ? 'Enter Results' : isPending ? 'Submit Match Score' : 'Enter Results'}
+            {isPending ? 'Submit Match Score' : 'Enter Results Early'}
           </button>
         )}
 
