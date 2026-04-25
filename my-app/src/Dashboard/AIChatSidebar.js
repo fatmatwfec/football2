@@ -1,135 +1,163 @@
-import React, { useState, useEffect } from 'react';
-import { FaRobot, FaTimes, FaLightbulb, FaExclamationTriangle, FaTrophy, FaChartLine, FaUsers } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  FaRobot,
+  FaTimes,
+  FaLightbulb,
+  FaExclamationTriangle,
+  FaTrophy,
+  FaChartLine,
+  FaUsers
+} from 'react-icons/fa';
 
-const AIChatSidebar = ({ isOpen, onClose, stats, players, teams }) => {
-  const [advice, setAdvice] = useState("");
+const AIChatSidebar = ({ isOpen, onClose, stats, players = [], teams = [], onUpdatePlayer }) => {
+  const [advice, setAdvice] = useState('');
   const [suspendedPlayers, setSuspendedPlayers] = useState([]);
   const [bestTeam, setBestTeam] = useState(null);
 
-  const generateLocalAdvice = () => {
-    if (!players || players.length === 0) return "يا ريس البطولة لسه مفيهاش لعيبة، ضيف لعيبة عشان أقدر أحلل لك الأداء.";
-    
+  const calculateTeamStrength = useCallback(
+    (team) => {
+      const teamPlayers = players.filter((p) => p.teamId === team.id);
+      const goals = teamPlayers.reduce((sum, p) => sum + (p.goals || 0), 0);
+      const assists = teamPlayers.reduce((sum, p) => sum + (p.assists || 0), 0);
+      const redCards = teamPlayers.reduce((sum, p) => sum + (p.redCards || 0), 0);
+      const wins = team.wins || 0;
+      return wins * 5 + goals * 2 + assists - redCards * 3;
+    },
+    [players]
+  );
 
-    const topScorer = [...players].sort((a, b) => (b.goals || 0) - (a.goals || 0))[0];
-    
-    const redCardPlayers = players.filter(p => (p.redCards || 0) > 0);
-    setSuspendedPlayers(redCardPlayers);
+  const predictKnockoutMatch = useCallback(
+    (teamA, teamB) => {
+      const strengthA = calculateTeamStrength(teamA);
+      const strengthB = calculateTeamStrength(teamB);
+      if (strengthA > strengthB) return `🔥 ${teamA.teamName} الأقرب للتأهل`;
+      if (strengthB > strengthA) return `🔥 ${teamB.teamName} الأقرب للتأهل`;
+      return `⚖️ المواجهة صعبة وممكن تروح لركلات الترجيح`;
+    },
+    [calculateTeamStrength]
+  );
 
+  const getTournamentFavorite = useCallback(() => {
+    if (!teams.length) return null;
+    return [...teams].sort(
+      (a, b) => calculateTeamStrength(b) - calculateTeamStrength(a)
+    )[0];
+  }, [teams, calculateTeamStrength]);
 
-    const sortedTeams = [...teams].sort((a, b) => {
-      if ((b.points || 0) !== (a.points || 0)) {
-        return (b.points || 0) - (a.points || 0);
-      }
-      return (b.goalsFor || 0) - (a.goalsFor || 0);
-    });
-    const topTeam = sortedTeams[0];
-    setBestTeam(topTeam);
-
-    let text = `يا مدير، دي القراءة الفنية النهائية للبطولة:\n\n`;
-    
-
-    if (topTeam) {
-      text += `🏆 حالياً " ${topTeam.teamName} " هو أفضل فريق في البطولة بالأرقام، أداء مستقر وفتاك.\n\n`;
+  const generateAnalysis = useCallback(() => {
+    if (!players.length) {
+      return {
+        text: 'لسه مفيش بيانات كفاية للتحليل.',
+        favorite: null,
+        redCardPlayers: [],
+      };
     }
 
+    const favorite = getTournamentFavorite();
+    const redCardPlayers = players.filter((p) => (p.redCards || 0) > 0);
 
-    if (topScorer && topScorer.goals > 0) {
-      text += `⚽ النجم "${topScorer.name}" هو الهداف المرعب بـ ${topScorer.goals} أهداف.\n\n`;
+    let text = `🏆 تحليل البطولة:\n\n`;
+
+    if (favorite) {
+      text += `🔥 أقرب فريق للفوز بالبطولة: ${favorite.teamName}\n\n`;
     }
 
     if (redCardPlayers.length > 0) {
-      text += `🚫 تنبيه: عندك ${redCardPlayers.length} لعيبة "موقوفين" بسبب الكروت الحمراء، لازم بدلاء فوراً.\n\n`;
+      text += `🚫 عندك ${redCardPlayers.length} لاعيبة موقوفين، وده خطر في مباريات الإقصاء.\n\n`;
     }
 
+    const bestPlayers = [...players]
+      .sort(
+        (a, b) =>
+          (b.goals || 0) + (b.assists || 0) - ((a.goals || 0) + (a.assists || 0))
+      )
+      .slice(0, 3);
 
-    if (players.filter(p => !p.teamId).length > 0) {
-      text += `🏃 لسه فيه لعيبة "Free Agents" مستنيين فرصة، البطولة لسه فيها مواهب مخفية.`;
+    if (bestPlayers.length > 0) {
+      text += `⭐ مفاتيح اللعب:\n`;
+      bestPlayers.forEach((p) => {
+        text += `- ${p.name} (${p.goals || 0}G / ${p.assists || 0}A)\n`;
+      });
+      text += `\n`;
     }
 
-    return text;
-  };
+    const freeAgents = players.filter((p) => !p.teamId);
+    if (freeAgents.length > 0) {
+      text += `🏃 فيه ${freeAgents.length} لاعيبة فري ممكن تدعم بيهم الفرق.\n\n`;
+    }
+
+    if (teams.length >= 2) {
+      const sorted = [...teams].sort(
+        (a, b) => calculateTeamStrength(b) - calculateTeamStrength(a)
+      );
+      text += predictKnockoutMatch(sorted[0], sorted[1]);
+    }
+
+    return { text, favorite, redCardPlayers };
+  }, [players, teams, getTournamentFavorite, predictKnockoutMatch, calculateTeamStrength]);
 
   useEffect(() => {
-    if (isOpen) {
-      setAdvice(generateLocalAdvice());
-    }
-  }, [isOpen, players, teams]);
+    if (!isOpen) return;
+
+    const { text, favorite, redCardPlayers } = generateAnalysis();
+    setAdvice(text);
+    setBestTeam(favorite);
+    setSuspendedPlayers(redCardPlayers);
+  }, [isOpen, generateAnalysis]);
 
   return (
-    <aside className={`fixed top-0 right-0 h-full w-full md:w-[420px] z-[500] transition-transform duration-500 ease-out ${
-      isOpen ? 'translate-x-0' : 'translate-x-full'
-    }`}>
-      <div className="h-full bg-gradient-to-b from-[#0a0f16] to-[#121821] border-l border-white/10 flex flex-col shadow-2xl">
-        
+    <aside
+      className={`fixed top-0 right-0 h-full w-full md:w-[420px] z-[500] transition-transform duration-500 ${
+        isOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}
+    >
+      <div className="h-full bg-[#0f172a] border-l border-white/10 flex flex-col shadow-2xl">
+
         {/* Header */}
-        <div className="relative p-6 border-b border-white/10 bg-gradient-to-r from-[#00FF9C]/5 to-transparent">
-          <div className="flex justify-between items-center">
-            <button 
-              onClick={onClose} 
-              className="text-gray-400 hover:text-white transition-all p-2 rounded-lg hover:bg-white/5"
-            >
-              <FaTimes size={20} />
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-[#00FF9C] to-emerald-600 p-2.5 rounded-xl shadow-lg">
-                <FaRobot className="text-black text-xl" />
-              </div>
-              <div className="text-right">
-                <h3 className="text-white font-bold text-sm uppercase tracking-wider">المحلل الفني الذكي</h3>
-                <p className="text-[#00FF9C] text-[10px] tracking-wider">AI Sports Analyst</p>
-              </div>
-            </div>
+        <div className="p-6 border-b border-white/10 flex justify-between items-center">
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <FaTimes size={20} />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <FaRobot className="text-green-400" />
+            <h3 className="text-white font-bold text-sm">AI Analyzer</h3>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-5">
-          
-          {/* Stats Overview */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+          {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#121821] border border-white/10 rounded-xl p-3 text-center">
-              <FaUsers className="text-[#00FF9C] text-lg mx-auto mb-1" />
-              <p className="text-2xl font-black text-white">{stats?.total || 0}</p>
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider">Total Players</p>
+            <div className="bg-[#1e293b] p-3 rounded text-center">
+              <FaUsers className="mx-auto text-green-400" />
+              <p className="text-white text-xl">{stats?.total || 0}</p>
+              <p className="text-gray-400 text-xs">Players</p>
             </div>
-            <div className="bg-[#121821] border border-white/10 rounded-xl p-3 text-center">
-              <FaChartLine className="text-[#00FF9C] text-lg mx-auto mb-1" />
-              <p className="text-2xl font-black text-white">{teams?.length || 0}</p>
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider">Total Teams</p>
+
+            <div className="bg-[#1e293b] p-3 rounded text-center">
+              <FaChartLine className="mx-auto text-green-400" />
+              <p className="text-white text-xl">{teams?.length || 0}</p>
+              <p className="text-gray-400 text-xs">Teams</p>
             </div>
           </div>
-          
-          {/* Best Team Card */}
+
+          {/* Best Team */}
           {bestTeam && (
-            <div className="bg-gradient-to-br from-[#00FF9C]/10 to-transparent border border-[#00FF9C]/20 rounded-xl p-5 shadow-xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FaTrophy className="text-[#00FF9C] text-lg" />
-                  <span className="text-[#00FF9C] text-[10px] font-bold uppercase tracking-wider">Best Team</span>
-                </div>
-                <div className="w-8 h-8 bg-[#00FF9C]/20 rounded-lg flex items-center justify-center">
-                  <span className="text-[#00FF9C] font-black text-sm">#1</span>
-                </div>
-              </div>
-              <p className="text-white text-xl font-bold text-right">{bestTeam.teamName}</p>
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/10">
-                <p className="text-[#00FF9C] text-[10px] font-medium">Points: {bestTeam.points || 0}</p>
-                <p className="text-gray-400 text-[10px]">GD: {bestTeam.goalsFor || 0}</p>
-              </div>
+            <div className="bg-green-500/10 p-4 rounded">
+              <FaTrophy className="text-green-400 mb-2" />
+              <p className="text-white font-bold">{bestTeam.teamName}</p>
+              <p className="text-gray-400 text-xs">
+                Strength: {calculateTeamStrength(bestTeam)}
+              </p>
             </div>
           )}
 
-          {/* AI Analysis Card */}
-          <div className="bg-[#121821] border border-white/10 rounded-xl p-5 shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 bg-[#00FF9C]/10 rounded-lg flex items-center justify-center">
-                <FaLightbulb className="text-[#00FF9C] text-xs" />
-              </div>
-              <span className="text-[#00FF9C] text-[10px] font-bold uppercase tracking-wider">AI Analysis</span>
-            </div>
-            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line text-right" dir="rtl">
-              {advice}
-            </p>
+          {/* Advice */}
+          <div className="bg-[#1e293b] p-4 rounded">
+            <FaLightbulb className="text-green-400 mb-2" />
+            <p className="text-gray-300 text-sm whitespace-pre-line">{advice}</p>
           </div>
 
           {/* Suspended Players */}
@@ -146,31 +174,22 @@ const AIChatSidebar = ({ isOpen, onClose, stats, players, teams }) => {
               <div className="space-y-2">
                 {suspendedPlayers.map((p, idx) => (
                   <div key={idx} className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-white/5">
-                    <span className="text-[10px] bg-red-500/80 text-white px-2 py-0.5 rounded-md font-bold uppercase tracking-tighter">
-                      Out
-                    </span>
+                    <button
+                      onClick={() => {
+                        if (!onUpdatePlayer) return;
+                        onUpdatePlayer({ ...p, redCards: 0 });
+                        setSuspendedPlayers(prev => prev.filter((_, i) => i !== idx));
+                      }}
+                      className="text-[10px] bg-green-500/80 hover:bg-green-500 text-white px-2 py-0.5 rounded-md font-bold uppercase tracking-tighter transition-colors"
+                    >
+                      out
+                    </button>
                     <span className="text-gray-200 text-sm font-medium">{p.name}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Free Agents Alert */}
-          {players?.filter(p => !p.teamId).length > 0 && (
-            <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
-              <p className="text-blue-400 text-xs text-center">
-                🏃 {players.filter(p => !p.teamId).length} Free Agents available for recruitment
-              </p>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="pt-4 text-center border-t border-white/5">
-            <p className="text-[9px] text-gray-600 italic uppercase tracking-widest">
-              Real-time tournament data analysis
-            </p>
-          </div>
         </div>
       </div>
     </aside>
