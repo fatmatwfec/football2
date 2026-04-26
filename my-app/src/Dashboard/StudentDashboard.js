@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, getDoc, collection, query, where, deleteDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight } from "react-icons/fa";
 
 const StudentDashboard = () => {
     const [userData, setUserData] = useState(null);
@@ -20,6 +21,9 @@ const StudentDashboard = () => {
     const [activeView, setActiveView] = useState("dashboard");
     const [userRank, setUserRank] = useState(null);
     const [currentTournamentName, setCurrentTournamentName] = useState("Tournament");
+    const [historyTab, setHistoryTab] = useState("myTeam");
+    const [selectedMatch, setSelectedMatch] = useState(null);
+    const [allStudents, setAllStudents] = useState([]);
 
     useEffect(() => {
         let unsubscribeUser = () => { };
@@ -165,6 +169,12 @@ const StudentDashboard = () => {
 
                 // ترتيب حسب الأهداف أولاً، ثم النقاط
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
+
+                setAllStudents(students.map(s => ({
+                    id: s.id,
+                    name: querySnapshot.docs.find(d => d.id === s.id)?.data().name,
+                    teamId: querySnapshot.docs.find(d => d.id === s.id)?.data().teamId
+                })));
 
                 const rank = students.findIndex(s => s.id === userData.uid) + 1;
                 setUserRank(rank);
@@ -615,31 +625,85 @@ const StudentDashboard = () => {
                             </div>
 
                             <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mt-6">
-                                <h3 className="text-lg font-bold mb-4 text-yellow-400">Match History</h3>
-
-                                {finishedMatches.length === 0 ? (
-                                    <p className="text-gray-400 text-sm">No finished matches</p>
-                                ) : (
-                                    <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
-                                        {finishedMatches.map(match => {
-                                            const t1Name = approvedTeams.find(t => t.id === match.team1Id)?.teamName || "Team 1";
-                                            const t2Name = approvedTeams.find(t => t.id === match.team2Id)?.teamName || "Team 2";
-                                            return (
-                                                <div key={match.id} className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2">
-                                                    <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest">
-                                                        <span>{match.date}</span>
-                                                        <span className="text-yellow-500">Finished</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-bold text-white">{t1Name}</span>
-                                                        <span className="bg-white/10 px-3 py-1 rounded-lg font-black text-emerald-400">{match.score || "0-0"}</span>
-                                                        <span className="text-sm font-bold text-white">{t2Name}</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                    <h3 className="text-lg font-bold text-yellow-400">Match History</h3>
+                                    
+                                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 w-full sm:w-auto">
+                                        <button 
+                                            onClick={() => setHistoryTab("myTeam")}
+                                            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${historyTab === 'myTeam' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}
+                                        >
+                                            My Team
+                                        </button>
+                                        <button 
+                                            onClick={() => setHistoryTab("others")}
+                                            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${historyTab === 'others' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}
+                                        >
+                                            Other Teams
+                                        </button>
                                     </div>
-                                )}
+                                </div>
+
+                                {(() => {
+                                    const filtered = finishedMatches.filter(match => {
+                                        const isMyMatch = match.team1Id === userData?.teamId || match.team2Id === userData?.teamId;
+                                        return historyTab === "myTeam" ? isMyMatch : !isMyMatch;
+                                    });
+
+                                    if (filtered.length === 0) {
+                                        return (
+                                            <div className="flex flex-col items-center justify-center py-10 text-gray-500 italic">
+                                                <div className="size-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-xl">
+                                                    {historyTab === "myTeam" ? "🏟️" : "⚽"}
+                                                </div>
+                                                <p className="text-sm">No {historyTab === "myTeam" ? "team matches" : "other matches"} found</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="max-h-80 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                                            {filtered.map(match => {
+                                                const t1 = approvedTeams.find(t => t.id === match.team1Id);
+                                                const t2 = approvedTeams.find(t => t.id === match.team2Id);
+                                                const t1Name = t1?.teamName || "Team 1";
+                                                const t2Name = t2?.teamName || "Team 2";
+                                                const isMyMatch = match.team1Id === userData?.teamId || match.team2Id === userData?.teamId;
+
+                                                return (
+                                                    <div 
+                                                        key={match.id} 
+                                                        onClick={() => setSelectedMatch(match)}
+                                                        className={`p-4 rounded-2xl border transition-all hover:bg-white/10 cursor-pointer group ${isMyMatch ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-black/40 border-white/5'}`}
+                                                    >
+                                                        <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">
+                                                            <span className="flex items-center gap-1.5">
+                                                                <span className="size-1.5 rounded-full bg-gray-600"></span>
+                                                                {match.date}
+                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-yellow-500/80 bg-yellow-500/10 px-2 py-0.5 rounded-full">Finished</span>
+                                                                <FaChevronRight className="opacity-0 group-hover:opacity-100 transition-all text-gray-600" size={8} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <div className="flex-1 text-right">
+                                                                <p className={`text-sm font-bold truncate ${match.team1Id === userData?.teamId ? 'text-yellow-400' : 'text-white'}`}>{t1Name}</p>
+                                                            </div>
+                                                            <div className="flex flex-col items-center gap-1 px-4 py-2 bg-black/40 rounded-xl border border-white/5 min-w-[80px]">
+                                                                <span className="text-lg font-black text-emerald-400 tracking-tighter leading-none">{match.score || "0-0"}</span>
+                                                                <span className="text-[8px] text-gray-500 font-black uppercase">Result</span>
+                                                            </div>
+                                                            <div className="flex-1 text-left">
+                                                                <p className={`text-sm font-bold truncate ${match.team2Id === userData?.teamId ? 'text-yellow-400' : 'text-white'}`}>{t2Name}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Team Members */}
@@ -746,8 +810,169 @@ const StudentDashboard = () => {
                     </div>
                 )}
             </div>
+
+            {/* Match Details Modal */}
+            {selectedMatch && (
+                <MatchDetailsModal 
+                    match={selectedMatch} 
+                    allStudents={allStudents} 
+                    approvedTeams={approvedTeams} 
+                    onClose={() => setSelectedMatch(null)} 
+                />
+            )}
         </div >
     );
 };
+
+// --- Sub-components for Match Details ---
+
+const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
+    if (!match) return null;
+
+    const stats = match.statsSnapshot || {};
+    const t1 = approvedTeams.find(t => t.id === match.team1Id);
+    const t2 = approvedTeams.find(t => t.id === match.team2Id);
+    
+    const getTeamStats = (teamId) => {
+        return Object.entries(stats)
+            .filter(([pId]) => {
+                const student = allStudents.find(s => s.id === pId);
+                return student?.teamId === teamId;
+            })
+            .map(([pId, s]) => ({
+                name: allStudents.find(st => st.id === pId)?.name || "Unknown",
+                ...s
+            }))
+            .filter(s => (s.goals || 0) > 0 || (s.yellow || 0) > 0 || (s.red || 0) > 0);
+    };
+
+    const team1Stats = getTeamStats(match.team1Id);
+    const team2Stats = getTeamStats(match.team2Id);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose}></div>
+            <div className="relative bg-[#0f172a] border border-white/10 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl animate-fade-in">
+                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                    <div>
+                        <h3 className="text-xl font-bold text-yellow-400">Match Report</h3>
+                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mt-1">{match.date} • {match.pitch || "Main Pitch"}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-gray-400 hover:text-white">
+                        <FaTimes size={20} />
+                    </button>
+                </div>
+                
+                <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {/* Header Score */}
+                    <div className="flex items-center justify-between mb-8 p-8 bg-black/40 rounded-3xl border border-white/5 shadow-inner">
+                        <div className="flex-1 text-center">
+                            <div className="size-16 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                                <FaFutbol className="text-white text-2xl" />
+                            </div>
+                            <p className="text-sm font-bold text-white truncate px-2">{t1?.teamName || "Team 1"}</p>
+                            <p className="text-5xl font-black text-white mt-2">{match.score?.split('-')[0] || 0}</p>
+                        </div>
+                        <div className="px-6 flex flex-col items-center">
+                            <span className="text-lg font-black text-gray-700 italic">VS</span>
+                        </div>
+                        <div className="flex-1 text-center">
+                            <div className="size-16 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                                <FaFutbol className="text-white text-2xl" />
+                            </div>
+                            <p className="text-sm font-bold text-white truncate px-2">{t2?.teamName || "Team 2"}</p>
+                            <p className="text-5xl font-black text-white mt-2">{match.score?.split('-')[1] || 0}</p>
+                        </div>
+                    </div>
+
+                    {match.penalties && (
+                        <div className="mb-8 text-center">
+                            <div className="inline-flex items-center gap-3 bg-amber-500/10 text-amber-400 px-6 py-2 rounded-2xl border border-amber-500/20 shadow-sm">
+                                <span className="text-[10px] font-black uppercase tracking-widest">Penalty Shootout</span>
+                                <span className="text-lg font-black">{match.penalties}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Team 1 Stats */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                                    {t1?.teamName}
+                                </h4>
+                            </div>
+                            {team1Stats.length > 0 ? (
+                                <div className="space-y-2">
+                                    {team1Stats.map((s, i) => <StatRow key={i} stat={s} />)}
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center">
+                                    <p className="text-[10px] text-gray-600 italic">No individual contributions recorded</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Team 2 Stats */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <span className="size-1.5 rounded-full bg-blue-500"></span>
+                                    {t2?.teamName}
+                                </h4>
+                            </div>
+                            {team2Stats.length > 0 ? (
+                                <div className="space-y-2">
+                                    {team2Stats.map((s, i) => <StatRow key={i} stat={s} />)}
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-white/5 rounded-2xl border border-dashed border-white/10 text-center">
+                                    <p className="text-[10px] text-gray-600 italic">No individual contributions recorded</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="p-4 bg-white/5 text-center">
+                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Match completed on {match.completedAt?.toDate ? match.completedAt.toDate().toLocaleString() : "N/A"}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const StatRow = ({ stat }) => (
+    <div className="group flex items-center justify-between p-4 bg-white/[0.03] hover:bg-white/[0.08] rounded-2xl border border-white/5 transition-all">
+        <div className="flex items-center gap-3">
+            <div className="size-8 rounded-lg bg-black/40 flex items-center justify-center text-[10px] font-black text-gray-400 border border-white/5">
+                {stat.name.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-xs font-bold text-gray-200">{stat.name}</span>
+        </div>
+        <div className="flex gap-4">
+            {stat.goals > 0 && (
+                <div className="flex flex-col items-center gap-0.5">
+                    <FaFutbol className="text-emerald-400 mb-0.5" size={10} />
+                    <span className="text-[10px] font-black text-emerald-400">{stat.goals}</span>
+                </div>
+            )}
+            {stat.yellow > 0 && (
+                <div className="flex flex-col items-center gap-0.5">
+                    <div className="w-2 h-3 bg-yellow-400 rounded-sm shadow-[0_0_8px_rgba(250,204,21,0.3)]"></div>
+                    <span className="text-[10px] font-black text-yellow-400">{stat.yellow}</span>
+                </div>
+            )}
+            {stat.red > 0 && (
+                <div className="flex flex-col items-center gap-0.5">
+                    <div className="w-2 h-3 bg-red-500 rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.3)]"></div>
+                    <span className="text-[10px] font-black text-red-500">{stat.red}</span>
+                </div>
+            )}
+        </div>
+    </div>
+);
 
 export default StudentDashboard;
