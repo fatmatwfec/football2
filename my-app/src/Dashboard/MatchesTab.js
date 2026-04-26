@@ -106,7 +106,7 @@ const MatchesTab = ({ readOnly = false }) => {
     [roundFilter, tournament, matchCache],
   );
 
-  const DURATION = 20 * 60 * 1000; // 20 minutes
+  const DURATION = 20 * 60 * 1000; 
 
   const upcomingMatches = filterByRound(
     enrichedMatches.filter((m) => {
@@ -640,21 +640,23 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
         </button>
 
         {/* Header */}
-        <div className="p-6 border-b border-white/10 text-center sticky top-0 bg-gradient-to-br from-[#121821] to-[#0a0f16] z-10">
-          <h3 className="text-2xl font-bold text-white mb-2">Post-Match Report</h3>
-          <div className="flex items-center justify-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center">
-                <FaFutbol className="text-black" />
+        <div className="p-8 border-b border-white/10 text-center sticky top-0 bg-[#121821] z-20 shadow-2xl">
+          <h3 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">Post-Match Report</h3>
+          <div className="flex items-center justify-center gap-6">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-[#00FF9C]/20">
+                <FaFutbol className="text-black text-2xl" />
               </div>
-              <span className="text-white font-bold text-lg">{match.team1Name}</span>
+              <span className="text-white font-black text-sm uppercase tracking-wider">{match.team1Name}</span>
             </div>
-            <span className="text-gray-500 text-sm">VS</span>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-xl flex items-center justify-center">
-                <FaFutbol className="text-black" />
+            <div className="flex flex-col items-center">
+               <span className="text-slate-600 font-black text-xl italic mt-[-20px]">VS</span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-[#00FF9C]/20">
+                <FaFutbol className="text-black text-2xl" />
               </div>
-              <span className="text-white font-bold text-lg">{match.team2Name}</span>
+              <span className="text-white font-black text-sm uppercase tracking-wider">{match.team2Name}</span>
             </div>
           </div>
         </div>
@@ -770,9 +772,9 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                           type="number" 
                           min="0" 
                           defaultValue="0" 
-                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-white rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
                         />
-                        <span className="text-[8px] font-black text-slate-600 uppercase mt-1 tracking-tighter">Goals</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Goals</span>
                       </div>
                       <div className="flex flex-col items-center">
                         <input 
@@ -781,9 +783,9 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                           min="0" 
                           max="2" 
                           defaultValue="0" 
-                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-yellow-400 focus:outline-none text-yellow-400 transition-all shadow-lg" 
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-yellow-400 rounded-2xl focus:border-yellow-400 focus:outline-none transition-all shadow-lg" 
                         />
-                        <span className="text-[8px] font-black text-slate-600 uppercase mt-1 tracking-tighter">Yellow</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Yellow</span>
                       </div>
                       <div className="flex flex-col items-center">
                         <input 
@@ -792,9 +794,9 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                           min="0" 
                           max="1" 
                           defaultValue="0" 
-                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-red-400 focus:outline-none text-red-400 transition-all shadow-lg" 
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-red-500 rounded-2xl focus:border-red-400 focus:outline-none transition-all shadow-lg" 
                         />
-                        <span className="text-[8px] font-black text-slate-600 uppercase mt-1 tracking-tighter">Red</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Red</span>
                       </div>
                     </div>
                   </div>
@@ -835,9 +837,9 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                           type="number" 
                           min="0" 
                           defaultValue="0" 
-                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-white rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
                         />
-                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-tighter">Goals</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Goals</span>
                       </div>
                       <div className="flex flex-col items-center">
                         <input 
@@ -846,9 +848,9 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                           min="0" 
                           max="2" 
                           defaultValue="0" 
-                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-yellow-400 focus:outline-none text-yellow-400 transition-all shadow-lg" 
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-yellow-400 rounded-2xl focus:border-yellow-400 focus:outline-none transition-all shadow-lg" 
                         />
-                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-tighter">Yellow</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Yellow</span>
                       </div>
                       <div className="flex flex-col items-center">
                         <input 
@@ -857,9 +859,9 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                           min="0" 
                           max="1" 
                           defaultValue="0" 
-                          className="w-16 h-16 text-center text-xl font-black bg-slate-900 border border-white/10 rounded-2xl focus:border-red-400 focus:outline-none text-red-400 transition-all shadow-lg" 
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-red-500 rounded-2xl focus:border-red-400 focus:outline-none transition-all shadow-lg" 
                         />
-                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-tighter">Red</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Red</span>
                       </div>
                     </div>
                   </div>
