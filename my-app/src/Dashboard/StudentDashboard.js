@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, getDoc, collection, query, where, deleteDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
+import { getRoundLabel } from "../services/tournamentService";
 import { FaTimes, FaFutbol, FaIdCard, FaChevronRight } from "react-icons/fa";
 
 const StudentDashboard = () => {
@@ -24,6 +25,7 @@ const StudentDashboard = () => {
     const [historyTab, setHistoryTab] = useState("myTeam");
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [allStudents, setAllStudents] = useState([]);
+    const [tournament, setTournament] = useState(null);
 
     useEffect(() => {
         let unsubscribeUser = () => { };
@@ -60,7 +62,11 @@ const StudentDashboard = () => {
 
         const unsubTournament = onSnapshot(doc(db, "tournaments", "main"), (snap) => {
             if (snap.exists()) {
-                setCurrentTournamentName(snap.data().name || "Tournament");
+                const data = snap.data();
+                setTournament(data);
+                setCurrentTournamentName(data.name || "Tournament");
+            } else {
+                setTournament(null);
             }
         });
 
@@ -74,13 +80,15 @@ const StudentDashboard = () => {
 
     // useEffect جديد لمتابعة الماتشات الخاصة بفريق الطالب
     useEffect(() => {
-        if (!userData?.teamId || matches.length === 0) {
+        if (!userData?.teamId) {
             setNextMatch(null);
             return;
         }
 
         const now = Date.now();
-        const teamMatches = matches.filter(m => {
+        
+        // 1. أولاً نبحث في الماتشات المجدولة رسمياً في مجموعة matches
+        const scheduledMatches = matches.filter(m => {
             if (!m.date || !m.time) return false;
             const [y, mm, d] = m.date.split('-').map(Number);
             const [h, min] = m.time.split(':').map(Number);
@@ -88,34 +96,92 @@ const StudentDashboard = () => {
             
             return (m.team1Id === userData.teamId || m.team2Id === userData.teamId) && 
                    (m.status || "").toLowerCase() !== "completed" &&
-                   matchTime > now; // تظهر فقط إذا لم يبدأ الماتش بعد
+                   matchTime > now;
         });
 
-        if (teamMatches.length === 0) {
+        // 2. ثانياً نبحث في البطولة (الـ Bracket) عن ماتشات غير مجدولة رسمياً بعد
+        const bracketMatches = [];
+        if (tournament?.rounds) {
+            Object.entries(tournament.rounds).forEach(([rKey, roundMatches]) => {
+                roundMatches.forEach(m => {
+                    const isMyTeam = m.team1?.id === userData.teamId || m.team2?.id === userData.teamId;
+                    const notFinished = !m.winner;
+                    
+                    if (isMyTeam && notFinished) {
+                        // نتأكد إنه مش موجود أصلاً في الماتشات المجدولة
+                        const alreadyScheduled = scheduledMatches.some(sm => 
+                            (sm.team1Id === m.team1?.id && sm.team2Id === m.team2?.id) ||
+                            (sm.team1Id === m.team2?.id && sm.team2Id === m.team1?.id)
+                        );
+
+                        if (!alreadyScheduled) {
+                            const roundDate = tournament.roundDateMap?.[rKey];
+                            bracketMatches.push({
+                                id: m.id,
+                                team1Id: m.team1?.id,
+                                team2Id: m.team2?.id,
+                                team1Name: m.team1?.name || "TBD",
+                                team2Name: m.team2?.name || "TBD",
+                                date: roundDate?.date || roundDate || "TBD",
+                                time: m.projectedTime || roundDate?.startTime || "TBD",
+                                roundLabel: getRoundLabel(parseInt(rKey), Object.keys(tournament.rounds).length),
+                                isFromBracket: true
+                            });
+                        }
+                    }
+                });
+            });
+        }
+
+        const allPotentialMatches = [...scheduledMatches, ...bracketMatches];
+
+        if (allPotentialMatches.length === 0) {
             setNextMatch(null);
             return;
         }
 
-        // 2. Sort by date and time to find the earliest one
-        const sorted = [...teamMatches].sort((a, b) => {
-            if (!a.date || !a.time) return 1;
-            if (!b.date || !b.time) return -1;
-            const dateA = new Date(`${a.date} ${a.time}`).getTime();
-            const dateB = new Date(`${b.date} ${b.time}`).getTime();
+        // ترتيب حسب التاريخ والوقت
+        const sorted = allPotentialMatches.sort((a, b) => {
+            if (!a.date || a.date === "TBD") return 1;
+            if (!b.date || b.date === "TBD") return -1;
+            const dateA = new Date(`${a.date} ${a.time === "TBD" ? "00:00" : a.time}`).getTime();
+            const dateB = new Date(`${b.date} ${b.time === "TBD" ? "00:00" : b.time}`).getTime();
             return dateA - dateB;
         });
 
         const next = sorted[0];
         
-        // 3. Resolve the opponent's name
-        const opponentId = next.team1Id === userData.teamId ? next.team2Id : next.team1Id;
-        const opponentTeam = approvedTeams.find(t => t.id === opponentId);
+        // حل اسم الخصم
+        let opponentName = "TBD";
+        if (next.isFromBracket) {
+            opponentName = next.team1Id === userData.teamId ? next.team2Name : next.team1Name;
+        } else {
+            const opponentId = next.team1Id === userData.teamId ? next.team2Id : next.team1Id;
+            const opponentTeam = approvedTeams.find(t => t.id === opponentId);
+            opponentName = opponentTeam?.teamName || next.team1Name || next.team2Name || "TBD";
+        }
+
+        // حل اسم الدور لو مش موجود (للماتشات المجدولة يدوياً)
+        let roundLabel = next.roundLabel;
+        if (!roundLabel && tournament?.rounds) {
+            // نحاول نعرف الدور من الـ IDs
+            Object.entries(tournament.rounds).forEach(([rKey, roundMatches]) => {
+                const found = roundMatches.find(m => 
+                    (m.team1?.id === next.team1Id && m.team2?.id === next.team2Id) ||
+                    (m.team1?.id === next.team2Id && m.team2?.id === next.team1Id)
+                );
+                if (found) {
+                    roundLabel = getRoundLabel(parseInt(rKey), Object.keys(tournament.rounds).length);
+                }
+            });
+        }
         
         setNextMatch({
             ...next,
-            opponentName: opponentTeam?.teamName || "TBD"
+            opponentName,
+            roundLabel: roundLabel || "Friendly Match"
         });
-    }, [matches, approvedTeams, userData?.teamId]);
+    }, [matches, approvedTeams, userData?.teamId, tournament]);
 
      useEffect(() => {
         const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
@@ -563,7 +629,12 @@ const StudentDashboard = () => {
                                     </div>
 
                                     {/* Next Match Card */}
-                                    <div className="bg-gradient-to-br from-blue-600/20 to-transparent backdrop-blur-xl rounded-3xl p-6 border border-blue-500/20 shadow-xl">
+                                    <div className="bg-gradient-to-br from-blue-600/20 to-transparent backdrop-blur-xl rounded-3xl p-6 border border-blue-500/20 shadow-xl relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-4">
+                                            <span className="text-[8px] font-black text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full uppercase tracking-widest border border-blue-500/20">
+                                                {nextMatch?.roundLabel || "Match"}
+                                            </span>
+                                        </div>
                                         <h3 className="text-lg font-bold mb-4 italic">Next Match</h3>
                                         {nextMatch ? (
                                             <div className="space-y-3">
