@@ -61,16 +61,42 @@ const StudentDashboard = () => {
 
     // useEffect جديد لمتابعة الماتشات الخاصة بفريق الطالب
     useEffect(() => {
-        if (userData?.teamId) {
-            const q = query(collection(db, "matches"), where("teams", "array-contains", userData.teamId));
-            const unsubMatch = onSnapshot(q, (snap) => {
-                const matches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                // بنعرض أول ماتش قادم
-                setNextMatch(matches[0] || null);
-            });
-            return () => unsubMatch();
+        if (!userData?.teamId || matches.length === 0) {
+            setNextMatch(null);
+            return;
         }
-    }, [userData?.teamId]);
+
+        // 1. Filter matches for the student's team that are not completed
+        const teamMatches = matches.filter(m => 
+            (m.team1Id === userData.teamId || m.team2Id === userData.teamId) && 
+            (m.status || "").toLowerCase() !== "completed"
+        );
+
+        if (teamMatches.length === 0) {
+            setNextMatch(null);
+            return;
+        }
+
+        // 2. Sort by date and time to find the earliest one
+        const sorted = [...teamMatches].sort((a, b) => {
+            if (!a.date || !a.time) return 1;
+            if (!b.date || !b.time) return -1;
+            const dateA = new Date(`${a.date} ${a.time}`).getTime();
+            const dateB = new Date(`${b.date} ${b.time}`).getTime();
+            return dateA - dateB;
+        });
+
+        const next = sorted[0];
+        
+        // 3. Resolve the opponent's name
+        const opponentId = next.team1Id === userData.teamId ? next.team2Id : next.team1Id;
+        const opponentTeam = approvedTeams.find(t => t.id === opponentId);
+        
+        setNextMatch({
+            ...next,
+            opponentName: opponentTeam?.teamName || "TBD"
+        });
+    }, [matches, approvedTeams, userData?.teamId]);
 
      useEffect(() => {
         const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
@@ -497,8 +523,8 @@ const StudentDashboard = () => {
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="bg-black/20 p-2 rounded-lg">
-                                                        <p className="text-[9px] text-blue-400 uppercase font-bold">Pitch</p>
-                                                        <p className="text-xs font-bold">{nextMatch.pitch || "N/A"}</p>
+                                                        <p className="text-[9px] text-blue-400 uppercase font-bold">Date</p>
+                                                        <p className="text-xs font-bold">{nextMatch.date || "TBD"}</p>
                                                     </div>
                                                     <div className="bg-black/20 p-2 rounded-lg">
                                                         <p className="text-[9px] text-blue-400 uppercase font-bold">Time</p>
