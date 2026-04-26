@@ -248,7 +248,7 @@ const AdminDashboard = () => {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <button
-                      onClick={() => setActiveClick("live")}
+                      onClick={() => setActiveTab("schedule")}
                       className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-6 md:px-8 py-3 md:py-4 rounded-xl text-base md:text-lg hover:scale-105 transition-all duration-300 glow-on-hover flex items-center justify-center gap-2"
                     >
                       <FaFutbol /> View Matches
