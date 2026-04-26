@@ -75,7 +75,7 @@ const StudentDashboard = () => {
             
             return (m.team1Id === userData.teamId || m.team2Id === userData.teamId) && 
                    (m.status || "").toLowerCase() !== "completed" &&
-                   (matchTime + (90 * 60 * 1000)) > now; // تظهر فقط إذا لم يمر عليها أكثر من ساعة ونصف ولم تنتهِ
+                   matchTime > now; // تظهر فقط إذا لم يبدأ الماتش بعد
         });
 
         if (teamMatches.length === 0) {
@@ -117,14 +117,14 @@ const StudentDashboard = () => {
             setMatches(data);
 
             const live = data.filter((m) => {
-                if (!m.startTime && !m.time) return false;
-
-                const start = m.startTime?.toMillis
-                    ? m.startTime.toMillis()
-                    : (m.date && m.time ? new Date(`${m.date} ${m.time}`).getTime() : now);
+                if (!m.date || !m.time) return false;
+                const [y, mm, d] = m.date.split('-').map(Number);
+                const [h, min] = m.time.split(':').map(Number);
+                const start = new Date(y, mm - 1, d, h, min).getTime();
+                
                 const isInTimeWindow =
                     now >= start &&
-                    now <= start + 20 * 60 * 1000;
+                    now <= start + 20 * 60 * 1000; // نافذة 20 دقيقة فقط للماتش اللايف
 
                 const notFinished = (m.status || "").toLowerCase() !== "completed";
 
@@ -554,17 +554,28 @@ const StudentDashboard = () => {
                                     <p className="text-gray-400 text-sm">No live matches</p>
                                 ) : (
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
-                                        {liveMatches.map(match => (
-                                            <div key={match.id} className="p-3 bg-black/40 rounded-xl">
-                                                <p className="font-bold">
-                                                    {match.team1Name} vs {match.team2Name}
-                                                </p>
-                                                <p className="text-blue-400 text-xl font-black">
-                                                    {match.score || "0-0"}
-                                                </p>
-                                                <span className="text-green-400 text-xs">LIVE</span>
-                                            </div>
-                                        ))}
+                                        {liveMatches.map(match => {
+                                            const isMyTeam = match.team1Id === userData?.teamId || match.team2Id === userData?.teamId;
+                                            return (
+                                                <div key={match.id} className={`p-4 rounded-2xl border ${isMyTeam ? 'bg-red-500/20 border-red-500/40 animate-pulse' : 'bg-black/40 border-white/5'}`}>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Live Now</span>
+                                                        {isMyTeam && <span className="text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded-full uppercase">Your Team</span>}
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="text-center flex-1">
+                                                            <p className="text-sm font-bold text-white truncate">{match.team1Name || approvedTeams.find(t=>t.id===match.team1Id)?.teamName || "Team 1"}</p>
+                                                        </div>
+                                                        <div className="bg-black/60 px-4 py-2 rounded-xl border border-white/10">
+                                                            <p className="text-xl font-black text-white tracking-tighter">VS</p>
+                                                        </div>
+                                                        <div className="text-center flex-1">
+                                                            <p className="text-sm font-bold text-white truncate">{match.team2Name || approvedTeams.find(t=>t.id===match.team2Id)?.teamName || "Team 2"}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -576,17 +587,23 @@ const StudentDashboard = () => {
                                     <p className="text-gray-400 text-sm">No finished matches</p>
                                 ) : (
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
-                                        {finishedMatches.map(match => (
-                                            <div key={match.id} className="p-3 bg-black/40 rounded-xl">
-                                                <p className="font-bold">
-                                                    {match.team1Name} vs {match.team2Name}
-                                                </p>
-                                                <p className="text-lg">
-                                                    {match.score || "0-0"}
-                                                </p>
-                                                <span className="text-yellow-400 text-xs">Finished</span>
-                                            </div>
-                                        ))}
+                                        {finishedMatches.map(match => {
+                                            const t1Name = approvedTeams.find(t => t.id === match.team1Id)?.teamName || "Team 1";
+                                            const t2Name = approvedTeams.find(t => t.id === match.team2Id)?.teamName || "Team 2";
+                                            return (
+                                                <div key={match.id} className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2">
+                                                    <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                        <span>{match.date}</span>
+                                                        <span className="text-yellow-500">Finished</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-bold text-white">{t1Name}</span>
+                                                        <span className="bg-white/10 px-3 py-1 rounded-lg font-black text-emerald-400">{match.score || "0-0"}</span>
+                                                        <span className="text-sm font-bold text-white">{t2Name}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
