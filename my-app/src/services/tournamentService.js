@@ -7,19 +7,12 @@ import {
 const computeRoundDateMap = (numRounds, sortedDates) => {
   const map = {};
   if (!sortedDates || sortedDates.length === 0) return map;
+  
+  // توزيع الأدوار على الأيام المتاحة بشكل متوازن
   for (let r = 0; r < numRounds; r++) {
-    if (r === numRounds - 1) {
-      map[r] = sortedDates[sortedDates.length - 1]; // Final → last date
-    } else {
-      const avail = sortedDates.slice(0, sortedDates.length - 1);
-      if (avail.length === 0) { map[r] = sortedDates[0]; }
-      else {
-        const maxR = numRounds - 2;
-        const progress = maxR === 0 ? 0 : r / maxR;
-        const idx = Math.min(Math.floor(progress * avail.length), avail.length - 1);
-        map[r] = avail[idx];
-      }
-    }
+    const progress = r / numRounds;
+    const idx = Math.min(Math.floor(progress * sortedDates.length), sortedDates.length - 1);
+    map[r] = sortedDates[idx]; // كائن يحتوي على { date, startTime }
   }
   return map;
 };
@@ -43,7 +36,7 @@ const autoScheduleRound0 = async (round0Matches, date, tournamentName) => {
 };
 
 // ─── main export ──────────────────────────────────────────────
-export const generateBracket = async (teams, tournamentDates = [], tournamentName = "", startTime = "09:00") => {
+export const generateBracket = async (teams, tournamentDates = [], tournamentName = "") => {
   if (!teams || teams.length < 3) throw new Error('يجب وجود 3 فرق على الأقل.');
   if (!tournamentName) tournamentName = `Tournament ${new Date().toLocaleDateString()}`;
 
@@ -85,28 +78,40 @@ export const generateBracket = async (teams, tournamentDates = [], tournamentNam
     }
   });
 
-  const sortedDates  = [...tournamentDates].sort();
+  const sortedDates  = [...tournamentDates].sort((a,b) => a.date.localeCompare(b.date));
   const roundDateMap = computeRoundDateMap(numRounds, sortedDates);
 
-  const [startH, startM] = startTime.split(':').map(Number);
-  const startInMinutes = startH * 60 + startM;
-
+  // تتبع الوقت لكل يوم بشكل منفصل تماماً
   const dayTimeMap = {};
+
   for (let r = 0; r < numRounds; r++) {
-    const rDate = roundDateMap[r] || (sortedDates.length > 0 ? sortedDates[0] : null);
-    if (rDate && !dayTimeMap[rDate]) dayTimeMap[rDate] = startInMinutes; 
+    const dateObj = roundDateMap[r] || (sortedDates.length > 0 ? sortedDates[0] : null);
+    if (!dateObj) continue;
+
+    const rDate = dateObj.date;
+    
+    // تصفير الوقت لو اليوم ده أول مرة نشوفه، نستخدم الـ startTime الخاص بيه
+    if (dayTimeMap[rDate] === undefined) {
+      const [h, min] = dateObj.startTime.split(':').map(Number);
+      dayTimeMap[rDate] = isNaN(h) ? 540 : (h * 60 + (min || 0));
+    }
 
     rounds[`${r}`].forEach(match => {
-      const currentTime = dayTimeMap[rDate] || (9 * 60);
+      const currentTime = dayTimeMap[rDate];
+      
       const h = String(Math.floor(currentTime / 60)).padStart(2, '0');
       const m = String(currentTime % 60).padStart(2, '0');
       match.projectedTime = `${h}:${m}`;
-      if (rDate) dayTimeMap[rDate] += 30;
+      
+      if (!match.isBye) {
+        dayTimeMap[rDate] += 30;
+      }
     });
   }
 
   if (sortedDates.length > 0) {
-    await autoScheduleRound0(rounds['0'], roundDateMap[0] ?? sortedDates[0], tournamentName);
+    const firstDateObj = roundDateMap[0] || sortedDates[0];
+    await autoScheduleRound0(rounds['0'], firstDateObj.date, tournamentName);
   }
 
   await setDoc(doc(db, 'tournaments', 'main'), {
