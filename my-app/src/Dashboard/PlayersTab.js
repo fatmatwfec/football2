@@ -263,22 +263,9 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                         </td>
 
                         <td className="py-3 px-4">
-                          {!readOnly ? (
-                            <select
-                              value={player.position || ''}
-                              onChange={(e) => updateDoc(doc(db, 'users', player.id), { position: e.target.value })}
-                              className="bg-slate-800 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white outline-none focus:border-emerald-500 transition-all"
-                            >
-                              <option value="">N/A</option>
-                              <option value="Forward">⚡ Forward</option>
-                              <option value="Defender">🛡️ Defender</option>
-                              <option value="Goalkeeper">🧤 Goalkeeper</option>
-                            </select>
-                          ) : (
-                            <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${getPositionBadge(player.position)}`}>
-                              {player.position || 'N/A'}
-                            </span>
-                          )}
+                          <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${getPositionBadge(player.position)}`}>
+                            {player.position || 'N/A'}
+                          </span>
                         </td>
 
                         {showTop10 && (
