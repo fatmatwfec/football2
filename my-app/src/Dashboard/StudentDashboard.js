@@ -66,11 +66,17 @@ const StudentDashboard = () => {
             return;
         }
 
-        // 1. Filter matches for the student's team that are not completed
-        const teamMatches = matches.filter(m => 
-            (m.team1Id === userData.teamId || m.team2Id === userData.teamId) && 
-            (m.status || "").toLowerCase() !== "completed"
-        );
+        const now = Date.now();
+        const teamMatches = matches.filter(m => {
+            if (!m.date || !m.time) return false;
+            const [y, mm, d] = m.date.split('-').map(Number);
+            const [h, min] = m.time.split(':').map(Number);
+            const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+            
+            return (m.team1Id === userData.teamId || m.team2Id === userData.teamId) && 
+                   (m.status || "").toLowerCase() !== "completed" &&
+                   (matchTime + (90 * 60 * 1000)) > now; // تظهر فقط إذا لم يمر عليها أكثر من ساعة ونصف ولم تنتهِ
+        });
 
         if (teamMatches.length === 0) {
             setNextMatch(null);
