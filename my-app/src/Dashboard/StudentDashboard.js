@@ -18,6 +18,8 @@ const StudentDashboard = () => {
     const [finishedMatches, setFinishedMatches] = useState([]);
     const [approvedTeams, setApprovedTeams] = useState([]);
     const [activeView, setActiveView] = useState("dashboard");
+    const [userRank, setUserRank] = useState(null);
+    const [currentTournamentName, setCurrentTournamentName] = useState("Tournament");
 
     useEffect(() => {
         let unsubscribeUser = () => { };
@@ -52,10 +54,17 @@ const StudentDashboard = () => {
             }
         });
 
+        const unsubTournament = onSnapshot(doc(db, "tournaments", "main"), (snap) => {
+            if (snap.exists()) {
+                setCurrentTournamentName(snap.data().name || "Tournament");
+            }
+        });
+
         return () => {
             unsubscribeAuth();
             unsubscribeUser();
             unsubscribeTeam();
+            unsubTournament();
         };
     }, [navigate]);
 
@@ -141,6 +150,31 @@ const StudentDashboard = () => {
             unsubMatches();
         };
     }, []);
+
+    useEffect(() => {
+        const fetchRank = async () => {
+            if (!userData?.uid) return;
+            try {
+                const q = query(collection(db, "users"), where("role", "==", "student"));
+                const querySnapshot = await getDocs(q);
+                const students = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    goals: doc.data().goals || 0,
+                    score: doc.data().score || 0
+                }));
+
+                // ترتيب حسب الأهداف أولاً، ثم النقاط
+                students.sort((a, b) => b.goals - a.goals || b.score - a.score);
+
+                const rank = students.findIndex(s => s.id === userData.uid) + 1;
+                setUserRank(rank);
+            } catch (error) {
+                console.error("Error fetching rank:", error);
+            }
+        };
+
+        fetchRank();
+    }, [userData?.uid, userData?.goals, userData?.score]);
 
     const acceptInvite = async (req) => {
         const user = auth.currentUser;
@@ -493,15 +527,15 @@ const StudentDashboard = () => {
                                         </h3>
                                         <div className="grid grid-cols-3 gap-2 text-center">
                                             <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-[10px] text-gray-400 uppercase font-black">Score</p>
-                                                <p className="text-2xl font-black text-blue-400">{userData?.score || 0}</p>
+                                                <p className="text-xs text-gray-400 uppercase font-black truncate" title={currentTournamentName}>Rank in {currentTournamentName}</p>
+                                                <p className="text-2xl font-black text-blue-400">#{userRank || "—"}</p>
                                             </div>
                                             <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-[10px] text-gray-400 uppercase font-black">Goals</p>
+                                                <p className="text-xs text-gray-400 uppercase font-black">Goals</p>
                                                 <p className="text-2xl font-black text-emerald-400">{userData?.goals || 0}</p>
                                             </div>
                                             <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-[10px] text-gray-400 uppercase font-black">Cards</p>
+                                                <p className="text-xs text-gray-400 uppercase font-black">Cards</p>
                                                 <div className="flex justify-center gap-2 mt-1">
                                                     <span className="w-3 h-4 bg-yellow-400 rounded-sm" title="Yellow Cards"></span>
                                                     <span className="text-xs font-bold">{userData?.yellowCards || 0}</span>
