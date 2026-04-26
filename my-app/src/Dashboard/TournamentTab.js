@@ -67,11 +67,11 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     }
 
     // التحقق من الوقت لو أول يوم هو النهاردة
-    const firstDate = tournamentDates[0];
+    const firstDay = tournamentDates[0];
     const todayStr = new Date().toISOString().split('T')[0];
-    if (firstDate === todayStr) {
+    if (firstDay.date === todayStr) {
       const now = new Date();
-      const [h, m] = tournamentStartTime.split(':').map(Number);
+      const [h, m] = firstDay.startTime.split(':').map(Number);
       const start = new Date();
       start.setHours(h, m, 0, 0);
       if (start <= now) {
@@ -83,7 +83,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     setIsGenerating(true);
     try {
       await new Promise((r) => setTimeout(r, 4500));
-      await generateBracket(teams, tournamentDates, tournamentName, tournamentStartTime);
+      await generateBracket(teams, tournamentDates, tournamentName);
       setWizardStep(3); 
     } catch (e) {
       console.error(e);
@@ -95,13 +95,13 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
   const addDate = () => {
     if (!dateInput) return;
-    if (tournamentDates.includes(dateInput)) return;
-    setTournamentDates([...tournamentDates, dateInput].sort());
+    if (tournamentDates.some(d => d.date === dateInput)) return;
+    setTournamentDates([...tournamentDates, { date: dateInput, startTime: tournamentStartTime }].sort((a,b) => a.date.localeCompare(b.date)));
     setDateInput("");
   };
 
-  const removeDate = (date) => {
-    setTournamentDates(tournamentDates.filter(d => d !== date));
+  const removeDate = (dateObj) => {
+    setTournamentDates(tournamentDates.filter(d => d.date !== dateObj.date));
   };
 
   const handleManualAdvance = async (match, winnerTeam) => {
@@ -256,12 +256,17 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                   
                   {tournamentDates.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-6 justify-center">
-                      {tournamentDates.map(date => (
-                        <div key={date} className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold">
-                          {date}
-                          <button onClick={() => removeDate(date)} className="hover:text-red-400 transition-colors">
-                            <FaTrash size={10} />
-                          </button>
+                      {tournamentDates.map(item => (
+                        <div key={item.date} className="flex flex-col gap-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold min-w-[120px]">
+                          <div className="flex justify-between items-center">
+                             <span>{item.date}</span>
+                             <button onClick={() => removeDate(item)} className="hover:text-red-400 transition-colors">
+                               <FaTrash size={10} />
+                             </button>
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-500/70">
+                            <FaClock size={8} /> {item.startTime}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -592,7 +597,7 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, roundDate, matches
       </h3>
       {roundDate && (
         <p className="text-slate-500 text-[8px] font-bold mt-1 uppercase tracking-tighter">
-          📅 {new Date(roundDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+          📅 {new Date(roundDate.date || roundDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
         </p>
       )}
     </div>
@@ -619,7 +624,7 @@ const MatchCard = ({ match, roundIndex, totalRounds, roundDate, matches, onAdvan
   const mKey = (match.team1 && match.team2) ? [match.team1.id, match.team2.id].sort().join('__') : null;
   const scheduledMatch = mKey ? matches[mKey] : null;
 
-  const displayDate = scheduledMatch?.date || roundDate;
+  const displayDate = scheduledMatch?.date || (roundDate?.date || roundDate);
   const displayTime = scheduledMatch?.time || match.projectedTime;
 
  return (
