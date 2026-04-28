@@ -474,7 +474,11 @@ const AdminDashboard = () => {
             {/*  PLAYERS TAB  */}
             {activeTab === "players" && (
               <div className="animate-fade-slide-up">
-                <PlayersTab players={filteredPlayers} matches={enrichedMatches} />
+                <PlayersTab 
+                  players={filteredPlayers} 
+                  matches={enrichedMatches} 
+                  teams={approvedTeams} 
+                />
               </div>
             )}
 
