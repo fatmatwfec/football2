@@ -201,9 +201,15 @@ const StudentDashboard = () => {
             setMatches(data);
         });
 
+        const unsubAllUsers = onSnapshot(collection(db, "users"), (snap) => {
+            const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setAllStudents(all);
+        });
+
         return () => {
             unsubTeams();
             unsubMatches();
+            unsubAllUsers();
         };
     }, []);
 
@@ -213,6 +219,7 @@ const StudentDashboard = () => {
         
         const live = matches.filter((m) => {
             if (!m.date || !m.time) return false;
+            
             const [y, mm, d] = m.date.split('-').map(Number);
             const [h, min] = m.time.split(':').map(Number);
             const start = new Date(y, mm - 1, d, h, min).getTime();
@@ -445,6 +452,47 @@ const StudentDashboard = () => {
         }
     };
 
+    const handlePlaySolo = async () => {
+        if (!userData) return;
+        if (!userData.position) {
+            alert("Please select your position first in Settings below! ⚽");
+            return;
+        }
+        try {
+            await updateDoc(doc(db, "users", userData.uid), {
+                searchingForTeam: !userData.searchingForTeam,
+                playSolo: !userData.searchingForTeam,
+                soloPosition: userData.position
+            });
+            alert(userData.searchingForTeam ? "Solo request cancelled." : `You are now marked as a Solo ${userData.position}! Admin will match you with a team needing your skills. ⚽`);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleRequestPlayer = async (position) => {
+        if (!teamData) return;
+        try {
+            await updateDoc(doc(db, "teams", teamData.id), {
+                needsPosition: position,
+                requestTimestamp: new Date()
+            });
+            alert(`Request for a ${position} sent to Admin! 📢`);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const isCaptain = teamData?.captainId === userData?.uid || 
+                      teamData?.captainName === userData?.name || 
+                      (userData?.role === 'student' && teamData?.captainName?.toLowerCase() === userData?.name?.toLowerCase());
+
+    const soloPlayers = allStudents.filter(s => 
+        (s.searchingForTeam === true || s.playSolo === true) && 
+        s.hasTeam !== true && 
+        s.role !== 'admin'
+    );
+
     const getRemainingTime = () => {
         if (!tournament?.createdAt) return null;
         const createdAt = tournament.createdAt.toDate ? tournament.createdAt.toDate().getTime() : (typeof tournament.createdAt === 'number' ? tournament.createdAt : new Date(tournament.createdAt).getTime());
@@ -559,10 +607,14 @@ const StudentDashboard = () => {
                                             Create Team
                                         </button>
                                         <button
-                                            onClick={() => navigate("/solo-request")}
-                                            className="w-full bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white py-3 rounded-xl border border-blue-500/30 transition"
+                                            onClick={handlePlaySolo}
+                                            className={`w-full py-3 rounded-xl border transition font-bold ${
+                                                userData?.searchingForTeam 
+                                                    ? 'bg-orange-500/20 border-orange-500/50 text-orange-400' 
+                                                    : 'bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/30'
+                                            }`}
                                         >
-                                            Play Solo
+                                            {userData?.searchingForTeam ? 'Cancel Solo Request' : 'Play Solo'}
                                         </button>
                                     </div>
                                 </div>
@@ -579,6 +631,63 @@ const StudentDashboard = () => {
                                     <span className="text-emerald-400 group-hover:translate-x-1 transition-transform">❯</span>
                                 </button>
                             </div>
+
+                            {/* Captain Options: Request Players */}
+                            {isCaptain && (
+                                <div className="space-y-6">
+                                    <div className="bg-gradient-to-br from-emerald-950/40 to-black backdrop-blur-xl rounded-3xl p-6 border border-emerald-500/20 shadow-xl">
+                                        <h3 className="text-lg font-bold mb-1 text-left text-emerald-400">Recruit Players</h3>
+                                        <p className="text-[10px] text-gray-400 mb-4 text-left uppercase tracking-widest">Need a specific position?</p>
+                                        <div className="grid grid-cols-1 gap-2 text-left">
+                                            {['Goalkeeper', 'Defender', 'Forward'].map((pos) => (
+                                                <button
+                                                    key={pos}
+                                                    onClick={() => handleRequestPlayer(pos)}
+                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${
+                                                        teamData?.needsPosition === pos
+                                                            ? 'bg-emerald-500 text-black border-emerald-500'
+                                                            : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
+                                                  }`}
+                                                >
+                                                    <span>Request {pos}</span>
+                                                    {teamData?.needsPosition === pos && <FaCheckCircle size={14} />}
+                                                </button>
+                                            ))}
+                                            {teamData?.needsPosition && (
+                                                <button 
+                                                    onClick={() => handleRequestPlayer(null)}
+                                                    className="text-[10px] text-red-400 mt-2 hover:underline w-full text-center"
+                                                >
+                                                    Cancel Request
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Solo Players List for Captains */}
+                                    <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
+                                        <h3 className="text-sm font-bold mb-4 text-left uppercase tracking-widest text-gray-400">Available Solo Players</h3>
+                                        <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1 text-left">
+                                            {soloPlayers.length > 0 ? (
+                                                soloPlayers.map(player => (
+                                                    <div key={player.id} className="p-3 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-white text-xs font-bold">{player.name}</p>
+                                                            <p className="text-[10px] text-emerald-500 font-bold uppercase">{player.position}</p>
+                                                        </div>
+                                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-[10px] text-gray-600 italic">No solo players available right now.</p>
+                                            )}
+                                        </div>
+                                        <p className="text-[9px] text-gray-500 mt-4 leading-relaxed text-left">
+                                            * Tell Admin which player you want, or send a position request above.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Settings */}
                             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
