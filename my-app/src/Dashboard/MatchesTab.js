@@ -621,6 +621,29 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
     const score1Val = parseInt(formData.get('score1')) || 0;
     const score2Val = parseInt(formData.get('score2')) || 0;
     
+    // Calculate total goals assigned to players for each team
+    let playerGoalsT1 = 0;
+    team1Players.forEach(p => {
+      playerGoalsT1 += parseInt(formData.get(`goals-${p.id}`)) || 0;
+    });
+
+    let playerGoalsT2 = 0;
+    team2Players.forEach(p => {
+      playerGoalsT2 += parseInt(formData.get(`goals-${p.id}`)) || 0;
+    });
+
+    // Validate Team 1
+    if (playerGoalsT1 !== score1Val) {
+      alert(`خطأ في أهداف ${match.team1Name}: مجموع أهداف اللاعبين (${playerGoalsT1}) لا يساوي نتيجة الفريق (${score1Val})`);
+      return;
+    }
+
+    // Validate Team 2
+    if (playerGoalsT2 !== score2Val) {
+      alert(`خطأ في أهداف ${match.team2Name}: مجموع أهداف اللاعبين (${playerGoalsT2}) لا يساوي نتيجة الفريق (${score2Val})`);
+      return;
+    }
+
     if (score1Val === score2Val) {
       const pen1 = formData.get('pen1');
       const pen2 = formData.get('pen2');
