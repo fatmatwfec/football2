@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
-import { doc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, deleteDoc, updateDoc, arrayUnion, arrayRemove, setDoc } from 'firebase/firestore';
 import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt } from 'react-icons/fa';
 import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel, buildMatchCache} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
@@ -22,11 +22,16 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
       if (snap.exists()) {
-        setTournament({ id: snap.id, ...snap.data() });
-        setWizardStep(3);
+        const data = snap.data();
+        setTournament({ id: snap.id, ...data });
+        if (data.rounds) {
+          setWizardStep(3);
+        } else {
+          setWizardStep(1);
+        }
       } else {
         setTournament(null);
-        setWizardStep((prev) => (prev === 3 ? 1 : prev));
+        setWizardStep(1);
       }
       setLoading(false);
     });
@@ -56,7 +61,20 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const tournamentWinner = useMemo(() => getTournamentWinner(tournament), [tournament]);
 
   const handleRunDraw = async () => {
-    if (readOnly || numTeams < 3) return;
+    if (readOnly) return;
+    
+    // تصفية الفرق لتشمل فقط المسجلين
+    const registeredTeams = teams.filter(t => 
+      tournament?.registeredTeamIds?.includes(t.id)
+    );
+
+    const targetTeams = registeredTeams.length > 0 ? registeredTeams : teams;
+
+    if (targetTeams.length < 3) {
+      alert(`Need at least 3 teams. Currently registered: ${registeredTeams.length}`);
+      return;
+    }
+
     if (!tournamentName.trim()) {
       alert("Please enter a tournament name.");
       return;
@@ -83,7 +101,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     setIsGenerating(true);
     try {
       await new Promise((r) => setTimeout(r, 4500));
-      await generateBracket(teams, tournamentDates, tournamentName);
+      await generateBracket(targetTeams, tournamentDates, tournamentName);
       setWizardStep(3); 
     } catch (e) {
       console.error(e);
@@ -91,6 +109,32 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       setWizardStep(1);
     }
     setIsGenerating(false);
+  };
+
+  const handleOpenRegistration = async () => {
+    if (!tournamentName.trim()) return alert("Enter tournament name first");
+    try {
+      await setDoc(doc(db, 'tournaments', 'main'), {
+        registrationOpen: true,
+        registrationTitle: tournamentName,
+        registeredTeamIds: [],
+        createdAt: new Date(),
+        status: 'registration'
+      });
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleCloseRegistration = async () => {
+    try {
+      await updateDoc(doc(db, 'tournaments', 'main'), {
+        registrationOpen: false,
+        status: 'setup'
+      });
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const addDate = () => {
@@ -182,7 +226,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
         )}
 
         {/* Wizard Steps */}
-        {!tournament && !readOnly && (
+        {!tournament?.rounds && !readOnly && (
           <div className="mb-8 flex justify-center">
             <div className="flex items-center gap-4 flex-wrap justify-center">
               <WizardStep step={1} currentStep={wizardStep} label="Ready Teams" />
@@ -196,7 +240,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
         {/* Wizard Content */}
         <div className="bg-slate-900/40 backdrop-blur-sm rounded-2xl border border-white/10 p-8 mb-8">
-           {wizardStep === 1 && !tournament && (
+           {wizardStep === 1 && !tournament?.rounds && (
             <div className="flex flex-col items-center text-center py-6">
               <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 border-2 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                 <FaUsers className="text-3xl text-emerald-500" />
@@ -209,81 +253,119 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
               </p>
 
                {!readOnly && (
-                <div className="w-full max-w-md mb-8 space-y-4">
-                  <div className="text-left">
-                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Title</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Ramadan Cup 2024"
-                      value={tournamentName}
-                      onChange={(e) => setTournamentName(e.target.value)}
-                      className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
-                    />
-                  </div>
-
-                  <div className="text-left">
-                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Dates</label>
-                    <div className="flex gap-4">
-                      <div className="flex-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Select Date</label>
-                        <input 
-                          type="date" 
-                          value={dateInput}
-                          min={new Date().toISOString().split('T')[0]}
-                          onChange={(e) => setDateInput(e.target.value)}
-                          className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div className="w-1/3">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">First Match Time</label>
-                        <input 
-                          type="time" 
-                          value={tournamentStartTime}
-                          onChange={(e) => setTournamentStartTime(e.target.value)}
-                          className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <button 
-                          onClick={addDate}
-                          className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {tournamentDates.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-6 justify-center">
-                      {tournamentDates.map(item => (
-                        <div key={item.date} className="flex flex-col gap-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold min-w-[120px]">
-                          <div className="flex justify-between items-center">
-                             <span>{item.date}</span>
-                             <button onClick={() => removeDate(item)} className="hover:text-red-400 transition-colors">
-                               <FaTrash size={10} />
-                             </button>
-                          </div>
-                          <div className="flex items-center gap-1 text-[10px] text-emerald-500/70">
-                            <FaClock size={8} /> {item.startTime}
-                          </div>
-                        </div>
-                      ))}
+                <div className="w-full max-w-md mb-8 space-y-6">
+                  {/* Phase 1: Registration Management */}
+                  {!tournament?.registrationOpen && !tournament?.registeredTeamIds && (
+                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 mb-6">
+                       <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">1. Announce Tournament</label>
+                       <input 
+                        type="text" 
+                        placeholder="e.g. Ramadan Cup 2024"
+                        value={tournamentName}
+                        onChange={(e) => setTournamentName(e.target.value)}
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold mb-4"
+                      />
+                      <button
+                        onClick={handleOpenRegistration}
+                        className="w-full py-3 bg-emerald-500 text-black font-black rounded-xl uppercase text-xs hover:bg-emerald-400 transition-all"
+                      >
+                        Open Registration
+                      </button>
                     </div>
                   )}
 
-                  <button
-                    disabled={numTeams < 3 || tournamentDates.length === 0 || !tournamentName.trim()}
-                    onClick={handleRunDraw}
-                    className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-3 ${
-                      numTeams < 3 || tournamentDates.length === 0 || !tournamentName.trim()
-                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:scale-102 shadow-xl shadow-emerald-900/40'
-                    }`}
-                  >
-                    <FaRandom className={numTeams >= 3 ? "animate-spin-slow" : ""} />
-                    {numTeams < 3 ? `Need ${3 - numTeams} More Teams` : tournamentDates.length === 0 ? 'Select Dates First' : !tournamentName.trim() ? 'Enter Title' : 'Initiate Automated Draw'}
-                  </button>
+                  {tournament?.registrationOpen && (
+                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 mb-6">
+                       <div className="flex justify-between items-center mb-4">
+                          <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Registration Live: {tournament.registrationTitle}</label>
+                          <span className="animate-pulse bg-emerald-500 w-2 h-2 rounded-full"></span>
+                       </div>
+                       <div className="space-y-2 mb-6 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                          {tournament.registeredTeamIds?.length === 0 ? (
+                            <p className="text-slate-500 text-xs italic">No teams registered yet...</p>
+                          ) : (
+                            tournament.registeredTeamIds?.map(tid => {
+                              const t = teams.find(x => x.id === tid);
+                              return (
+                                <div key={tid} className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
+                                  <span className="text-white text-xs font-bold">{t?.teamName || tid}</span>
+                                  <FaCheckCircle className="text-emerald-500" size={12} />
+                                </div>
+                              );
+                            })
+                          )}
+                       </div>
+                       <button
+                        onClick={handleCloseRegistration}
+                        className="w-full py-3 bg-amber-500 text-black font-black rounded-xl uppercase text-xs hover:bg-amber-400 transition-all"
+                      >
+                        Close Registration & Proceed
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Phase 2: Draw Setup (Only visible when registration is closed but bracket not yet made) */}
+                  {!tournament?.registrationOpen && (tournament?.registeredTeamIds || tournament?.status === 'setup') && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="text-left">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Title</label>
+                        <input 
+                          type="text" 
+                          placeholder="Tournament Name"
+                          value={tournamentName || tournament?.registrationTitle || ""}
+                          onChange={(e) => setTournamentName(e.target.value)}
+                          className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
+                        />
+                      </div>
+
+                      <div className="text-left">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Schedule Dates</label>
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <input 
+                              type="date" 
+                              value={dateInput}
+                              min={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => setDateInput(e.target.value)}
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div className="w-1/3">
+                            <input 
+                              type="time" 
+                              value={tournamentStartTime}
+                              onChange={(e) => setTournamentStartTime(e.target.value)}
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <button onClick={addDate} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase">Add</button>
+                        </div>
+                      </div>
+                      
+                      {tournamentDates.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                          {tournamentDates.map(item => (
+                            <div key={item.date} className="flex flex-col gap-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold min-w-[120px]">
+                              <div className="flex justify-between items-center">
+                                 <span>{item.date}</span>
+                                 <button onClick={() => removeDate(item)} className="hover:text-red-400 transition-colors"><FaTrash size={10} /></button>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-emerald-500/70"><FaClock size={8} /> {item.startTime}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <button
+                        disabled={ (tournament?.registeredTeamIds?.length || 0) < 3 && numTeams < 3 }
+                        onClick={handleRunDraw}
+                        className="w-full py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-102 shadow-xl shadow-emerald-900/40 transition-all flex items-center justify-center gap-3"
+                      >
+                        <FaRandom className="animate-spin-slow" />
+                        Initiate Draw ({tournament?.registeredTeamIds?.length || numTeams} Teams)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
