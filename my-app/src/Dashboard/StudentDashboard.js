@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock } from "react-icons/fa";
 
 const StudentDashboard = () => {
     const [userData, setUserData] = useState(null);
@@ -445,6 +445,26 @@ const StudentDashboard = () => {
         }
     };
 
+    const getRemainingTime = () => {
+        if (!tournament?.createdAt) return null;
+        const createdAt = tournament.createdAt.toDate ? tournament.createdAt.toDate().getTime() : (typeof tournament.createdAt === 'number' ? tournament.createdAt : new Date(tournament.createdAt).getTime());
+        const deadline = createdAt + (48 * 60 * 60 * 1000);
+        const diff = deadline - now;
+        
+        if (diff <= 0) return "Expired";
+        
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        return `${hours}h ${minutes}m`;
+    };
+
+    const getDeadlineString = () => {
+        if (!tournament?.createdAt) return null;
+        const createdAt = tournament.createdAt.toDate ? tournament.createdAt.toDate().getTime() : (typeof tournament.createdAt === 'number' ? tournament.createdAt : new Date(tournament.createdAt).getTime());
+        const deadline = createdAt + (48 * 60 * 60 * 1000);
+        return new Date(deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    };
+
     if (loading) {
         return (
             <div className="loader">
@@ -604,59 +624,83 @@ const StudentDashboard = () => {
                              {/* Tournament Registration - NEW SECTION */}
                             {tournament?.registrationOpen && (
                                 <div className="bg-gradient-to-br from-emerald-600/20 to-transparent backdrop-blur-xl rounded-3xl p-8 border border-emerald-500/20 shadow-xl mb-6 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 p-4">
-                                        <span className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
-                                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Registration Open</span>
+                                    <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
+                                        <span className={`flex items-center gap-2 px-3 py-1 ${getRemainingTime() === "Expired" ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'} rounded-full`}>
+                                            <span className={`w-2 h-2 ${getRemainingTime() === "Expired" ? 'bg-red-500' : 'bg-emerald-500'} rounded-full ${getRemainingTime() === "Expired" ? '' : 'animate-ping'}`}></span>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${getRemainingTime() === "Expired" ? 'text-red-400' : 'text-emerald-400'}`}>
+                                                {getRemainingTime() === "Expired" ? 'Registration Closed' : 'Registration Open'}
+                                            </span>
                                         </span>
+                                        {getRemainingTime() !== "Expired" && (
+                                            <span className="text-[9px] font-bold text-emerald-500/70 uppercase flex items-center gap-1">
+                                                <FaClock className="text-[8px]" /> Ends: {getDeadlineString()}
+                                            </span>
+                                        )}
                                     </div>
                                     
                                     <div className="flex flex-col md:flex-row items-center gap-6">
-                                        <div className="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center border-2 border-emerald-500/30">
-                                            <FaTrophy className="text-3xl text-emerald-500" />
+                                        <div className={`w-20 h-20 ${getRemainingTime() === "Expired" ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/20 border-emerald-500/30'} rounded-3xl flex items-center justify-center border-2`}>
+                                            <FaTrophy className={`text-3xl ${getRemainingTime() === "Expired" ? 'text-red-500' : 'text-emerald-500'}`} />
                                         </div>
                                         <div className="flex-1 text-center md:text-left">
                                             <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">{tournament.registrationTitle}</h3>
-                                            <p className="text-slate-400 text-sm max-w-md">A new tournament has been announced! Captains can register their teams now to participate in the upcoming draw.</p>
+                                            <p className="text-slate-400 text-sm max-w-md">
+                                                {getRemainingTime() === "Expired" 
+                                                    ? "Registration for this tournament has ended. Stay tuned for the brackets!" 
+                                                    : "A new tournament has been announced! Captains can register their teams now to participate in the upcoming draw."}
+                                            </p>
+                                            {getRemainingTime() !== "Expired" && (
+                                                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Closes in:</span>
+                                                    <span className="text-xs font-black text-emerald-400 tracking-tight">{getRemainingTime()}</span>
+                                                </div>
+                                            )}
                                         </div>
                                         
                                         <div className="w-full md:w-auto">
-                                            {userData?.uid === teamData?.captainId ? (
-                                                tournament.registeredTeamIds?.includes(userData.teamId) ? (
-                                                    <div className="flex flex-col items-center gap-3">
-                                                        <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-xs">
-                                                            <FaCheckCircle /> Registered
+                                            {getRemainingTime() === "Expired" ? (
+                                                <div className="text-center px-8 py-4 bg-red-500/10 rounded-2xl border border-red-500/20">
+                                                    <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">Time Limit Reached</p>
+                                                    <p className="text-white text-xs font-bold mt-1">Registration Locked</p>
+                                                </div>
+                                            ) : (
+                                                userData?.uid === teamData?.captainId ? (
+                                                    tournament.registeredTeamIds?.includes(userData.teamId) ? (
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-xs">
+                                                                <FaCheckCircle /> Registered
+                                                            </div>
+                                                            <button 
+                                                                onClick={async () => {
+                                                                    if (!window.confirm("Withdraw from tournament?")) return;
+                                                                    await updateDoc(doc(db, 'tournaments', 'main'), {
+                                                                        registeredTeamIds: arrayRemove(userData.teamId)
+                                                                    });
+                                                                }}
+                                                                className="text-[10px] text-red-500 hover:underline uppercase font-bold"
+                                                            >
+                                                                Withdraw Team
+                                                            </button>
                                                         </div>
+                                                    ) : (
                                                         <button 
                                                             onClick={async () => {
-                                                                if (!window.confirm("Withdraw from tournament?")) return;
                                                                 await updateDoc(doc(db, 'tournaments', 'main'), {
-                                                                    registeredTeamIds: arrayRemove(userData.teamId)
+                                                                    registeredTeamIds: arrayUnion(userData.teamId)
                                                                 });
+                                                                alert("Team Registered! Good luck! 🏆");
                                                             }}
-                                                            className="text-[10px] text-red-500 hover:underline uppercase font-bold"
+                                                            className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-2xl uppercase text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 transition-all"
                                                         >
-                                                            Withdraw Team
+                                                            Join Tournament
                                                         </button>
-                                                    </div>
+                                                    )
                                                 ) : (
-                                                    <button 
-                                                        onClick={async () => {
-                                                            await updateDoc(doc(db, 'tournaments', 'main'), {
-                                                                registeredTeamIds: arrayUnion(userData.teamId)
-                                                            });
-                                                            alert("Team Registered! Good luck! 🏆");
-                                                        }}
-                                                        className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-2xl uppercase text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 transition-all"
-                                                    >
-                                                        Join Tournament
-                                                    </button>
+                                                    <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/10">
+                                                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Captain</p>
+                                                        <p className="text-white text-xs font-bold mt-1">Only leaders can register</p>
+                                                    </div>
                                                 )
-                                            ) : (
-                                                <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/10">
-                                                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Captain</p>
-                                                    <p className="text-white text-xs font-bold mt-1">Only leaders can register</p>
-                                                </div>
                                             )}
                                         </div>
                                     </div>

@@ -18,6 +18,30 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [allMatches, setAllMatches] = useState([]);
   const [tournamentName, setTournamentName] = useState("");
   const [tournamentStartTime, setTournamentStartTime] = useState("09:00");
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getRemainingTime = () => {
+    if (!tournament?.createdAt) return null;
+    const createdAt = tournament.createdAt.toDate ? tournament.createdAt.toDate().getTime() : (typeof tournament.createdAt === 'number' ? tournament.createdAt : new Date(tournament.createdAt).getTime());
+    const deadline = createdAt + (48 * 60 * 60 * 1000);
+    const diff = deadline - now;
+    if (diff <= 0) return "Expired";
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  const getDeadlineString = () => {
+    if (!tournament?.createdAt) return null;
+    const createdAt = tournament.createdAt.toDate ? tournament.createdAt.toDate().getTime() : (typeof tournament.createdAt === 'number' ? tournament.createdAt : new Date(tournament.createdAt).getTime());
+    const deadline = createdAt + (48 * 60 * 60 * 1000);
+    return new Date(deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
@@ -276,10 +300,17 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
                   {tournament?.registrationOpen && (
                     <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 mb-6">
-                       <div className="flex justify-between items-center mb-4">
-                          <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Registration Live: {tournament.registrationTitle}</label>
-                          <span className="animate-pulse bg-emerald-500 w-2 h-2 rounded-full"></span>
-                       </div>
+                        <div className="flex justify-between items-center mb-4">
+                           <div className="flex flex-col">
+                              <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Registration Live: {tournament.registrationTitle}</label>
+                              {tournament.createdAt && (
+                                <span className="text-[8px] font-bold text-emerald-500/60 uppercase">
+                                  Deadline: {getDeadlineString()} ({getRemainingTime()})
+                                </span>
+                              )}
+                           </div>
+                           <span className={`w-2 h-2 rounded-full ${getRemainingTime() === "Expired" ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`}></span>
+                        </div>
                        <div className="space-y-2 mb-6 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                           {tournament.registeredTeamIds?.length === 0 ? (
                             <p className="text-slate-500 text-xs italic">No teams registered yet...</p>
@@ -400,7 +431,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
             </div>
           )}
 
-          {(wizardStep === 3 || tournament) && !isGenerating && (
+          {(wizardStep === 3 || (tournament && tournament.rounds)) && !isGenerating && (
             <div className="relative animate-fade-in">
               <BracketView
                 tournament={tournament}
@@ -625,6 +656,7 @@ const ArchivedTournamentCard = ({ tournament, onDelete }) => {
 
 // ─── Bracket View ─────────────────────────────────────────────
 const BracketView = ({ tournament, matches, onAdvanceWinner, onScheduleMatch, onClear, readOnly }) => {
+  if (!tournament?.rounds) return null;
   const totalRounds = Object.keys(tournament.rounds).length;
 
    return (
@@ -652,7 +684,7 @@ const BracketView = ({ tournament, matches, onAdvanceWinner, onScheduleMatch, on
 
       <div className="overflow-x-auto pb-6">
         <div className="flex gap-8 min-w-max">
-          {Object.keys(tournament.rounds).sort((a, b) => parseInt(a) - parseInt(b)).map((roundKey, roundIndex) => (
+          {tournament?.rounds && Object.keys(tournament.rounds).sort((a, b) => parseInt(a) - parseInt(b)).map((roundKey, roundIndex) => (
             <RoundColumn
               key={roundKey}
               roundMatches={tournament.rounds[roundKey]}

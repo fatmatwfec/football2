@@ -152,7 +152,7 @@ const MatchesTab = ({ readOnly = false }) => {
   );
 
   const getMatchRoundLabel = (match) => {
-    if (!tournament) return null;
+    if (!tournament?.rounds) return null;
     const info = getMatchRoundFromCache(matchCache, match.team1Id, match.team2Id);
     if (!info) return null;
     return getRoundLabel(info.roundIndex, Object.keys(tournament.rounds).length);

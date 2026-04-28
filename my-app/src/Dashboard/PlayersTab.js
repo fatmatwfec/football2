@@ -10,6 +10,7 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   const [playerCount, setPlayerCount] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
   const [statsFilter, setStatsFilter] = useState("total"); // "total" or tournament name
+  const [filterType, setFilterType] = useState("all"); // "all", "pending", "free"
 
   const [showTop10, setShowTop10] = useState(false);
 
@@ -56,6 +57,10 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
   };
 
   const displayedPlayers = allPlayers.filter(p => {
+    // Apply status filter
+    if (filterType === "pending" && p.isVerified) return false;
+    if (filterType === "free" && p.hasTeam) return false;
+
     if (searchTerm.trim() === "") return true;
     return p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.assignedTeam?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,6 +194,36 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
             </button>
           </div>
 
+          <div className="flex items-center gap-2 bg-black/40 p-1 border border-white/10 rounded-xl">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                filterType === "all" ? 'bg-emerald-500 text-black' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              All Players
+            </button>
+            <button
+              onClick={() => setFilterType("pending")}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all relative ${
+                filterType === "pending" ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Pending Activation
+              {allPlayers.filter(p => !p.isVerified).length > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              )}
+            </button>
+            <button
+              onClick={() => setFilterType("free")}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                filterType === "free" ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Free Agents
+            </button>
+          </div>
+
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
@@ -213,9 +248,9 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                     <>
                       <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Goals</th>
                       <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Matches</th>
-                      <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Status</th>
                     </>
                   )}
+                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Status</th>
                   <th className="text-center py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -275,29 +310,29 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                             </td>
 
                             <td className="py-3 px-4 text-slate-400">{getMatchesPlayedByTeamId(player.teamId)}</td>
-
-                            <td className="py-3 px-4">
-                              {!player.isVerified ? (
-                                !readOnly ? (
-                                  <button
-                                    onClick={() => handleManualVerify(player.id, player.name)}
-                                    className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap hover:bg-orange-500/30 transition-all"
-                                  >
-                                    <FaUserCheck className="inline mr-1" size={10} /> Activate
-                                  </button>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
-                                    <FaBan size={10} /> Inactive
-                                  </span>
-                                )
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
-                                  <FaCheckCircle size={10} /> Active
-                                </span>
-                              )}
-                            </td>
                           </>
                         )}
+
+                        <td className="py-3 px-4">
+                          {!player.isVerified ? (
+                            !readOnly ? (
+                              <button
+                                onClick={() => handleManualVerify(player.id, player.name)}
+                                className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap hover:bg-orange-500/30 transition-all"
+                              >
+                                <FaUserCheck className="inline mr-1" size={10} /> Activate
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
+                                <FaBan size={10} /> Inactive
+                              </span>
+                            )
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap">
+                              <FaCheckCircle size={10} /> Active
+                            </span>
+                          )}
+                        </td>
 
                         <td className="py-3 px-4 text-center">
                           {!readOnly && (
