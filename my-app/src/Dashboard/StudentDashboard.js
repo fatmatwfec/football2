@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, onSnapshot, updateDoc, arrayUnion, getDocs, getDoc, collection, query, where, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, collection, query, where, deleteDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle } from "react-icons/fa";
 
 const StudentDashboard = () => {
     const [userData, setUserData] = useState(null);
@@ -26,6 +26,15 @@ const StudentDashboard = () => {
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [allStudents, setAllStudents] = useState([]);
     const [tournament, setTournament] = useState(null);
+    const [now, setNow] = useState(Date.now());
+
+    // تحديث الوقت كل دقيقة لضمان دقة حالة المباريات اللايف
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setNow(Date.now());
+        }, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         let unsubscribeUser = () => { };
@@ -84,8 +93,6 @@ const StudentDashboard = () => {
             setNextMatch(null);
             return;
         }
-
-        const now = Date.now();
         
         // 1. أولاً نبحث في الماتشات المجدولة رسمياً في مجموعة matches
         const scheduledMatches = matches.filter(m => {
@@ -181,7 +188,7 @@ const StudentDashboard = () => {
             opponentName,
             roundLabel: roundLabel || "Friendly Match"
         });
-    }, [matches, approvedTeams, userData?.teamId, tournament]);
+    }, [matches, approvedTeams, userData?.teamId, tournament, now]);
 
      useEffect(() => {
         const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
@@ -191,28 +198,7 @@ const StudentDashboard = () => {
 
         const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
             const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            const now = Date.now();
-
             setMatches(data);
-
-            const live = data.filter((m) => {
-                if (!m.date || !m.time) return false;
-                const [y, mm, d] = m.date.split('-').map(Number);
-                const [h, min] = m.time.split(':').map(Number);
-                const start = new Date(y, mm - 1, d, h, min).getTime();
-                
-                const isInTimeWindow =
-                    now >= start &&
-                    now <= start + 20 * 60 * 1000; // نافذة 20 دقيقة فقط للماتش اللايف
-
-                const notFinished = (m.status || "").toLowerCase() !== "completed";
-
-                return isInTimeWindow && notFinished;
-            });
-            setLiveMatches(live);
-            setFinishedMatches(
-                data.filter(m => (m.status || "").trim().toLowerCase() === "completed")
-            );
         });
 
         return () => {
@@ -220,6 +206,28 @@ const StudentDashboard = () => {
             unsubMatches();
         };
     }, []);
+
+    // فصل منطق تصفية المباريات ليعتمد على الوقت الحالي (now)
+    useEffect(() => {
+        const DURATION = 20 * 60 * 1000;
+        
+        const live = matches.filter((m) => {
+            if (!m.date || !m.time) return false;
+            const [y, mm, d] = m.date.split('-').map(Number);
+            const [h, min] = m.time.split(':').map(Number);
+            const start = new Date(y, mm - 1, d, h, min).getTime();
+            
+            const isInTimeWindow = now >= start && now <= start + DURATION;
+            const notFinished = (m.status || "").toLowerCase() !== "completed";
+
+            return isInTimeWindow && notFinished;
+        });
+
+        setLiveMatches(live);
+        setFinishedMatches(
+            matches.filter(m => (m.status || "").trim().toLowerCase() === "completed")
+        );
+    }, [matches, now]);
 
     useEffect(() => {
         const fetchRank = async () => {
@@ -593,8 +601,70 @@ const StudentDashboard = () => {
                         <main className="lg:col-span-8 space-y-6">
 
                             {/* --- FIXED SECTION: Stats & Next Match --- */}
+                             {/* Tournament Registration - NEW SECTION */}
+                            {tournament?.registrationOpen && (
+                                <div className="bg-gradient-to-br from-emerald-600/20 to-transparent backdrop-blur-xl rounded-3xl p-8 border border-emerald-500/20 shadow-xl mb-6 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-4">
+                                        <span className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Registration Open</span>
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="flex flex-col md:flex-row items-center gap-6">
+                                        <div className="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center border-2 border-emerald-500/30">
+                                            <FaTrophy className="text-3xl text-emerald-500" />
+                                        </div>
+                                        <div className="flex-1 text-center md:text-left">
+                                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">{tournament.registrationTitle}</h3>
+                                            <p className="text-slate-400 text-sm max-w-md">A new tournament has been announced! Captains can register their teams now to participate in the upcoming draw.</p>
+                                        </div>
+                                        
+                                        <div className="w-full md:w-auto">
+                                            {userData?.uid === teamData?.captainId ? (
+                                                tournament.registeredTeamIds?.includes(userData.teamId) ? (
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-xs">
+                                                            <FaCheckCircle /> Registered
+                                                        </div>
+                                                        <button 
+                                                            onClick={async () => {
+                                                                if (!window.confirm("Withdraw from tournament?")) return;
+                                                                await updateDoc(doc(db, 'tournaments', 'main'), {
+                                                                    registeredTeamIds: arrayRemove(userData.teamId)
+                                                                });
+                                                            }}
+                                                            className="text-[10px] text-red-500 hover:underline uppercase font-bold"
+                                                        >
+                                                            Withdraw Team
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button 
+                                                        onClick={async () => {
+                                                            await updateDoc(doc(db, 'tournaments', 'main'), {
+                                                                registeredTeamIds: arrayUnion(userData.teamId)
+                                                            });
+                                                            alert("Team Registered! Good luck! 🏆");
+                                                        }}
+                                                        className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-2xl uppercase text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 transition-all"
+                                                    >
+                                                        Join Tournament
+                                                    </button>
+                                                )
+                                            ) : (
+                                                <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/10">
+                                                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Captain</p>
+                                                    <p className="text-white text-xs font-bold mt-1">Only leaders can register</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {userData?.hasTeam && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                     {/* Statistics Card - تم تعديله ليقرأ من userData مباشرة */}
                                     <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                                         <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
