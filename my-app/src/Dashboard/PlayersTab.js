@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan } from 'react-icons/fa';
 import { db } from '../firebase';
-import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 
-const PlayersTab = ({ players, matches = [], readOnly = false }) => {
+const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [showBuildModal, setShowBuildModal] = useState(false);
+  const [showMatchModal, setShowMatchModal] = useState(null); // stores the player being matched
   const [customTeamName, setCustomTeamName] = useState("");
   const [playerCount, setPlayerCount] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
   const [statsFilter, setStatsFilter] = useState("total"); // "total" or tournament name
-  const [filterType, setFilterType] = useState("all"); // "all", "pending", "free"
+  const [filterType, setFilterType] = useState("all"); // "all", "pending", "free", "solo"
 
   const [showTop10, setShowTop10] = useState(false);
 
@@ -60,6 +61,7 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
     // Apply status filter
     if (filterType === "pending" && p.isVerified) return false;
     if (filterType === "free" && p.hasTeam) return false;
+    if (filterType === "solo" && (!p.searchingForTeam || p.hasTeam)) return false;
 
     if (searchTerm.trim() === "") return true;
     return p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,6 +96,35 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
           await deleteDoc(doc(db, "users", player.id));
         } catch (e) { console.error(e); }
       }
+    }
+  };
+
+  const handleAssignToTeam = async (player, team) => {
+    if (readOnly) return;
+    if (window.confirm(`Assign ${player.name} (${player.position}) to ${team.teamName}?`)) {
+        try {
+            const batch = writeBatch(db);
+            const teamRef = doc(db, "teams", team.id);
+            const userRef = doc(db, "users", player.id);
+
+            batch.update(teamRef, {
+                memberIds: arrayUnion(player.id),
+                members: arrayUnion(player.name),
+                needsPosition: null // Clear request if satisfied
+            });
+
+            batch.update(userRef, {
+                hasTeam: true,
+                teamId: team.id,
+                assignedTeam: team.teamName,
+                searchingForTeam: false,
+                playSolo: false
+            });
+
+            await batch.commit();
+            setShowMatchModal(null);
+            alert("Player assigned successfully!");
+        } catch (e) { console.error(e); }
     }
   };
 
@@ -222,6 +253,17 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
             >
               Free Agents
             </button>
+            <button
+              onClick={() => setFilterType("solo")}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all relative ${
+                filterType === "solo" ? 'bg-purple-500 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Solo Players
+              {allPlayers.filter(p => p.searchingForTeam && !p.hasTeam).length > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+              )}
+            </button>
           </div>
 
           {searchTerm && (
@@ -233,6 +275,35 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
             </button>
           )}
         </div>
+
+        {/* Recruitment Requests Section (Only in Solo view) */}
+        {filterType === 'solo' && (
+            <div className="mb-6 animate-fade-slide-up">
+                <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+                    Team Recruitment Requests
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {teams.filter(t => t.needsPosition).length > 0 ? (
+                        teams.filter(t => t.needsPosition).map(t => (
+                            <div key={t.id} className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 flex items-center justify-between">
+                                <div>
+                                    <p className="text-white font-bold text-sm">{t.teamName}</p>
+                                    <p className="text-purple-400 text-[10px] font-black uppercase tracking-wider">Needs a {t.needsPosition}</p>
+                                </div>
+                                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                    <FaFutbol className="text-purple-400" />
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full py-4 text-center bg-white/5 border border-white/10 rounded-xl">
+                            <p className="text-slate-500 text-xs italic">No active team requests at the moment</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
 
         {/* Players Table */}
         <div className="bg-black/30 backdrop-blur-sm rounded-2xl border border-white/5 overflow-hidden shadow-xl">
@@ -336,13 +407,23 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
 
                         <td className="py-3 px-4 text-center">
                           {!readOnly && (
-                            <button
-                              onClick={() => handleAction(player)}
-                              className="text-slate-600 hover:text-red-400 transition-colors"
-                              title={player.hasTeam ? "Remove from team" : "Delete player"}
-                            >
-                              {player.hasTeam ? <FaUserMinus size={16} /> : <FaTrashAlt size={16} />}
-                            </button>
+                            <div className="flex items-center justify-center gap-3">
+                                {filterType === 'solo' && !player.hasTeam && (
+                                    <button
+                                        onClick={() => setShowMatchModal(player)}
+                                        className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-[10px] font-bold uppercase transition-all shadow-lg shadow-purple-900/20"
+                                    >
+                                        Match
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleAction(player)}
+                                    className="text-slate-600 hover:text-red-400 transition-colors"
+                                    title={player.hasTeam ? "Remove from team" : "Delete player"}
+                                >
+                                    {player.hasTeam ? <FaUserMinus size={16} /> : <FaTrashAlt size={16} />}
+                                </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -437,6 +518,60 @@ const PlayersTab = ({ players, matches = [], readOnly = false }) => {
                 <p className="text-center text-slate-600 text-[11px]">
                   {freeAgentsCount} free agents available
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Matchmaking Modal */}
+        {showMatchModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={() => setShowMatchModal(null)}>
+            <div className="bg-black/80 border border-white/10 w-full max-w-sm rounded-2xl p-6 relative animate-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setShowMatchModal(null)}
+                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+              >
+                <FaTimes size={18} />
+              </button>
+
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <FaFutbol size={28} className="text-white" />
+                </div>
+                <h3 className="text-white text-xl font-bold">Match Player</h3>
+                <p className="text-slate-500 text-sm mt-1">Assign <span className="text-white font-bold">{showMatchModal.name}</span> ({showMatchModal.position}) to a team</p>
+              </div>
+
+              <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2">Teams Needing {showMatchModal.position}:</p>
+                {teams.filter(t => t.needsPosition === showMatchModal.position).length > 0 ? (
+                    teams.filter(t => t.needsPosition === showMatchModal.position).map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => handleAssignToTeam(showMatchModal, t)}
+                            className="w-full bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500 hover:text-white transition-all p-3 rounded-xl flex items-center justify-between group"
+                        >
+                            <span className="font-bold text-sm">{t.teamName}</span>
+                            <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded group-hover:bg-white/20">Request Active</span>
+                        </button>
+                    ))
+                ) : (
+                    <p className="text-xs text-slate-600 italic py-2">No teams specifically requested a {showMatchModal.position}.</p>
+                )}
+
+                <div className="border-t border-white/10 my-4 pt-4">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2">All Other Teams:</p>
+                    {teams.filter(t => t.needsPosition !== showMatchModal.position).map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => handleAssignToTeam(showMatchModal, t)}
+                            className="w-full bg-white/5 border border-white/10 hover:border-emerald-500/50 hover:bg-white/10 transition-all p-3 rounded-xl flex items-center justify-between mb-2"
+                        >
+                            <span className="text-white text-sm font-medium">{t.teamName}</span>
+                            <span className="text-slate-500 text-[10px]">{t.memberIds?.length || 0}/7</span>
+                        </button>
+                    ))}
+                </div>
               </div>
             </div>
           </div>
