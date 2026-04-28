@@ -6,7 +6,7 @@ import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] }) => {
   const [view, setView] = useState('options');
   const [loading, setLoading] = useState(false);
-  const [teamData, setTeamData] = useState({ teamName: '', captainName: '', category: 'Under-19' });
+  const [teamData, setTeamData] = useState({ teamName: '', captainName: '', captainId: '', category: 'Under-19' });
   const [matchData, setMatchData] = useState({ team1: '', team2: '', date: '', time: '', pitch: 'Pitch 1' });
   const [selectedPlayerIds, setSelectedPlayerIds] = useState([]);
   const [selectedDropdownPlayer, setSelectedDropdownPlayer] = useState('');
@@ -17,8 +17,8 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
   );
 
   const availableFreeAgents = useMemo(
-    () => freeAgents.filter((p) => !selectedPlayerIds.includes(p.id)),
-    [freeAgents, selectedPlayerIds]
+    () => freeAgents.filter((p) => !selectedPlayerIds.includes(p.id) && p.id !== teamData.captainId),
+    [freeAgents, selectedPlayerIds, teamData.captainId]
   );
 
   if (!isOpen) return null;
@@ -196,12 +196,26 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Captain Name <span className="text-[#00FF9C]">*</span>
               </label>
-              <input 
+              <select 
                 required 
-                placeholder="Full name" 
-                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
-                onChange={(e) => setTeamData({...teamData, captainName: e.target.value})}
-              />
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all" 
+                value={teamData.captainId}
+                onChange={(e) => {
+                  const player = freeAgents.find(p => p.id === e.target.value);
+                  if (player) {
+                    setTeamData({...teamData, captainId: player.id, captainName: player.name});
+                    // Also add captain to selected players if not already there
+                    if (!selectedPlayerIds.includes(player.id)) {
+                      setSelectedPlayerIds(prev => [...prev, player.id]);
+                    }
+                  }
+                }}
+              >
+                <option value="" className="bg-[#121821]">Select team captain</option>
+                {freeAgents.map(p => (
+                  <option value={p.id} key={p.id} className="bg-[#121821]">{p.name || p.email}</option>
+                ))}
+              </select>
             </div>
             
             <div>
