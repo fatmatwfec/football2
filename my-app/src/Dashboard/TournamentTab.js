@@ -18,6 +18,8 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [allMatches, setAllMatches] = useState([]);
   const [tournamentName, setTournamentName] = useState("");
   const [tournamentStartTime, setTournamentStartTime] = useState("09:00");
+  const [tournamentStartDate, setTournamentStartDate] = useState("");
+  const [tournamentEndDate, setTournamentEndDate] = useState("");
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -103,20 +105,34 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       alert("Please enter a tournament name.");
       return;
     }
+    
+    // التحقق من توافق التواريخ مع نطاق البطولة
+    const startRange = tournament.startDate;
+    const endRange = tournament.endDate;
+    
+    for (const d of tournamentDates) {
+      if (!d.date) return alert("Please select a date for all match slots");
+      if (d.date < startRange || d.date > endRange) {
+        return alert(`Date ${d.date} is outside the tournament range (${startRange} to ${endRange})`);
+      }
+    }
+
     if (tournamentDates.length === 0) {
       alert("Please add at least one date.");
       return;
     }
 
-    // التحقق من الوقت لو أول يوم هو النهاردة
+    // التحقق من الوقت لو أول يوم هو النهاردة بالظبط
     const firstDay = tournamentDates[0];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const nowLocal = new Date();
+    const todayStr = nowLocal.toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
+
     if (firstDay.date === todayStr) {
-      const now = new Date();
       const [h, m] = firstDay.startTime.split(':').map(Number);
-      const start = new Date();
-      start.setHours(h, m, 0, 0);
-      if (start <= now) {
+      const startDateTime = new Date();
+      startDateTime.setHours(h, m, 0, 0);
+      
+      if (startDateTime <= nowLocal) {
         alert("The start time for today's matches must be in the future.");
         return;
       }
@@ -137,10 +153,21 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
   const handleOpenRegistration = async () => {
     if (!tournamentName.trim()) return alert("Enter tournament name first");
+    if (!tournamentStartDate || !tournamentEndDate) return alert("Please select start and end dates for the tournament announcement");
+
+    const today = new Date().toISOString().split('T')[0];
+    if (tournamentStartDate < today) {
+      return alert("Tournament start date cannot be in the past!");
+    }
+    if (tournamentEndDate < tournamentStartDate) {
+      return alert("End date cannot be before start date!");
+    }
     try {
       await setDoc(doc(db, 'tournaments', 'main'), {
         registrationOpen: true,
         registrationTitle: tournamentName,
+        startDate: tournamentStartDate,
+        endDate: tournamentEndDate,
         registeredTeamIds: [],
         createdAt: new Date(),
         status: 'registration'
@@ -205,6 +232,18 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     });
   };
 
+  const handleForceReset = async () => {
+    if (readOnly) return;
+    if (!window.confirm('WARNING: This will completely wipe the current tournament data and registration. Continue?')) return;
+    try {
+      await deleteDoc(doc(db, 'tournaments', 'main'));
+      alert("Tournament data cleared! You can now start fresh.");
+      setWizardStep(1);
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    }
+  };
+
   if (loading) return (
     <div className="text-white text-center py-20 flex flex-col items-center">
       <FaCog className="animate-spin text-4xl mb-4 text-emerald-500" />
@@ -235,6 +274,14 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
               {tournament ? 'The brackets are locked and the competition is live!' : readOnly ? 'Tournament bracket is currently being prepared by officials.' : 'Register teams and initiate the automated random draw.'}
             </p>
           </div>
+          {!readOnly && (
+            <button 
+                onClick={handleForceReset}
+                className="ml-auto px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase rounded-xl border border-red-500/20 transition-all"
+            >
+                Force Reset
+            </button>
+          )}
         </div>
 
         {/* Champion Banner */}
@@ -289,6 +336,28 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                         onChange={(e) => setTournamentName(e.target.value)}
                         className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold mb-4"
                       />
+                      <div className="grid grid-cols-2 gap-4 mb-4 text-left">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-500 uppercase mb-1 block tracking-widest">Start Date</label>
+                          <input 
+                            type="date" 
+                            min={new Date().toLocaleDateString('en-CA')}
+                            value={tournamentStartDate}
+                            onChange={(e) => setTournamentStartDate(e.target.value)}
+                            className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-500 uppercase mb-1 block tracking-widest">End Date</label>
+                          <input 
+                            type="date" 
+                            min={tournamentStartDate || new Date().toLocaleDateString('en-CA')}
+                            value={tournamentEndDate}
+                            onChange={(e) => setTournamentEndDate(e.target.value)}
+                            className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                          />
+                        </div>
+                      </div>
                       <button
                         onClick={handleOpenRegistration}
                         className="w-full py-3 bg-emerald-500 text-black font-black rounded-xl uppercase text-xs hover:bg-emerald-400 transition-all"
@@ -328,9 +397,15 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                        </div>
                        <button
                         onClick={handleCloseRegistration}
-                        className="w-full py-3 bg-amber-500 text-black font-black rounded-xl uppercase text-xs hover:bg-amber-400 transition-all"
+                        className="w-full py-3 bg-red-500/20 text-red-400 border border-red-500/30 font-black rounded-xl uppercase text-xs hover:bg-red-500/30 transition-all mb-4"
                       >
-                        Close Registration & Proceed
+                        Close Registration
+                      </button>
+                      <button
+                        onClick={handleForceReset}
+                        className="w-full py-2 text-red-500/50 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest transition-all"
+                      >
+                        Force Reset (Clear All)
                       </button>
                     </div>
                   )}
@@ -356,9 +431,10 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                             <input 
                               type="date" 
                               value={dateInput}
-                              min={new Date().toISOString().split('T')[0]}
+                              min={tournament?.startDate || new Date().toISOString().split('T')[0]}
+                              max={tournament?.endDate}
                               onChange={(e) => setDateInput(e.target.value)}
-                              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
                             />
                           </div>
                           <div className="w-1/3">
@@ -366,7 +442,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                               type="time" 
                               value={tournamentStartTime}
                               onChange={(e) => setTournamentStartTime(e.target.value)}
-                              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500"
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 font-bold"
                             />
                           </div>
                           <button onClick={addDate} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase">Add</button>
@@ -450,6 +526,8 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
           <ScheduleMatchModal
             prefill={scheduleModal}
             tournamentName={tournament?.name}
+            startDate={tournament?.startDate}
+            endDate={tournament?.endDate}
             onClose={() => setScheduleModal(null)}
           />
         )}
@@ -493,7 +571,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 };
 
 // ─── Schedule Match Modal ─────────────────────────────────────
-const ScheduleMatchModal = ({ prefill, tournamentName, onClose }) => {
+const ScheduleMatchModal = ({ prefill, tournamentName, startDate, endDate, onClose }) => {
   const [date,        setDate]        = useState('');
   const [time,        setTime]        = useState('');
   const [pitch,       setPitch]       = useState('Main Pitch');
@@ -551,7 +629,15 @@ const ScheduleMatchModal = ({ prefill, tournamentName, onClose }) => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Date</label>
-              <input type="date" required value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500" />
+              <input 
+                type="date" 
+                required 
+                value={date} 
+                min={startDate || new Date().toISOString().split('T')[0]}
+                max={endDate}
+                onChange={e => setDate(e.target.value)} 
+                className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500" 
+              />
             </div>
             <div>
               <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Time</label>
