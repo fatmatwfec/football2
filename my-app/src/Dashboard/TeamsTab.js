@@ -29,6 +29,47 @@ const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
   const [renamingTeamId, setRenamingTeamId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
+  // Auto-Repair Captains: Use actual players with matching teamId as source of truth
+  React.useEffect(() => {
+    if (readOnly || !teams.length || !players.length) return;
+    
+    const fixCaptains = async () => {
+      const batch = writeBatch(db);
+      let needsCommit = false;
+
+      teams.forEach(team => {
+        // البحث عن الأعضاء الحقيقيين (اللي شايلين الـ teamId بتاع الفريق ده)
+        const actualMembers = players.filter(p => String(p.teamId) === String(team.id));
+        const memberIds = actualMembers.map(m => m.id);
+
+        if (memberIds.length > 0) {
+          const currentCaptainId = team.captainId ? String(team.captainId) : null;
+          const isCaptainInTeam = currentCaptainId && memberIds.some(mId => String(mId) === currentCaptainId);
+          
+          if (!isCaptainInTeam) {
+            const newCaptain = actualMembers[0]; // نختار أول واحد من الأعضاء الحقيقيين
+            console.log(`[Auto-Repair] Team "${team.teamName}" leader was out of sync. New leader: ${newCaptain.name}`);
+            
+            batch.update(doc(db, 'teams', team.id), {
+              captainId: newCaptain.id,
+              captainName: newCaptain.name,
+              memberIds: memberIds, // مزامنة الـ IDs برضه بالمرة
+              members: actualMembers.map(m => m.name) // مزامنة الأسماء
+            });
+            needsCommit = true;
+          }
+        }
+      });
+
+      if (needsCommit) {
+        try {
+          await batch.commit();
+        } catch (e) { console.error("[Auto-Repair] Error:", e); }
+      }
+    };
+    fixCaptains();
+  }, [teams, players, readOnly]);
+
   const getTeamMembers = (team) =>
     players.filter(p => p.teamId && String(p.teamId).trim() === String(team.id).trim());
 
@@ -234,9 +275,18 @@ const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <FaGamepad size={18} className="text-emerald-500" />
-                      <span className="text-slate-300 font-medium text-base">{currentMembers.length} Players</span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <FaGamepad size={18} className="text-emerald-500" />
+                        <span className="text-slate-300 font-medium text-base">{currentMembers.length} Players</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+                        <FaShieldAlt className="text-emerald-500 text-xs" />
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-emerald-500/70 uppercase font-black tracking-widest leading-none mb-0.5">Team Leader</span>
+                          <span className="text-white text-xs font-bold leading-none">{team.captainName || "Not Assigned"}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -264,6 +314,9 @@ const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
                               <div className="flex items-center gap-2">
                                 <div className={`w-2 h-2 rounded-full ${suspended ? (suspType === 'red' ? 'bg-red-500' : 'bg-yellow-500') : 'bg-emerald-500'}`} />
                                 <span className="text-white text-sm">{member.name}</span>
+                                {String(member.id) === String(team.captainId) && (
+                                  <FaShieldAlt className="text-emerald-500 text-[10px]" title="Team Leader" />
+                                )}
                                 {suspended && suspType === 'red' && (
                                   <span className="text-red-400 text-[8px] font-bold">🟥 Banned</span>
                                 )}
