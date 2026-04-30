@@ -50,6 +50,12 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       if (snap.exists()) {
         const data = snap.data();
         setTournament({ id: snap.id, ...data });
+        
+        // Auto-populate name from registration title if available
+        if (data.registrationTitle && !tournamentName) {
+          setTournamentName(data.registrationTitle);
+        }
+
         if (data.rounds) {
           setWizardStep(3);
         } else {
@@ -101,7 +107,8 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       return;
     }
 
-    if (!tournamentName.trim()) {
+    const finalTournamentName = tournamentName.trim() || tournament?.registrationTitle;
+    if (!finalTournamentName) {
       alert("Please enter a tournament name.");
       return;
     }
@@ -141,7 +148,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     setIsGenerating(true);
     try {
       await new Promise((r) => setTimeout(r, 4500));
-      await generateBracket(targetTeams, tournamentDates, tournamentName);
+      await generateBracket(targetTeams, tournamentDates, finalTournamentName);
       setWizardStep(3); 
     } catch (e) {
       console.error(e);
@@ -413,15 +420,9 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                   {/* Phase 2: Draw Setup (Only visible when registration is closed but bracket not yet made) */}
                   {!tournament?.registrationOpen && (tournament?.registeredTeamIds || tournament?.status === 'setup') && (
                     <div className="space-y-4 animate-fade-in">
-                      <div className="text-left">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Tournament Title</label>
-                        <input 
-                          type="text" 
-                          placeholder="Tournament Name"
-                          value={tournamentName || tournament?.registrationTitle || ""}
-                          onChange={(e) => setTournamentName(e.target.value)}
-                          className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
-                        />
+                      <div className="text-left bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl mb-2">
+                        <label className="text-[10px] font-black text-emerald-500 uppercase block tracking-widest mb-1">Tournament Name</label>
+                        <p className="text-white font-black text-xl uppercase italic">{tournamentName || tournament?.registrationTitle || "Main Tournament"}</p>
                       </div>
 
                       <div className="text-left">
