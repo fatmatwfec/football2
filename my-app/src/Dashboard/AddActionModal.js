@@ -167,7 +167,7 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
                 <FaFutbol className="text-[#00FF9C] text-xl" />
               </div>
               <div className="text-left flex-1">
-                <p className="font-bold text-white">Schedule Match</p>
+                <p className="font-bold text-white">Friendly Match</p>
                 <p className="text-xs text-gray-500">Create game fixture</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#00FF9C]/20 transition-all">
