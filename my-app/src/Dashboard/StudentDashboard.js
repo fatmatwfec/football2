@@ -93,17 +93,17 @@ const StudentDashboard = () => {
             setNextMatch(null);
             return;
         }
-        
+
         // 1. أولاً نبحث في الماتشات المجدولة رسمياً في مجموعة matches
         const scheduledMatches = matches.filter(m => {
             if (!m.date || !m.time) return false;
             const [y, mm, d] = m.date.split('-').map(Number);
             const [h, min] = m.time.split(':').map(Number);
             const matchTime = new Date(y, mm - 1, d, h, min).getTime();
-            
-            return (m.team1Id === userData.teamId || m.team2Id === userData.teamId) && 
-                   (m.status || "").toLowerCase() !== "completed" &&
-                   matchTime > now;
+
+            return (m.team1Id === userData.teamId || m.team2Id === userData.teamId) &&
+                (m.status || "").toLowerCase() !== "completed" &&
+                matchTime > now;
         });
 
         // 2. ثانياً نبحث في البطولة (الـ Bracket) عن ماتشات غير مجدولة رسمياً بعد
@@ -113,10 +113,10 @@ const StudentDashboard = () => {
                 roundMatches.forEach(m => {
                     const isMyTeam = m.team1?.id === userData.teamId || m.team2?.id === userData.teamId;
                     const notFinished = !m.winner;
-                    
+
                     if (isMyTeam && notFinished) {
                         // نتأكد إنه مش موجود أصلاً في الماتشات المجدولة
-                        const alreadyScheduled = scheduledMatches.some(sm => 
+                        const alreadyScheduled = scheduledMatches.some(sm =>
                             (sm.team1Id === m.team1?.id && sm.team2Id === m.team2?.id) ||
                             (sm.team1Id === m.team2?.id && sm.team2Id === m.team1?.id)
                         );
@@ -157,7 +157,7 @@ const StudentDashboard = () => {
         });
 
         const next = sorted[0];
-        
+
         // حل اسم الخصم
         let opponentName = "TBD";
         if (next.isFromBracket) {
@@ -173,7 +173,7 @@ const StudentDashboard = () => {
         if (!roundLabel && tournament?.rounds) {
             // نحاول نعرف الدور من الـ IDs
             Object.entries(tournament.rounds).forEach(([rKey, roundMatches]) => {
-                const found = roundMatches.find(m => 
+                const found = roundMatches.find(m =>
                     (m.team1?.id === next.team1Id && m.team2?.id === next.team2Id) ||
                     (m.team1?.id === next.team2Id && m.team2?.id === next.team1Id)
                 );
@@ -182,7 +182,7 @@ const StudentDashboard = () => {
                 }
             });
         }
-        
+
         setNextMatch({
             ...next,
             opponentName,
@@ -190,7 +190,7 @@ const StudentDashboard = () => {
         });
     }, [matches, approvedTeams, userData?.teamId, tournament, now]);
 
-     useEffect(() => {
+    useEffect(() => {
         const unsubTeams = onSnapshot(collection(db, "teams"), (snap) => {
             const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             setApprovedTeams(all.filter(t => t.status === "approved"));
@@ -216,14 +216,14 @@ const StudentDashboard = () => {
     // فصل منطق تصفية المباريات ليعتمد على الوقت الحالي (now)
     useEffect(() => {
         const DURATION = 20 * 60 * 1000;
-        
+
         const live = matches.filter((m) => {
             if (!m.date || !m.time) return false;
-            
+
             const [y, mm, d] = m.date.split('-').map(Number);
             const [h, min] = m.time.split(':').map(Number);
             const start = new Date(y, mm - 1, d, h, min).getTime();
-            
+
             const isInTimeWindow = now >= start && now <= start + DURATION;
             const notFinished = (m.status || "").toLowerCase() !== "completed";
 
@@ -483,13 +483,13 @@ const StudentDashboard = () => {
         }
     };
 
-    const isCaptain = teamData?.captainId === userData?.uid || 
-                      teamData?.captainName === userData?.name || 
-                      (userData?.role === 'student' && teamData?.captainName?.toLowerCase() === userData?.name?.toLowerCase());
+    const isCaptain = teamData?.captainId === userData?.uid ||
+        teamData?.captainName === userData?.name ||
+        (userData?.role === 'student' && teamData?.captainName?.toLowerCase() === userData?.name?.toLowerCase());
 
-    const soloPlayers = allStudents.filter(s => 
-        (s.searchingForTeam === true || s.playSolo === true) && 
-        s.hasTeam !== true && 
+    const soloPlayers = allStudents.filter(s =>
+        (s.searchingForTeam === true || s.playSolo === true) &&
+        s.hasTeam !== true &&
         s.role !== 'admin'
     );
 
@@ -498,9 +498,9 @@ const StudentDashboard = () => {
         const createdAt = tournament.createdAt.toDate ? tournament.createdAt.toDate().getTime() : (typeof tournament.createdAt === 'number' ? tournament.createdAt : new Date(tournament.createdAt).getTime());
         const deadline = createdAt + (48 * 60 * 60 * 1000);
         const diff = deadline - now;
-        
+
         if (diff <= 0) return "Expired";
-        
+
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         return `${hours}h ${minutes}m`;
@@ -527,20 +527,20 @@ const StudentDashboard = () => {
             <nav className="w-full border-b border-white/10 backdrop-blur-lg sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex justify-between items-center p-4">
                     <div className="flex items-center gap-8">
-                        <h1 
+                        <h1
                             className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-600 text-transparent bg-clip-text cursor-pointer"
                             onClick={() => setActiveView("dashboard")}
                         >
                             SCI-FOOTBALL
                         </h1>
                         <div className="hidden md:flex gap-6">
-                            <button 
+                            <button
                                 onClick={() => setActiveView("dashboard")}
                                 className={`text-sm font-bold uppercase transition-all ${activeView === 'dashboard' ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Dashboard
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setActiveView("tournament")}
                                 className={`text-sm font-bold uppercase transition-all ${activeView === 'tournament' ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}
                             >
@@ -608,11 +608,10 @@ const StudentDashboard = () => {
                                         </button>
                                         <button
                                             onClick={handlePlaySolo}
-                                            className={`w-full py-3 rounded-xl border transition font-bold ${
-                                                userData?.searchingForTeam 
-                                                    ? 'bg-orange-500/20 border-orange-500/50 text-orange-400' 
-                                                    : 'bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/30'
-                                            }`}
+                                            className={`w-full py-3 rounded-xl border transition font-bold ${userData?.searchingForTeam
+                                                ? 'bg-orange-500/20 border-orange-500/50 text-orange-400'
+                                                : 'bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/30'
+                                                }`}
                                         >
                                             {userData?.searchingForTeam ? 'Cancel Solo Request' : 'Play Solo'}
                                         </button>
@@ -623,7 +622,7 @@ const StudentDashboard = () => {
                             {/* Tournament Quick Access */}
                             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                                 <h3 className="text-lg font-bold mb-4 text-left">Tournament</h3>
-                                <button 
+                                <button
                                     onClick={() => setActiveView("tournament")}
                                     className="w-full p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between hover:bg-emerald-500/20 transition-all group"
                                 >
@@ -643,18 +642,17 @@ const StudentDashboard = () => {
                                                 <button
                                                     key={pos}
                                                     onClick={() => handleRequestPlayer(pos)}
-                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${
-                                                        teamData?.needsPosition === pos
-                                                            ? 'bg-emerald-500 text-black border-emerald-500'
-                                                            : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
-                                                  }`}
+                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${teamData?.needsPosition === pos
+                                                        ? 'bg-emerald-500 text-black border-emerald-500'
+                                                        : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
+                                                        }`}
                                                 >
                                                     <span>Request {pos}</span>
                                                     {teamData?.needsPosition === pos && <FaCheckCircle size={14} />}
                                                 </button>
                                             ))}
                                             {teamData?.needsPosition && (
-                                                <button 
+                                                <button
                                                     onClick={() => handleRequestPlayer(null)}
                                                     className="text-[10px] text-red-400 mt-2 hover:underline w-full text-center"
                                                 >
@@ -702,11 +700,10 @@ const StudentDashboard = () => {
                                                     key={pos}
                                                     onClick={() => handlePositionChange(pos)}
                                                     disabled={savingPosition}
-                                                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${
-                                                        userData?.position === pos
-                                                            ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                                                            : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
-                                                    }`}
+                                                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${userData?.position === pos
+                                                        ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                                        : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
+                                                        }`}
                                                 >
                                                     {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : '🧤 Goalkeeper'}
                                                 </button>
@@ -730,7 +727,7 @@ const StudentDashboard = () => {
                         <main className="lg:col-span-8 space-y-6">
 
                             {/* --- FIXED SECTION: Stats & Next Match --- */}
-                             {/* Tournament Registration - NEW SECTION */}
+                            {/* Tournament Registration - NEW SECTION */}
                             {tournament?.registrationOpen && (
                                 <div className="bg-gradient-to-br from-emerald-600/20 to-transparent backdrop-blur-xl rounded-3xl p-8 border border-emerald-500/20 shadow-xl mb-6 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
@@ -746,16 +743,26 @@ const StudentDashboard = () => {
                                             </span>
                                         )}
                                     </div>
-                                    
+
                                     <div className="flex flex-col md:flex-row items-center gap-6">
                                         <div className={`w-20 h-20 ${getRemainingTime() === "Expired" ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/20 border-emerald-500/30'} rounded-3xl flex items-center justify-center border-2`}>
                                             <FaTrophy className={`text-3xl ${getRemainingTime() === "Expired" ? 'text-red-500' : 'text-emerald-500'}`} />
                                         </div>
                                         <div className="flex-1 text-center md:text-left">
                                             <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">{tournament.registrationTitle}</h3>
+                                            <div className="flex gap-4 mb-3">
+                                                <div className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+                                                    <p className="text-[8px] text-gray-500 uppercase font-black">Starts</p>
+                                                    <p className="text-xs font-bold text-white">{tournament.startDate || "TBD"}</p>
+                                                </div>
+                                                <div className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+                                                    <p className="text-[8px] text-gray-500 uppercase font-black">Ends</p>
+                                                    <p className="text-xs font-bold text-white">{tournament.endDate || "TBD"}</p>
+                                                </div>
+                                            </div>
                                             <p className="text-slate-400 text-sm max-w-md">
-                                                {getRemainingTime() === "Expired" 
-                                                    ? "Registration for this tournament has ended. Stay tuned for the brackets!" 
+                                                {getRemainingTime() === "Expired"
+                                                    ? "Registration for this tournament has ended. Stay tuned for the brackets!"
                                                     : "A new tournament has been announced! Captains can register their teams now to participate in the upcoming draw."}
                                             </p>
                                             {getRemainingTime() !== "Expired" && (
@@ -765,7 +772,7 @@ const StudentDashboard = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        
+
                                         <div className="w-full md:w-auto">
                                             {getRemainingTime() === "Expired" ? (
                                                 <div className="text-center px-8 py-4 bg-red-500/10 rounded-2xl border border-red-500/20">
@@ -779,7 +786,7 @@ const StudentDashboard = () => {
                                                             <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-xs">
                                                                 <FaCheckCircle /> Registered
                                                             </div>
-                                                            <button 
+                                                            <button
                                                                 onClick={async () => {
                                                                     if (!window.confirm("Withdraw from tournament?")) return;
                                                                     await updateDoc(doc(db, 'tournaments', 'main'), {
@@ -792,8 +799,12 @@ const StudentDashboard = () => {
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <button 
+                                                        <button
                                                             onClick={async () => {
+                                                                if ((teamData?.memberIds?.length || 0) < 5) {
+                                                                    alert("Your team must have at least 5 players to register for the tournament! ⚽");
+                                                                    return;
+                                                                }
                                                                 await updateDoc(doc(db, 'tournaments', 'main'), {
                                                                     registeredTeamIds: arrayUnion(userData.teamId)
                                                                 });
@@ -902,13 +913,13 @@ const StudentDashboard = () => {
                                                     </div>
                                                     <div className="flex items-center justify-between gap-4">
                                                         <div className="text-center flex-1">
-                                                            <p className="text-sm font-bold text-white truncate">{match.team1Name || approvedTeams.find(t=>t.id===match.team1Id)?.teamName || "Team 1"}</p>
+                                                            <p className="text-sm font-bold text-white truncate">{match.team1Name || approvedTeams.find(t => t.id === match.team1Id)?.teamName || "Team 1"}</p>
                                                         </div>
                                                         <div className="bg-black/60 px-4 py-2 rounded-xl border border-white/10">
                                                             <p className="text-xl font-black text-white tracking-tighter">VS</p>
                                                         </div>
                                                         <div className="text-center flex-1">
-                                                            <p className="text-sm font-bold text-white truncate">{match.team2Name || approvedTeams.find(t=>t.id===match.team2Id)?.teamName || "Team 2"}</p>
+                                                            <p className="text-sm font-bold text-white truncate">{match.team2Name || approvedTeams.find(t => t.id === match.team2Id)?.teamName || "Team 2"}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -921,15 +932,15 @@ const StudentDashboard = () => {
                             <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mt-6">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                                     <h3 className="text-lg font-bold text-yellow-400">Match History</h3>
-                                    
+
                                     <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 w-full sm:w-auto">
-                                        <button 
+                                        <button
                                             onClick={() => setHistoryTab("myTeam")}
                                             className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${historyTab === 'myTeam' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}
                                         >
                                             My Team
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => setHistoryTab("others")}
                                             className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${historyTab === 'others' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}
                                         >
@@ -965,8 +976,8 @@ const StudentDashboard = () => {
                                                 const isMyMatch = match.team1Id === userData?.teamId || match.team2Id === userData?.teamId;
 
                                                 return (
-                                                    <div 
-                                                        key={match.id} 
+                                                    <div
+                                                        key={match.id}
                                                         onClick={() => setSelectedMatch(match)}
                                                         className={`p-4 rounded-2xl border transition-all hover:bg-white/10 cursor-pointer group ${isMyMatch ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-black/40 border-white/5'}`}
                                                     >
@@ -1107,11 +1118,11 @@ const StudentDashboard = () => {
 
             {/* Match Details Modal */}
             {selectedMatch && (
-                <MatchDetailsModal 
-                    match={selectedMatch} 
-                    allStudents={allStudents} 
-                    approvedTeams={approvedTeams} 
-                    onClose={() => setSelectedMatch(null)} 
+                <MatchDetailsModal
+                    match={selectedMatch}
+                    allStudents={allStudents}
+                    approvedTeams={approvedTeams}
+                    onClose={() => setSelectedMatch(null)}
                 />
             )}
         </div >
@@ -1126,7 +1137,7 @@ const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
     const stats = match.statsSnapshot || {};
     const t1 = approvedTeams.find(t => t.id === match.team1Id);
     const t2 = approvedTeams.find(t => t.id === match.team2Id);
-    
+
     const getTeamStats = (teamId) => {
         return Object.entries(stats)
             .filter(([pId]) => {
@@ -1156,7 +1167,7 @@ const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
                         <FaTimes size={20} />
                     </button>
                 </div>
-                
+
                 <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                     {/* Header Score */}
                     <div className="flex items-center justify-between mb-8 p-8 bg-black/40 rounded-3xl border border-white/5 shadow-inner">
@@ -1229,7 +1240,7 @@ const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="p-4 bg-white/5 text-center">
                     <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Match completed on {match.completedAt?.toDate ? match.completedAt.toDate().toLocaleString() : "N/A"}</p>
                 </div>
