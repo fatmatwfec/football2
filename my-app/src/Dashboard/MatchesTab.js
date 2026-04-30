@@ -263,7 +263,7 @@ const MatchesTab = ({ readOnly = false }) => {
                   : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
               }`}
             >
-              {showAddForm ? 'Cancel' : '+ Schedule Match'}
+              {showAddForm ? 'Cancel' : '+ Friendly Match'}
             </button>
           )}
         </div> 
