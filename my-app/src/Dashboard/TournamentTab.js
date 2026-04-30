@@ -571,7 +571,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   );
 };
 
-// ─── Schedule Match Modal ─────────────────────────────────────
+// ─── Friendly Match Modal ─────────────────────────────────────
 const ScheduleMatchModal = ({ prefill, tournamentName, startDate, endDate, onClose }) => {
   const [date,        setDate]        = useState('');
   const [time,        setTime]        = useState('');
@@ -610,7 +610,7 @@ const ScheduleMatchModal = ({ prefill, tournamentName, startDate, endDate, onClo
           <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
             <FaCalendarPlus className="text-emerald-400" size={24} />
           </div>
-          <h3 className="text-white font-bold text-lg uppercase">Schedule Match</h3>
+          <h3 className="text-white font-bold text-lg uppercase">Friendly Match</h3>
           <p className="text-slate-500 text-xs uppercase mt-1">From Bracket</p>
         </div>
 
