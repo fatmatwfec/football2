@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan } from 'react-icons/fa';
+import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan, FaPen } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 
@@ -14,6 +14,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
   const [filterType, setFilterType] = useState("all"); // "all", "pending", "free", "solo"
 
   const [showTop10, setShowTop10] = useState(false);
+  const [renamingTeamId, setRenamingTeamId] = useState(null);
 
   const allPlayers = players.filter(p => p.role === "student" || p.role === "player");
 
@@ -312,8 +313,9 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
               <thead className="bg-black/50 border-b border-white/5">
                 <tr>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rank</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Player</th>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Team</th>
+                  <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Player</th>
+                  <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Account Info</th>
+                  <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Team</th>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Position</th>
                   {showTop10 && (
                     <>
@@ -339,7 +341,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                         key={player.id}
                         className="border-b border-white/5 hover:bg-white/5 transition-colors group"
                       >
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 text-center">
                           <span className={`font-bold ${playerRank <= 3 && playerRank !== '--' ? 'text-yellow-400' : 'text-white'}`}>
                             #{playerRank}
                           </span>
@@ -355,6 +357,20 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                             <div>
                               <span className="text-white font-medium">{player.name || "Unknown"}</span>
                               <p className="text-slate-600 text-[10px] font-mono">{player.studentCode || "No ID"}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col">
+                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-[120px]" title={player.email}>
+                              {player.email}
+                            </span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[9px] font-black text-emerald-500/40 uppercase tracking-tighter">Pass:</span>
+                              <span className="text-white text-[10px] font-bold font-mono tracking-wider select-all cursor-help" title="Student Password">
+                                {player.password || "******"}
+                              </span>
                             </div>
                           </div>
                         </td>
