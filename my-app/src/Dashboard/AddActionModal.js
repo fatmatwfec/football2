@@ -159,21 +159,7 @@ const AddActionModal = ({ isOpen, onClose, currentTeamsCount, freeAgents = [] })
               </div>
             </button>
             
-            <button 
-              onClick={() => setView('matchForm')} 
-              className="w-full flex items-center gap-4 p-5 bg-[#121821] border border-white/10 rounded-xl hover:border-[#00FF9C]/30 hover:bg-white/5 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-[#00FF9C]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <FaFutbol className="text-[#00FF9C] text-xl" />
-              </div>
-              <div className="text-left flex-1">
-                <p className="font-bold text-white">Friendly Match</p>
-                <p className="text-xs text-gray-500">Create game fixture</p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#00FF9C]/20 transition-all">
-                <FaPlus className="text-[#00FF9C] text-xs" />
-              </div>
-            </button>
+
           </div>
         )}
 
