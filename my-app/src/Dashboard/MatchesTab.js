@@ -72,7 +72,7 @@ const MatchesTab = ({ readOnly = false }) => {
 
   const availableTeams = useCallback(
     (excludeId = null) =>
-      teams.filter((t) => getPlayerCount(t.id) >= 7 && t.id !== excludeId),
+      teams.filter((t) => t.id !== excludeId),
     [teams, getPlayerCount],
   );
 
