@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, collection, query, where, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, collection, query, where, deleteDoc, writeBatch } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
@@ -452,24 +452,85 @@ const StudentDashboard = () => {
         }
     };
 
+    const autoAssign = async (playerId, playerName, playerPos, teamId, teamName) => {
+        try {
+            const batch = writeBatch(db);
+            const teamRef = doc(db, "teams", teamId);
+            const userRef = doc(db, "users", playerId);
+
+            batch.update(teamRef, {
+                memberIds: arrayUnion(playerId),
+                members: arrayUnion(playerName),
+                neededPositions: arrayRemove(playerPos),
+                needsPosition: null // keep for legacy
+            });
+
+            batch.update(userRef, {
+                hasTeam: true,
+                teamId: teamId,
+                assignedTeam: teamName,
+                searchingForTeam: false,
+                playSolo: false
+            });
+
+            await batch.commit();
+            console.log(`Auto-matched ${playerName} to ${teamName}`);
+            return true;
+        } catch (err) {
+            console.error("Auto-assign error:", err);
+            return false;
+        }
+    };
+
     const handleRequestPlayer = async (position) => {
         if (!teamData) return;
         const currentNeeded = teamData.neededPositions || [];
-        let updatedNeeded;
+        
         if (position === null) {
-            updatedNeeded = [];
-        } else if (currentNeeded.includes(position)) {
+            try {
+                await updateDoc(doc(db, "teams", teamData.id), {
+                    neededPositions: [],
+                    needsPosition: null
+                });
+            } catch (err) { console.error(err); }
+            return;
+        }
+
+        // Toggle logic
+        let updatedNeeded;
+        if (currentNeeded.includes(position)) {
             updatedNeeded = currentNeeded.filter(p => p !== position);
         } else {
             updatedNeeded = [...currentNeeded, position];
+            
+            // --- AUTO MATCH LOGIC (Captain requesting) ---
+            if ((teamData.memberIds?.length || 0) < 7) {
+                const matchingSolo = allStudents.find(s => 
+                    (s.searchingForTeam || s.playSolo) && 
+                    !s.hasTeam && 
+                    s.position === position &&
+                    s.id !== userData.uid // not self
+                );
+
+                if (matchingSolo) {
+                    const success = await autoAssign(matchingSolo.id, matchingSolo.name, position, teamData.id, teamData.teamName);
+                    if (success) {
+                        alert(`Auto-matched! ${matchingSolo.name} (${position}) has joined your team! ⚽`);
+                        return; // Done
+                    }
+                }
+            }
         }
         
         try {
             await updateDoc(doc(db, "teams", teamData.id), {
                 neededPositions: updatedNeeded,
-                needsPosition: updatedNeeded.length > 0 ? updatedNeeded[0] : null, // keep legacy for compatibility
+                needsPosition: updatedNeeded.length > 0 ? updatedNeeded[0] : null,
                 requestTimestamp: new Date()
             });
+            if (!currentNeeded.includes(position)) {
+                alert(`Request for a ${position} sent. No immediate matches found, Admin will be notified. 📢`);
+            }
         } catch (err) {
             console.error(err);
         }
@@ -502,6 +563,20 @@ const StudentDashboard = () => {
             return;
         }
 
+        // --- AUTO MATCH LOGIC (Student joining solo) ---
+        const matchingTeam = approvedTeams.find(t => 
+            (t.neededPositions || []).includes(specificPos) && 
+            (t.memberIds?.length || 0) < 7
+        );
+
+        if (matchingTeam) {
+            const success = await autoAssign(userData.uid, userData.name, specificPos, matchingTeam.id, matchingTeam.teamName);
+            if (success) {
+                alert(`You've been automatically matched with ${matchingTeam.teamName} needing a ${specificPos}! ⚽`);
+                return;
+            }
+        }
+
         try {
             await updateDoc(doc(db, "users", userData.uid), {
                 searchingForTeam: true,
@@ -509,7 +584,7 @@ const StudentDashboard = () => {
                 position: specificPos,
                 soloPosition: specificPos
             });
-            alert(`You are now marked as a Solo ${specificPos}! Admin will match you with a team needing your skills. ⚽`);
+            alert(`You are now marked as a Solo ${specificPos}! No immediate team needed your position, Admin will match you later. ⚽`);
         } catch (err) {
             console.error(err);
         }
