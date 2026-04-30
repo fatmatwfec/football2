@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning } from "react-icons/fa";
 
 const StudentDashboard = () => {
     const [userData, setUserData] = useState(null);
@@ -452,32 +452,64 @@ const StudentDashboard = () => {
         }
     };
 
-    const handlePlaySolo = async () => {
-        if (!userData) return;
-        if (!userData.position) {
-            alert("Please select your position first in Settings below! ⚽");
-            return;
+    const handleRequestPlayer = async (position) => {
+        if (!teamData) return;
+        const currentNeeded = teamData.neededPositions || [];
+        let updatedNeeded;
+        if (position === null) {
+            updatedNeeded = [];
+        } else if (currentNeeded.includes(position)) {
+            updatedNeeded = currentNeeded.filter(p => p !== position);
+        } else {
+            updatedNeeded = [...currentNeeded, position];
         }
+        
         try {
-            await updateDoc(doc(db, "users", userData.uid), {
-                searchingForTeam: !userData.searchingForTeam,
-                playSolo: !userData.searchingForTeam,
-                soloPosition: userData.position
+            await updateDoc(doc(db, "teams", teamData.id), {
+                neededPositions: updatedNeeded,
+                needsPosition: updatedNeeded.length > 0 ? updatedNeeded[0] : null, // keep legacy for compatibility
+                requestTimestamp: new Date()
             });
-            alert(userData.searchingForTeam ? "Solo request cancelled." : `You are now marked as a Solo ${userData.position}! Admin will match you with a team needing your skills. ⚽`);
         } catch (err) {
             console.error(err);
         }
     };
 
-    const handleRequestPlayer = async (position) => {
-        if (!teamData) return;
+    const [showSoloModal, setShowSoloModal] = useState(false);
+    const triggerPlaySolo = (pos) => {
+        handlePlaySolo(pos);
+        setShowSoloModal(false);
+    };
+
+    const handlePlaySolo = async (specificPos = null) => {
+        if (!userData) return;
+        
+        // If canceling
+        if (userData.searchingForTeam) {
+            try {
+                await updateDoc(doc(db, "users", userData.uid), {
+                    searchingForTeam: false,
+                    playSolo: false
+                });
+                alert("Solo request cancelled.");
+            } catch (err) { console.error(err); }
+            return;
+        }
+
+        // If initiating, show modal if no position passed
+        if (!specificPos) {
+            setShowSoloModal(true);
+            return;
+        }
+
         try {
-            await updateDoc(doc(db, "teams", teamData.id), {
-                needsPosition: position,
-                requestTimestamp: new Date()
+            await updateDoc(doc(db, "users", userData.uid), {
+                searchingForTeam: true,
+                playSolo: true,
+                position: specificPos,
+                soloPosition: specificPos
             });
-            alert(`Request for a ${position} sent to Admin! 📢`);
+            alert(`You are now marked as a Solo ${specificPos}! Admin will match you with a team needing your skills. ⚽`);
         } catch (err) {
             console.error(err);
         }
@@ -607,7 +639,7 @@ const StudentDashboard = () => {
                                             Create Team
                                         </button>
                                         <button
-                                            onClick={handlePlaySolo}
+                                            onClick={() => handlePlaySolo()}
                                             className={`w-full py-3 rounded-xl border transition font-bold ${userData?.searchingForTeam
                                                 ? 'bg-orange-500/20 border-orange-500/50 text-orange-400'
                                                 : 'bg-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/30'
@@ -636,27 +668,27 @@ const StudentDashboard = () => {
                                 <div className="space-y-6">
                                     <div className="bg-gradient-to-br from-emerald-950/40 to-black backdrop-blur-xl rounded-3xl p-6 border border-emerald-500/20 shadow-xl">
                                         <h3 className="text-lg font-bold mb-1 text-left text-emerald-400">Recruit Players</h3>
-                                        <p className="text-[10px] text-gray-400 mb-4 text-left uppercase tracking-widest">Need a specific position?</p>
+                                        <p className="text-[10px] text-gray-400 mb-4 text-left uppercase tracking-widest">Need specific positions?</p>
                                         <div className="grid grid-cols-1 gap-2 text-left">
                                             {['Goalkeeper', 'Defender', 'Forward'].map((pos) => (
                                                 <button
                                                     key={pos}
                                                     onClick={() => handleRequestPlayer(pos)}
-                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${teamData?.needsPosition === pos
+                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${(teamData?.neededPositions || []).includes(pos)
                                                         ? 'bg-emerald-500 text-black border-emerald-500'
                                                         : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
                                                         }`}
                                                 >
-                                                    <span>Request {pos}</span>
-                                                    {teamData?.needsPosition === pos && <FaCheckCircle size={14} />}
+                                                    <span>Need {pos}</span>
+                                                    {(teamData?.neededPositions || []).includes(pos) && <FaCheckCircle size={14} />}
                                                 </button>
                                             ))}
-                                            {teamData?.needsPosition && (
+                                            {(teamData?.neededPositions?.length > 0 || teamData?.needsPosition) && (
                                                 <button
                                                     onClick={() => handleRequestPlayer(null)}
                                                     className="text-[10px] text-red-400 mt-2 hover:underline w-full text-center"
                                                 >
-                                                    Cancel Request
+                                                    Clear All Requests
                                                 </button>
                                             )}
                                         </div>
@@ -1124,6 +1156,35 @@ const StudentDashboard = () => {
                     approvedTeams={approvedTeams}
                     onClose={() => setSelectedMatch(null)}
                 />
+            )}
+            {/* Play Solo Modal */}
+            {showSoloModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowSoloModal(false)}></div>
+                    <div className="relative bg-[#0f172a] border border-white/10 w-full max-w-sm rounded-3xl p-8 shadow-2xl animate-fade-in text-center">
+                        <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/30">
+                            <FaRunning className="text-blue-400 text-3xl" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2 uppercase italic">Choose Your Position</h3>
+                        <p className="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">Admin will see this when matching you</p>
+                        
+                        <div className="space-y-3">
+                            {['Forward', 'Defender', 'Goalkeeper'].map(pos => (
+                                <button
+                                    key={pos}
+                                    onClick={() => triggerPlaySolo(pos)}
+                                    className="w-full py-4 bg-white/5 hover:bg-blue-500 hover:text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3"
+                                >
+                                    {pos === 'Forward' ? '⚡' : pos === 'Defender' ? '🛡️' : '🧤'} {pos}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <button onClick={() => setShowSoloModal(false)} className="mt-6 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             )}
         </div >
     );
