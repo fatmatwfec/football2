@@ -115,25 +115,38 @@ const StudentDashboard = () => {
                     const notFinished = !m.winner;
 
                     if (isMyTeam && notFinished) {
-                        // نتأكد إنه مش موجود أصلاً في الماتشات المجدولة
-                        const alreadyScheduled = scheduledMatches.some(sm =>
+                        // نتأكد إنه مش موجود أصلاً في قائمة الماتشات (حتى القديمة منها لضمان عدم تكرارها هنا)
+                        const alreadyScheduled = matches.some(sm =>
                             (sm.team1Id === m.team1?.id && sm.team2Id === m.team2?.id) ||
                             (sm.team1Id === m.team2?.id && sm.team2Id === m.team1?.id)
                         );
 
                         if (!alreadyScheduled) {
-                            const roundDate = tournament.roundDateMap?.[rKey];
-                            bracketMatches.push({
-                                id: m.id,
-                                team1Id: m.team1?.id,
-                                team2Id: m.team2?.id,
-                                team1Name: m.team1?.name || "TBD",
-                                team2Name: m.team2?.name || "TBD",
-                                date: roundDate?.date || roundDate || "TBD",
-                                time: m.projectedTime || roundDate?.startTime || "TBD",
-                                roundLabel: getRoundLabel(parseInt(rKey), Object.keys(tournament.rounds).length),
-                                isFromBracket: true
-                            });
+                            const roundDateInfo = tournament.roundDateMap?.[rKey];
+                            
+                            // فحص إذا كان وقت الدور قد مضى بالفعل
+                            let isPast = false;
+                            if (roundDateInfo?.date) {
+                                const [y, mm, d] = roundDateInfo.date.split('-').map(Number);
+                                const startTime = roundDateInfo.startTime || "00:00";
+                                const [h, min] = startTime.split(':').map(Number);
+                                const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+                                if (matchTime < now) isPast = true;
+                            }
+
+                            if (!isPast) {
+                                bracketMatches.push({
+                                    id: m.id,
+                                    team1Id: m.team1?.id,
+                                    team2Id: m.team2?.id,
+                                    team1Name: m.team1?.name || "TBD",
+                                    team2Name: m.team2?.name || "TBD",
+                                    date: roundDateInfo?.date || roundDateInfo || "TBD",
+                                    time: m.projectedTime || roundDateInfo?.startTime || "TBD",
+                                    roundLabel: getRoundLabel(parseInt(rKey), Object.keys(tournament.rounds).length),
+                                    isFromBracket: true
+                                });
+                            }
                         }
                     }
                 });
