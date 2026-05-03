@@ -7,7 +7,6 @@ import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, deleteDoc } fr
 
 const SettingsTab = ({ onBack }) => {
   const [isLocked, setIsLocked] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -70,38 +69,7 @@ const SettingsTab = ({ onBack }) => {
     setIsFixing(false);
   };
 
-  const handleGenerateBrackets = async () => {
-    setIsGenerating(true);
-    try {
-      const teamsSnap = await getDocs(collection(db, "teams"));
-      const allTeams = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.status === "approved");
 
-      if (allTeams.length < 2) {
-        alert("Need at least 2 approved teams!");
-        setIsGenerating(false);
-        return;
-      }
-
-      const shuffled = allTeams.sort(() => 0.5 - Math.random());
-      const batch = writeBatch(db);
-
-      for (let i = 0; i < shuffled.length; i += 2) {
-        if (shuffled[i + 1]) {
-          const matchRef = doc(collection(db, "matches"));
-          batch.set(matchRef, {
-            team1: shuffled[i].teamName,
-            team2: shuffled[i + 1].teamName,
-            status: "upcoming",
-            round: "Knockout Stage",
-            createdAt: new Date()
-          });
-        }
-      }
-      await batch.commit();
-      alert("Tournament Brackets Generated!");
-    } catch (error) { console.error(error); }
-    setIsGenerating(false);
-  };
 
   const handleResetSystem = async () => {
     if (!window.confirm("CRITICAL WARNING: This will wipe EVERYTHING (Teams, Matches, Player Stats). Continue?")) return;
@@ -225,29 +193,7 @@ const SettingsTab = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Tournament Management */}
-          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden hover:border-emerald-500/30 transition-all">
-            <div className="p-5 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <FaSitemap className="text-emerald-500 text-lg" />
-                <h3 className="text-white font-bold text-lg">Tournament Management</h3>
-              </div>
-              <p className="text-slate-500 text-xs mt-1">Generate brackets and manage tournament structure</p>
-            </div>
-            <div className="p-5">
-              <button 
-                onClick={handleGenerateBrackets} 
-                disabled={isGenerating} 
-                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-3 text-sm font-bold transition-all disabled:opacity-50"
-              >
-                <FaSitemap className={isGenerating ? "animate-spin" : ""} size={16} />
-                {isGenerating ? "Generating..." : "Generate Tournament Brackets"}
-              </button>
-              <p className="text-slate-600 text-[10px] text-center mt-3 uppercase tracking-wider">
-                ⚡ Randomized match allocation from approved teams
-              </p>
-            </div>
-          </div>
+
 
           {/* Danger Zone */}
           <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-red-500/20 overflow-hidden hover:border-red-500/40 transition-all">
