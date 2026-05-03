@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCircle, FaBan, FaFire, FaFilter, FaMapMarkerAlt, FaTv } from 'react-icons/fa';
+import { FaTrophy, FaTrash, FaFutbol, FaTimes, FaCalendarAlt, FaClock, FaCheckCircle, FaBan, FaFire, FaFilter, FaMapMarkerAlt, FaTv, FaCalendarPlus } from 'react-icons/fa';
 import { scheduleMatch, prepareMatchForResult, finalizeMatch, deleteMatch, syncMatchStatuses } from '../services/matchService';
 import { getRoundLabel, buildMatchCache, getMatchRoundFromCache } from '../services/tournamentService';
 
@@ -164,7 +164,7 @@ const MatchesTab = ({ readOnly = false }) => {
     try {
       await scheduleMatch({
         ...newMatch,
-        tournamentName: tournament?.name || "Friendly"
+        tournamentName: "Friendly"
       });
       setShowAddForm(false);
       setNewMatch({ team1Id: '', team2Id: '', team1Name: '', team2Name: '', date: '', time: '', pitch: 'Main Pitch' });
@@ -269,47 +269,100 @@ const MatchesTab = ({ readOnly = false }) => {
 
         {/* Add Match Form */}
         {showAddForm && !readOnly && (
-          <div className="bg-[#121821] backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
-            <form onSubmit={handleSchedule} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select
-                required
-                className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]"
-                onChange={(e) => {
-                  const t = teams.find((x) => x.id === e.target.value);
-                  if (t) setNewMatch({ ...newMatch, team1Id: t.id, team1Name: t.teamName });
-                }}
-              >
-                <option value="">Home Team</option>
-                {availableTeams(newMatch.team2Id).map((t) => (
-                  <option key={t.id} value={t.id}>{t.teamName} ({getPlayerCount(t.id)} players)</option>
-                ))}
-              </select>
+          <div className="bg-[#121821]/80 backdrop-blur-xl rounded-3xl p-8 border border-white/10 mb-10 shadow-2xl animate-fade-slide-up">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 bg-[#00FF9C]/10 rounded-xl flex items-center justify-center border border-[#00FF9C]/20">
+                <FaCalendarPlus className="text-[#00FF9C] text-xl" />
+              </div>
+              <div>
+                <h3 className="text-white font-black text-lg uppercase tracking-tight">Create Friendly Match</h3>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Schedule a new fixture outside the tournament</p>
+              </div>
+            </div>
 
-              <select
-                required
-                className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]"
-                onChange={(e) => {
-                  const t = teams.find((x) => x.id === e.target.value);
-                  if (t) setNewMatch({ ...newMatch, team2Id: t.id, team2Name: t.teamName });
-                }}
-              >
-                <option value="">Away Team</option>
-                {availableTeams(newMatch.team1Id).map((t) => (
-                  <option key={t.id} value={t.id}>{t.teamName} ({getPlayerCount(t.id)} players)</option>
-                ))}
-              </select>
+            <form onSubmit={handleSchedule} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Home Team */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Home Team</label>
+                  <select
+                    required
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-[#00FF9C] transition-all hover:bg-black/60"
+                    onChange={(e) => {
+                      const t = teams.find((x) => x.id === e.target.value);
+                      if (t) setNewMatch({ ...newMatch, team1Id: t.id, team1Name: t.teamName });
+                    }}
+                  >
+                    <option value="">Select Home Team</option>
+                    {availableTeams(newMatch.team2Id).map((t) => (
+                      <option key={t.id} value={t.id}>{t.teamName} ({getPlayerCount(t.id)} players)</option>
+                    ))}
+                  </select>
+                </div>
 
-              <input type="date" required className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]" onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })} />
-              <input type="time" required className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]" onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })} />
+                {/* Away Team */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Away Team</label>
+                  <select
+                    required
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-[#00FF9C] transition-all hover:bg-black/60"
+                    onChange={(e) => {
+                      const t = teams.find((x) => x.id === e.target.value);
+                      if (t) setNewMatch({ ...newMatch, team2Id: t.id, team2Name: t.teamName });
+                    }}
+                  >
+                    <option value="">Select Away Team</option>
+                    {availableTeams(newMatch.team1Id).map((t) => (
+                      <option key={t.id} value={t.id}>{t.teamName} ({getPlayerCount(t.id)} players)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-              <select className="bg-black/30 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-[#00FF9C]" value={newMatch.pitch} onChange={(e) => setNewMatch({ ...newMatch, pitch: e.target.value })}>
-                <option value="Main Pitch">Main Pitch</option>
-                <option value="Stadium A">Stadium A</option>
-                <option value="Stadium B">Stadium B</option>
-              </select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Match Date</label>
+                  <input 
+                    type="date" 
+                    required 
+                    onKeyDown={(e) => e.preventDefault()}
+                    onClick={(e) => e.currentTarget.showPicker?.()}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 font-bold cursor-pointer" 
+                    onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })} 
+                  />
+                </div>
+                <div className="w-1/3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Time</label>
+                  <input 
+                    type="time" 
+                    required 
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 font-bold" 
+                    onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })} 
+                  />
+                </div>
+              </div>
 
-              <button type="submit" className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold py-3 rounded-xl text-sm hover:scale-105 transition-all">
-                Confirm Match
+              {/* Pitch */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                  <FaMapMarkerAlt className="text-emerald-500/50" /> Pitch / Venue
+                </label>
+                <select 
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 font-bold" 
+                  value={newMatch.pitch} 
+                  onChange={(e) => setNewMatch({ ...newMatch, pitch: e.target.value })}
+                >
+                  <option value="Main Pitch">Main Pitch</option>
+                  <option value="Stadium A">Stadium A</option>
+                  <option value="Stadium B">Stadium B</option>
+                </select>
+              </div>
+              </div>
+
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-black rounded-2xl uppercase text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-[#00FF9C]/10 flex items-center justify-center gap-3">
+                <FaCheckCircle />
+                Confirm & Schedule Match
               </button>
             </form>
           </div>
