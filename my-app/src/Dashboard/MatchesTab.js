@@ -10,7 +10,7 @@ const MatchesTab = ({ readOnly = false }) => {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [tournament, setTournament] = useState(null);
-  const [activeTab, setActiveTab] = useState("upcoming"); 
+  const [activeTab, setActiveTab] = useState("upcoming");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showResultModal, setShowResultModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,17 +106,17 @@ const MatchesTab = ({ readOnly = false }) => {
     [roundFilter, tournament, matchCache],
   );
 
-  const DURATION = 20 * 60 * 1000; 
+  const DURATION = 20 * 60 * 1000;
 
   const upcomingMatches = filterByRound(
     enrichedMatches.filter((m) => {
       if (m.status === 'completed') return false;
       if (!m.date || !m.time) return true;
-      
+
       const [y, mm, d] = m.date.split('-').map(Number);
       const [h, min] = m.time.split(':').map(Number);
       const matchTime = new Date(y, mm - 1, d, h, min).getTime();
-      
+
       return matchTime > now;
     })
   );
@@ -125,12 +125,12 @@ const MatchesTab = ({ readOnly = false }) => {
     enrichedMatches.filter((m) => {
       if (m.status === 'completed') return false;
       if (!m.date || !m.time) return false;
-      
+
       const [y, mm, d] = m.date.split('-').map(Number);
       const [h, min] = m.time.split(':').map(Number);
       const matchTime = new Date(y, mm - 1, d, h, min).getTime();
-      
-      return matchTime <= now && now < (matchTime + DURATION); 
+
+      return matchTime <= now && now < (matchTime + DURATION);
     })
   );
 
@@ -229,7 +229,7 @@ const MatchesTab = ({ readOnly = false }) => {
   };
 
   const getTabCount = (tab) => {
-    switch(tab) {
+    switch (tab) {
       case 'upcoming': return upcomingMatches.length;
       case 'live': return liveMatches.length;
       case 'pending': return pendingMatches.length;
@@ -241,7 +241,7 @@ const MatchesTab = ({ readOnly = false }) => {
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-black via-slate-900 to-[#0a1927]">
       <div className="relative max-w-7xl mx-auto px-4 py-8">
-        
+
         {/* Header */}
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-6">
           <div>
@@ -253,20 +253,19 @@ const MatchesTab = ({ readOnly = false }) => {
               Stay updated with all tournament matches
             </p>
           </div>
-          
+
           {!readOnly && (
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className={`px-6 py-3 rounded-xl font-bold text-sm uppercase transition-all shadow-lg ${
-                showAddForm
+              className={`px-6 py-3 rounded-xl font-bold text-sm uppercase transition-all shadow-lg ${showAddForm
                   ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                   : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
-              }`}
+                }`}
             >
               {showAddForm ? 'Cancel' : '+ Friendly Match'}
             </button>
           )}
-        </div> 
+        </div>
 
         {/* Add Match Form */}
         {showAddForm && !readOnly && (
@@ -315,18 +314,17 @@ const MatchesTab = ({ readOnly = false }) => {
             </form>
           </div>
         )}
-        
+
         {/* Round Filter */}
         {availableRounds.length > 0 && (
           <div className="flex gap-2 mb-6 flex-wrap items-center">
             <FaFilter className="text-gray-500 text-xs" />
             <button
               onClick={() => setRoundFilter(null)}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all ${
-                roundFilter === null
+              className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all ${roundFilter === null
                   ? 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
-              }`}
+                }`}
             >
               All
             </button>
@@ -334,11 +332,10 @@ const MatchesTab = ({ readOnly = false }) => {
               <button
                 key={r.key}
                 onClick={() => setRoundFilter(r.key)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all ${
-                  roundFilter === r.key
+                className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition-all ${roundFilter === r.key
                     ? 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black'
                     : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 {r.label}
               </button>
@@ -357,11 +354,10 @@ const MatchesTab = ({ readOnly = false }) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 text-sm font-bold uppercase transition-all relative whitespace-nowrap ${
-                activeTab === tab.id 
+              className={`px-6 py-3 text-sm font-bold uppercase transition-all relative whitespace-nowrap ${activeTab === tab.id
                   ? `text-[${tab.color}] border-b-2`
                   : 'text-gray-500 hover:text-gray-300'
-              }`}
+                }`}
               style={activeTab === tab.id ? { color: tab.color, borderColor: tab.color } : {}}
             >
               <span className="flex items-center gap-2">
@@ -390,7 +386,7 @@ const MatchesTab = ({ readOnly = false }) => {
               readOnly={readOnly}
             />
           ))}
-          
+
           {activeTab === 'live' && liveMatches.map(match => (
             <MatchCard
               key={match.id}
@@ -414,7 +410,7 @@ const MatchesTab = ({ readOnly = false }) => {
               readOnly={readOnly}
             />
           ))}
-          
+
           {activeTab === 'completed' && completedMatches.map(match => (
             <MatchCard
               key={match.id}
@@ -432,14 +428,14 @@ const MatchesTab = ({ readOnly = false }) => {
           (activeTab === 'live' && liveMatches.length === 0) ||
           (activeTab === 'pending' && pendingMatches.length === 0) ||
           (activeTab === 'completed' && completedMatches.length === 0)) && (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-4">
-              <FaFutbol className="text-gray-600 text-3xl" />
+            <div className="text-center py-20">
+              <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <FaFutbol className="text-gray-600 text-3xl" />
+              </div>
+              <p className="text-gray-500 font-medium">No {activeTab} matches</p>
+              <p className="text-gray-600 text-sm mt-1">Check back later for updates</p>
             </div>
-            <p className="text-gray-500 font-medium">No {activeTab} matches</p>
-            <p className="text-gray-600 text-sm mt-1">Check back later for updates</p>
-          </div>
-        )}
+          )}
 
         {/* Stats Footer */}
         <div className="mt-12 pt-6 border-t border-white/10 flex justify-center gap-8 text-center">
@@ -479,19 +475,17 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
   const isLive = type === 'live';
   const isPending = type === 'pending';
   const isCompleted = type === 'completed';
-  
+
   return (
-    <div className={`bg-[#121821] backdrop-blur-sm rounded-2xl border overflow-hidden transition-all hover:border-[#00FF9C]/30 ${
-      isLive ? 'border-red-500/50 shadow-lg shadow-red-500/10' : 
-      isPending ? 'border-amber-500/50 shadow-lg shadow-amber-500/10' :
-      'border-white/10'
-    }`}>
-      {/* Status Bar */}
-      <div className={`px-4 py-2 border-b flex justify-between items-center ${
-        isLive ? 'bg-red-500/20 border-red-500/30' : 
-        isPending ? 'bg-amber-500/20 border-amber-500/30' :
-        'bg-white/5 border-white/10'
+    <div className={`bg-[#121821] backdrop-blur-sm rounded-2xl border overflow-hidden transition-all hover:border-[#00FF9C]/30 ${isLive ? 'border-red-500/50 shadow-lg shadow-red-500/10' :
+        isPending ? 'border-amber-500/50 shadow-lg shadow-amber-500/10' :
+          'border-white/10'
       }`}>
+      {/* Status Bar */}
+      <div className={`px-4 py-2 border-b flex justify-between items-center ${isLive ? 'bg-red-500/20 border-red-500/30' :
+          isPending ? 'bg-amber-500/20 border-amber-500/30' :
+            'bg-white/5 border-white/10'
+        }`}>
         <div className="flex items-center gap-2">
           {roundLabel && (
             <span className="text-[9px] font-bold text-[#00FF9C] uppercase bg-[#00FF9C]/10 px-2 py-0.5 rounded-full">
@@ -503,11 +497,10 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
               {match.tournamentName}
             </span>
           )}
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${
-            isLive ? 'text-red-400 animate-pulse' : 
-            isPending ? 'text-amber-400' :
-            isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
-          }`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${isLive ? 'text-red-400 animate-pulse' :
+              isPending ? 'text-amber-400' :
+                isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
+            }`}>
             {isLive ? '🔴 LIVE' : isPending ? '⏳ PENDING RESULT' : isCompleted ? '✅ FINISHED' : '📅 UPCOMING'}
           </span>
         </div>
@@ -571,11 +564,10 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
         {!isCompleted && !readOnly && !isLive && (
           <button
             onClick={onEnterResult}
-            className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${
-              isPending
+            className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${isPending
                 ? 'bg-amber-500 hover:bg-amber-400 text-black'
                 : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
-            }`}
+              }`}
           >
             {isPending ? 'Submit Match Score' : 'Enter Results Early'}
           </button>
@@ -601,7 +593,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
   const team1Players = players.filter(
     (p) => p.teamId === match.team1Id && !p.suspendedForNextMatch,
   );
-  
+
   const team2Players = players.filter(
     (p) => p.teamId === match.team2Id && !p.suspendedForNextMatch,
   );
@@ -620,7 +612,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
     const formData = new FormData(e.target);
     const score1Val = parseInt(formData.get('score1')) || 0;
     const score2Val = parseInt(formData.get('score2')) || 0;
-    
+
     // Calculate total goals assigned to players for each team
     let playerGoalsT1 = 0;
     team1Players.forEach(p => {
@@ -673,7 +665,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
               <span className="text-white font-black text-sm uppercase tracking-wider">{match.team1Name}</span>
             </div>
             <div className="flex flex-col items-center">
-               <span className="text-slate-600 font-black text-xl italic mt-[-20px]">VS</span>
+              <span className="text-slate-600 font-black text-xl italic mt-[-20px]">VS</span>
             </div>
             <div className="flex flex-col items-center gap-2">
               <div className="w-16 h-16 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-[#00FF9C]/20">
@@ -692,31 +684,31 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
               <div className="text-center">
                 <div className="flex flex-col items-center gap-3">
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{match.team1Name}</span>
-                  <input 
-                    name="score1" 
-                    type="number" 
-                    min="0" 
-                    required 
+                  <input
+                    name="score1"
+                    type="number"
+                    min="0"
+                    required
                     value={score1}
                     onChange={handleScoreChange}
-                    className="w-32 h-32 text-center text-5xl font-black text-white bg-slate-800/50 rounded-3xl border-2 border-white/10 focus:border-[#00FF9C] focus:ring-4 focus:ring-[#00FF9C]/20 focus:outline-none transition-all shadow-2xl" 
+                    className="w-32 h-32 text-center text-5xl font-black text-white bg-slate-800/50 rounded-3xl border-2 border-white/10 focus:border-[#00FF9C] focus:ring-4 focus:ring-[#00FF9C]/20 focus:outline-none transition-all shadow-2xl"
                   />
                 </div>
-                
+
                 <div className="flex flex-col items-center pt-8">
                   <span className="text-slate-600 font-black text-2xl italic">VS</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-3">
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{match.team2Name}</span>
-                  <input 
-                    name="score2" 
-                    type="number" 
-                    min="0" 
-                    required 
+                  <input
+                    name="score2"
+                    type="number"
+                    min="0"
+                    required
                     value={score2}
                     onChange={handleScoreChange}
-                    className="w-32 h-32 text-center text-5xl font-black text-white bg-slate-800/50 rounded-3xl border-2 border-white/10 focus:border-[#00FF9C] focus:ring-4 focus:ring-[#00FF9C]/20 focus:outline-none transition-all shadow-2xl" 
+                    className="w-32 h-32 text-center text-5xl font-black text-white bg-slate-800/50 rounded-3xl border-2 border-white/10 focus:border-[#00FF9C] focus:ring-4 focus:ring-[#00FF9C]/20 focus:outline-none transition-all shadow-2xl"
                   />
                 </div>
               </div>
@@ -730,25 +722,25 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
               <div className="flex items-center justify-center gap-8">
                 <div className="text-center">
                   <p className="text-gray-400 text-xs mb-2">{match.team1Name}</p>
-                  <input 
-                    name="pen1" 
-                    type="number" 
-                    min="0" 
+                  <input
+                    name="pen1"
+                    type="number"
+                    min="0"
                     required={isDraw}
-                    placeholder="0" 
-                    className="w-24 h-24 text-center text-3xl font-bold text-white bg-slate-800 rounded-2xl border-2 border-amber-500/30 focus:border-amber-500 focus:outline-none" 
+                    placeholder="0"
+                    className="w-24 h-24 text-center text-3xl font-bold text-white bg-slate-800 rounded-2xl border-2 border-amber-500/30 focus:border-amber-500 focus:outline-none"
                   />
                 </div>
                 <span className="text-gray-500 text-2xl font-bold">-</span>
                 <div className="text-center">
                   <p className="text-gray-400 text-xs mb-2">{match.team2Name}</p>
-                  <input 
-                    name="pen2" 
-                    type="number" 
-                    min="0" 
+                  <input
+                    name="pen2"
+                    type="number"
+                    min="0"
                     required={isDraw}
-                    placeholder="0" 
-                    className="w-24 h-24 text-center text-3xl font-bold text-white bg-slate-800 rounded-2xl border-2 border-amber-500/30 focus:border-amber-500 focus:outline-none" 
+                    placeholder="0"
+                    className="w-24 h-24 text-center text-3xl font-bold text-white bg-slate-800 rounded-2xl border-2 border-amber-500/30 focus:border-amber-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -766,7 +758,7 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Player performance & Cards</p>
               </div>
             </div>
-            
+
             {/* Team 1 Players */}
             <div className="mb-10">
               <div className="flex items-center justify-between mb-4 px-2">
@@ -790,34 +782,34 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                     </div>
                     <div className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <input 
-                          name={`goals-${player.id}`} 
-                          type="number" 
-                          min="0" 
-                          defaultValue="0" 
-                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-white rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
+                        <input
+                          name={`goals-${player.id}`}
+                          type="number"
+                          min="0"
+                          defaultValue="0"
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-white rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg"
                         />
                         <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Goals</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <input 
-                          name={`yellow-${player.id}`} 
-                          type="number" 
-                          min="0" 
-                          max="2" 
-                          defaultValue="0" 
-                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-yellow-400 rounded-2xl focus:border-yellow-400 focus:outline-none transition-all shadow-lg" 
+                        <input
+                          name={`yellow-${player.id}`}
+                          type="number"
+                          min="0"
+                          max="2"
+                          defaultValue="0"
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-yellow-400 rounded-2xl focus:border-yellow-400 focus:outline-none transition-all shadow-lg"
                         />
                         <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Yellow</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <input 
-                          name={`red-${player.id}`} 
-                          type="number" 
-                          min="0" 
-                          max="1" 
-                          defaultValue="0" 
-                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-red-500 rounded-2xl focus:border-red-400 focus:outline-none transition-all shadow-lg" 
+                        <input
+                          name={`red-${player.id}`}
+                          type="number"
+                          min="0"
+                          max="1"
+                          defaultValue="0"
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-red-500 rounded-2xl focus:border-red-400 focus:outline-none transition-all shadow-lg"
                         />
                         <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Red</span>
                       </div>
@@ -855,34 +847,34 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
                     </div>
                     <div className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <input 
-                          name={`goals-${player.id}`} 
-                          type="number" 
-                          min="0" 
-                          defaultValue="0" 
-                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-white rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg" 
+                        <input
+                          name={`goals-${player.id}`}
+                          type="number"
+                          min="0"
+                          defaultValue="0"
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-white rounded-2xl focus:border-[#00FF9C] focus:outline-none transition-all shadow-lg"
                         />
                         <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Goals</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <input 
-                          name={`yellow-${player.id}`} 
-                          type="number" 
-                          min="0" 
-                          max="2" 
-                          defaultValue="0" 
-                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-yellow-400 rounded-2xl focus:border-yellow-400 focus:outline-none transition-all shadow-lg" 
+                        <input
+                          name={`yellow-${player.id}`}
+                          type="number"
+                          min="0"
+                          max="2"
+                          defaultValue="0"
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-yellow-400 rounded-2xl focus:border-yellow-400 focus:outline-none transition-all shadow-lg"
                         />
                         <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Yellow</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <input 
-                          name={`red-${player.id}`} 
-                          type="number" 
-                          min="0" 
-                          max="1" 
-                          defaultValue="0" 
-                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-red-500 rounded-2xl focus:border-red-400 focus:outline-none transition-all shadow-lg" 
+                        <input
+                          name={`red-${player.id}`}
+                          type="number"
+                          min="0"
+                          max="1"
+                          defaultValue="0"
+                          className="w-20 h-20 text-center text-2xl font-black bg-slate-900 border-2 border-white/10 text-red-500 rounded-2xl focus:border-red-400 focus:outline-none transition-all shadow-lg"
                         />
                         <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">Red</span>
                       </div>
@@ -898,8 +890,8 @@ const ResultModal = ({ match, players, isSubmitting, onClose, onSubmit }) => {
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isSubmitting}
             className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black py-4 rounded-xl font-bold text-lg shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50"
           >
