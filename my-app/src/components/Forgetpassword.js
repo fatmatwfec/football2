@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { auth } from "../firebase"; 
+import { auth } from "../firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { FaEnvelope, FaArrowLeft, FaKey, FaCheckCircle } from "react-icons/fa";
 
@@ -37,7 +37,7 @@ const ForgotPassword = () => {
 
     return (
         <div className="min-h-screen w-screen bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend'] overflow-hidden">
-            
+
             {/* Animated background elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-[#00FF9C]/10 rounded-full blur-[100px]"></div>
@@ -48,25 +48,25 @@ const ForgotPassword = () => {
 
             {/* Page Content */}
             <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-73px)] p-6">
-                
+
                 <div className="w-full max-w-md">
                     <div className="bg-gradient-to-br from-[#121821] to-[#0a0f16] rounded-2xl border border-white/10 shadow-2xl overflow-hidden backdrop-blur-sm">
-                        
+
                         {/* Header */}
                         <div className="px-8 pt-8 pb-6 text-center border-b border-white/10">
                             <div className="w-16 h-16 bg-gradient-to-br from-[#00FF9C]/10 to-emerald-600/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[#00FF9C]/20">
                                 <FaKey className="text-[#00FF9C] text-2xl" />
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-1">Forgot Password?</h2>
-                            <p className="text-gray-400 text-sm">Don't worry, we'll send you a reset link</p>
+                            <p className="text-gray-500 text-l ">Don't worry, we'll send you a reset link</p>
                         </div>
 
                         {/* Form */}
                         <form onSubmit={handleResetPassword} className="p-8 space-y-5">
-                            
+
                             {/* Email Field */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                <label className="block text-xl font-medium text-gray-300 mb-2">
                                     Email Address
                                 </label>
                                 <div className="relative">
@@ -79,7 +79,7 @@ const ForgotPassword = () => {
                                         dir="ltr"
                                         className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF9C] focus:ring-1 focus:ring-[#00FF9C] transition-all"
                                     />
-                                    <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+                                    <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-l" />
                                 </div>
                             </div>
 
@@ -87,8 +87,8 @@ const ForgotPassword = () => {
                             {message && (
                                 <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                                     <div className="flex items-center justify-center gap-2">
-                                        <FaCheckCircle className="text-green-400 text-sm" />
-                                        <p className="text-green-400 text-sm text-center">{message}</p>
+                                        <FaCheckCircle className="text-green-400 text-l" />
+                                        <p className="text-green-400 text-l text-center">{message}</p>
                                     </div>
                                 </div>
                             )}
@@ -96,7 +96,7 @@ const ForgotPassword = () => {
                             {/* Error Message */}
                             {error && (
                                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                                    <p className="text-red-400 text-sm text-center">{error}</p>
+                                    <p className="text-red-400 text-l text-center">{error}</p>
                                 </div>
                             )}
 
@@ -118,11 +118,11 @@ const ForgotPassword = () => {
 
                             {/* Back to Login Link */}
                             <div className="text-center pt-2">
-                                <Link 
-                                    to="/login" 
-                                    className="text-sm text-gray-400 hover:text-[#00FF9C] transition-colors inline-flex items-center gap-1"
+                                <Link
+                                    to="/login"
+                                    className="text-xl text-gray-400 hover:text-[#00FF9C] transition-colors inline-flex items-center gap-1"
                                 >
-                                    <FaArrowLeft className="text-xs" />
+                                    <FaArrowLeft className="text-l" />
                                     Back to Login
                                 </Link>
                             </div>
@@ -130,7 +130,7 @@ const ForgotPassword = () => {
 
                         {/* Footer Note */}
                         <div className="px-8 pb-8 text-center">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-sm text-gray-500">
                                 Check your spam folder if you don't see the email
                             </p>
                         </div>

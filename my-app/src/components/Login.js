@@ -100,7 +100,7 @@ function Login() {
       {/* Login Card */}
       <div className="relative w-full max-w-md">
         <div className="bg-gradient-to-br from-[#121821] to-[#0a0f16] rounded-2xl border border-white/10 shadow-2xl overflow-hidden backdrop-blur-sm">
-          
+
           {/* Header */}
           <div className="px-8 pt-8 pb-6 text-center border-b border-white/10">
             <div className="w-16 h-16 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -119,14 +119,13 @@ function Login() {
                     setUserType("student");
                     setError("");
                   }}
-                  className={`flex-1 py-2 rounded-md font-medium transition-all text-sm ${
-                    userType === "student"
-                      ? "bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black"
-                      : "text-gray-400 hover:text-white"
-                  }`}
+                  className={`flex-1 py-2 rounded-md font-medium transition-all text-xl ${userType === "student"
+                    ? "bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black"
+                    : "text-white hover:text-green-500"
+                    }`}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <FaGraduationCap className="text-sm" />
+                    <FaGraduationCap className="text-xl" />
                     Student
                   </div>
                 </button>
@@ -136,14 +135,13 @@ function Login() {
                     setUserType("admin");
                     setError("");
                   }}
-                  className={`flex-1 py-2 rounded-md font-medium transition-all text-sm ${
-                    userType === "admin"
-                      ? "bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black"
-                      : "text-gray-400 hover:text-white"
-                  }`}
+                  className={`flex-1 py-2 rounded-md font-medium transition-all text-xl ${userType === "admin"
+                    ? "bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black"
+                    : "text-white hover:text-green-500"
+                    }`}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <FaShieldAlt className="text-sm" />
+                    <FaShieldAlt className="text-xl" />
                     Admin
                   </div>
                 </button>
@@ -155,7 +153,7 @@ function Login() {
           <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
             {/* Student ID Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-l font-medium text-gray-300 mb-1">
                 {userType === "student" ? "Student ID" : "Admin ID"}
               </label>
               <div className="relative">
@@ -177,7 +175,7 @@ function Login() {
 
             {/* Password Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-l font-medium text-gray-300 mb-1">
                 Password
               </label>
               <div className="relative">
@@ -206,7 +204,7 @@ function Login() {
                 to="/Forgetpassword"
                 className="text-sm text-gray-400 hover:text-[#00FF9C] transition-colors"
               >
-                Forgot password?
+                Forgot password ?
               </Link>
             </div>
 
@@ -221,11 +219,11 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-semibold py-2.5 rounded-lg hover:scale-105 transition-all duration-300 glow-on-hover disabled:opacity-50 disabled:hover:scale-100"
+              className="w-full bg-gradient-to-r from-[#00FF9C]  to-emerald-600 text-black font-semibold py-2.5 rounded-lg hover:scale-105 transition-all duration-300 glow-on-hover disabled:opacity-50 disabled:hover:scale-100"
             >
               {loading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                <div className="flex items-center justify-center  gap-2">
+                  <div className="w-5 h-5 border-2 border-black/30 border-t-black  rounded-full animate-spin"></div>
                   Signing in...
                 </div>
               ) : (
@@ -237,7 +235,7 @@ function Login() {
             {userType === "student" && (
               <div className="text-center pt-2">
                 <p className="text-sm text-gray-400">
-                  Don't have an account?{" "}
+                  Don't have an account ?{" "}
                   <Link to="/register" className="text-[#00FF9C] hover:text-[#00FF9C]/80 font-medium transition-colors">
                     Sign up
                   </Link>
@@ -248,7 +246,7 @@ function Login() {
             {/* Admin Note */}
             {userType === "admin" && (
               <div className="text-center pt-2">
-                <p className="text-xs text-gray-500">
+                <p className="text-l text-gray-500">
                   Admin accounts are created by system administrators only
                 </p>
               </div>
@@ -257,7 +255,7 @@ function Login() {
         </div>
 
         {/* Footer Note */}
-        <p className="text-center text-gray-500 text-xs mt-6">
+        <p className="text-center text-gray-500 text-sm mt-6">
           Secure login powered by University Authentication System
         </p>
       </div>
