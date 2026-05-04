@@ -93,7 +93,7 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend'] overflow-hidden">
+    <div className="min-h-screen w-screen bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend'] overflow-hidden">
       
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
