@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaTimes, FaPaperPlane, FaRobot } from "react-icons/fa";
 
-const AI_KEY = "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";
+const AI_KEY = process.env.REACT_APP_OPENROUTER_API_KEY;
 
 const AIChatModal = ({ onClose, userData, teamData, nextMatch, userRank }) => {
     const [messages, setMessages] = useState([
