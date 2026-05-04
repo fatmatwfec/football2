@@ -202,9 +202,7 @@ const StudentDashboard = () => {
         });
 
         const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
-            const data = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(m => m.tournamentName !== "Friendly");
+            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             setMatches(data);
         });
 
