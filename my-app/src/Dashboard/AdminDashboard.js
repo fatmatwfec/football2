@@ -126,7 +126,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend']">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend']">
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
