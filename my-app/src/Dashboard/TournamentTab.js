@@ -427,8 +427,8 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
                       <div className="text-left">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1 mb-2 block tracking-widest">Schedule Dates</label>
-                        <div className="flex gap-4">
-                          <div className="flex-1">
+                        <div className="flex flex-wrap gap-4">
+                          <div className="flex-1 min-w-[140px]">
                             <input 
                               type="date" 
                               value={dateInput}
@@ -438,7 +438,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                               className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 transition-all font-bold"
                             />
                           </div>
-                          <div className="w-1/3">
+                          <div className="flex-1 min-w-[100px]">
                             <input 
                               type="time" 
                               value={tournamentStartTime}
@@ -446,7 +446,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                               className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500 font-bold"
                             />
                           </div>
-                          <button onClick={addDate} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase">Add</button>
+                          <button onClick={addDate} className="w-full sm:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-xl transition-all text-xs uppercase">Add</button>
                         </div>
                       </div>
                       
