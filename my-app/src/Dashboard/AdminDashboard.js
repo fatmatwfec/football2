@@ -171,10 +171,10 @@ const AdminDashboard = () => {
           <div className="w-full px-6 lg:px-8 py-4 flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-black font-black text-sm md:text-xl">SFC</span>
+              <div className="w-20 h-20 md:w-20 md:h-20 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-black font-black text-sm md:text-4xl">SFC</span>
               </div>
-              <div className="hidden xs:block">
+              <div >
                 <h1 className="text-white text-sm md:text-3xl font-bold tracking-tight whitespace-nowrap">Science FC League</h1>
               </div>
             </div>
@@ -213,7 +213,7 @@ const AdminDashboard = () => {
                 onClick={() => setIsAIChatOpen(true)}
                 className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
               >
-                <FaRobot className="text-sm md:text-lg" />
+                <FaRobot className="text-lg md:text-lg" />
               </button>
               <button
                 onClick={() => setIsModalOpen(true)}
