@@ -190,8 +190,8 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
         </div>
 
         {/* Search Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col lg:flex-row gap-4 mb-6">
+          <div className="relative w-full lg:max-w-md">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm" />
             <input
               type="text"
@@ -202,7 +202,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Stats Period:</label>
               <select
@@ -230,14 +230,14 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
             </button>
           </div>
 
-          <div className="flex items-center gap-2 bg-black/40 p-1 border border-white/10 rounded-xl">
+          <div className="flex flex-wrap items-center gap-2 bg-black/40 p-1 border border-white/10 rounded-xl">
             <button
               onClick={() => setFilterType("all")}
               className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
                 filterType === "all" ? 'bg-emerald-500 text-black' : 'text-slate-400 hover:text-white'
               }`}
             >
-              All Players
+              All
             </button>
             <button
               onClick={() => setFilterType("pending")}
@@ -245,7 +245,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                 filterType === "pending" ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Pending Activation
+              Pending
               {allPlayers.filter(p => !p.isVerified).length > 0 && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               )}
@@ -264,7 +264,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                 filterType === "solo" ? 'bg-purple-500 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Solo Players
+              Solo
               {allPlayers.filter(p => p.searchingForTeam && !p.hasTeam).length > 0 && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
               )}
@@ -311,9 +311,9 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
         )}
 
         {/* Players Table */}
-        <div className="bg-black/30 backdrop-blur-sm rounded-2xl border border-white/5 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+        <div className="bg-black/30 backdrop-blur-sm rounded-2xl border border-white/5 shadow-xl overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-black/50 border-b border-white/5">
                 <tr>
                   <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rank</th>

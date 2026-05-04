@@ -12,9 +12,6 @@ body {
    background-size: cover;
    background-attachment: fixed;
    background-position: center;
-   display: flex;
-   justify-content: center;
-   align-items: center;
    min-height: 100vh;
 }
 
@@ -28,8 +25,9 @@ body {
 
 .wrapper {
    background: rgba(255, 255, 255, 0.05);
-   width: 420px;
-   min-height: 670px;
+   width: 100%;
+   max-width: 420px;
+   min-height: 600px;
    border-radius: 20px;
    color: white;
    display: flex;
@@ -39,8 +37,8 @@ body {
    border: 2px solid rgba(225, 225, 255, 0.1);
    backdrop-filter: blur(15px);
    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-   padding: 40px;
-   margin: 20px;
+   padding: 30px 20px;
+   margin: 20px auto;
 }
 
 form {
