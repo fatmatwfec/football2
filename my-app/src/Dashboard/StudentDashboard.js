@@ -251,6 +251,7 @@ const StudentDashboard = () => {
                     goals: doc.data().goals || 0,
                     score: doc.data().score || 0
                 }));
+                
 
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
 
