@@ -5,7 +5,7 @@ const AIChatSidebar = ({ isOpen, onClose, stats, players = [], teams = [], match
     const [messages, setMessages] = useState([
         {
             role: "assistant",
-            content: `مرحباً Admin! 👋\nأنا مساعدك الذكي لإدارة البطولة\n\n📊 تحليل الأداء والإحصائيات\n⚽ متابعة المباريات والنتائج\n🚫 إدارة الإيقافات والبطاقات\n🏆 توقعات وتحليل الفرق\n💡 نصائح إدارية للبطولة`
+            content: `Hallo, Admin! \n أنا مساعدك الذكي لإدارة البطولة\n\n📊 تحليل الأداء والإحصائيات\n⚽ متابعة المباريات والنتائج\n🚫 إدارة الإيقافات والبطاقات\n🏆 توقعات وتحليل الفرق\n💡 نصائح إدارية للبطولة`
         }
     ]);
     const [input, setInput] = useState("");
@@ -53,10 +53,10 @@ Current tournament data:
 
 Teams summary:
 ${teams.slice(0, 10).map(t => {
-    const tp = players.filter(p => p.teamId === t.id);
-    const goals = tp.reduce((s, p) => s + (p.goals || 0), 0);
-    return `- ${t.teamName}: ${tp.length} players, ${goals} goals, Strength ${getTeamStrength(t)}`;
-}).join("\n")}
+        const tp = players.filter(p => p.teamId === t.id);
+        const goals = tp.reduce((s, p) => s + (p.goals || 0), 0);
+        return `- ${t.teamName}: ${tp.length} players, ${goals} goals, Strength ${getTeamStrength(t)}`;
+    }).join("\n")}
 
 Suspended players:
 ${suspendedPlayers.slice(0, 10).map(p => `- ${p.name} (${p.suspendReason || "suspended"})`).join("\n") || "None"}
@@ -151,7 +151,7 @@ CRITICAL RULES:
                             <FaRobot className="text-emerald-400 text-lg" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-white font-bold text-sm">AI Admin Assistant / المساعد الإداري</h3>
+                            <h3 className="text-white font-bold text-3xl">AI Admin Assistant</h3>
                             <div className="flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                                 <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Tournament Intelligence</span>
@@ -164,23 +164,23 @@ CRITICAL RULES:
 
                     {/* Stats Strip */}
                     <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center gap-2 flex-shrink-0 overflow-x-auto">
-                        <span className="text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap">Stats:</span>
-                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[15px] text-white font-bold uppercase whitespace-nowrap">Stats:</span>
+                        <span className="text-[16px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
                             {stats?.total || players.length} Players
                         </span>
-                        <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[16px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
                             {teams.length} Teams
                         </span>
-                        <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[16px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/20 font-bold whitespace-nowrap">
                             {completedMatches.length} Done
                         </span>
                         {suspendedPlayers.length > 0 && (
-                            <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
+                            <span className="text-[16px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
                                 {suspendedPlayers.length} Suspended 🚫
                             </span>
                         )}
                         {liveMatches.length > 0 && (
-                            <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 font-bold whitespace-nowrap animate-pulse">
+                            <span className="text-[16px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 font-bold whitespace-nowrap animate-pulse">
                                 🔴 {liveMatches.length} Live
                             </span>
                         )}
@@ -195,11 +195,10 @@ CRITICAL RULES:
                                         <FaRobot className="text-emerald-400 text-xs" />
                                     </div>
                                 )}
-                                <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                                    msg.role === "user"
-                                        ? "bg-emerald-600 text-white rounded-br-sm"
-                                        : "bg-white/5 border border-white/10 text-gray-200 rounded-bl-sm"
-                                }`}>
+                                <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user"
+                                    ? "bg-emerald-600 text-white rounded-br-sm"
+                                    : "bg-white/5 border border-white/10 text-gray-200 rounded-bl-sm"
+                                    }`}>
                                     {msg.content}
                                 </div>
                             </div>
