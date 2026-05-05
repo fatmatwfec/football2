@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.2)'
   },
-  headerTitle: { color: '#3b82f6', fontSize: 20, fontWeight: 'bold' },
+  headerTitle: { color: '#10b981', fontSize: 20, fontWeight: 'bold' },
   backButton: { color: 'white', fontSize: 16 },
   scrollContent: { padding: 20, alignItems: 'center' },
   title: { color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 30 },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#10b981',
     width: 35,
     height: 35,
     borderRadius: 18,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)'
   },
   saveButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#10b981',
     width: '100%',
     padding: 15,
     borderRadius: 30,
