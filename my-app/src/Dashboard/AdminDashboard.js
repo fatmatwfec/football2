@@ -128,7 +128,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend']">
+     <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-black via-slate-900 to-[#0a1927] font-['Lexend']">
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -170,12 +170,12 @@ const AdminDashboard = () => {
         <header className="relative z-20 w-full backdrop-blur-md bg-black/30 border-b border-white/10 sticky top-0">
           <div className="w-full px-6 lg:px-8 py-4 flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-20 h-20 md:w-20 md:h-20 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-black font-black text-sm md:text-4xl">SFC</span>
+             <div className="flex items-center gap-3">
+              <div className="w-20 h-20 bg-gradient-to-br from-[#00FF9C] to-emerald-600 rounded-3xl flex items-center justify-center">
+                <span className="text-black font-black text-4xl">SFC</span>
               </div>
-              <div >
-                <h1 className="text-white text-sm md:text-3xl font-bold tracking-tight whitespace-nowrap">Science FC League</h1>
+              <div>
+                <h1 className="text-white text-3xl font-bold tracking-tight">Science FC League</h1>
               </div>
             </div>
 
@@ -208,25 +208,24 @@ const AdminDashboard = () => {
             </div>
 
             {/* Right Buttons */}
-            <div className="flex items-center gap-2 md:gap-3">
+               <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsAIChatOpen(true)}
-                className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                 className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
               >
-                <FaRobot className="text-lg md:text-lg" />
+                 <FaRobot className="text-2xl" />
               </button>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-3 md:px-6 py-2 md:py-2.5 rounded-lg md:rounded-xl hover:scale-105 transition-all duration-300 glow-on-hover flex items-center gap-1"
-              >
-                <span className="text-base md:text-lg">+</span>
-                <span className="hidden sm:inline text-xs md:text-sm">Create Team</span>
+                 className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-6 py-2.5 rounded-xl hover:scale-105 transition-all duration-300 glow-on-hover"
+                 >
+                + Create Team
               </button>
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="md:hidden p-2 md:p-2.5 rounded-lg md:rounded-xl bg-white/5 border border-white/10 text-white"
+                className="md:hidden p-2.5 rounded-xl bg-white/5 border border-white/10 text-white"
               >
-                <BsGridFill className="text-sm" />
+                <BsGridFill />
               </button>
             </div>
           </div>
@@ -237,27 +236,27 @@ const AdminDashboard = () => {
             {/* HERO SECTION */}
             {activeTab === "dashboard" && (
               <div className="animate-fade-slide-up w-full">
-                <div className="text-center py-8 md:py-20 px-4">
-                  <div className="inline-flex items-center gap-2 bg-[#00FF9C]/10 backdrop-blur-sm border border-[#00FF9C]/20 rounded-full px-3 py-1 md:px-4 md:py-1.5 mb-4 md:mb-6">
-                    <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-[#00FF9C] rounded-full animate-pulse"></span>
-                    <span className="text-[#00FF9C] text-[10px] md:text-sm font-medium tracking-wide uppercase">LIVE TOURNAMENT</span>
+                 <div className="text-center py-12 md:py-20">
+                  <div className="inline-flex items-center gap-2 bg-[#00FF9C]/10 backdrop-blur-sm border border-[#00FF9C]/20 rounded-full px-4 py-1.5 mb-6">
+                    <span className="w-2 h-2 bg-[#00FF9C] rounded-full animate-pulse"></span>
+                    <span className="text-[#00FF9C] text-sm font-medium tracking-wide">LIVE TOURNAMENT</span>
                   </div>
-                  <h1 className="text-3xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 leading-tight">
+                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight mb-4 leading-tight">
                     Science Faculty Football
                   </h1>
-                  <p className="text-gray-400 text-sm md:text-lg max-w-2xl mx-auto mb-6 md:mb-8">
+                 <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto mb-8">
                     The ultimate battle of skill, strategy, and passion. Watch your favorite faculty teams compete for glory.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
+                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <button
                       onClick={() => setActiveTab("schedule")}
-                      className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-5 md:px-8 py-3 md:py-4 rounded-xl text-sm md:text-lg hover:scale-105 transition-all duration-300 glow-on-hover flex items-center justify-center gap-2"
+                     className="bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black font-bold px-6 md:px-8 py-3 md:py-4 rounded-xl text-base md:text-lg hover:scale-105 transition-all duration-300 glow-on-hover flex items-center justify-center gap-2"
                     >
                       <FaFutbol /> View Matches
                     </button>
                     <button
                       onClick={() => setActiveTab("teams")}
-                      className="bg-white/5 border border-white/10 text-white font-bold px-5 md:px-8 py-3 md:py-4 rounded-xl text-sm md:text-lg hover:bg-white/10 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+                     className="bg-white/5 border border-white/10 text-white font-bold px-6 md:px-8 py-3 md:py-4 rounded-xl text-base md:text-lg hover:bg-white/10 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
                     >
                       Browse Teams
                     </button>
