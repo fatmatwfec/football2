@@ -7,7 +7,7 @@ const AIChatModal = ({ onClose, userData, teamData, nextMatch, userRank }) => {
     const [messages, setMessages] = useState([
         {
             role: "assistant",
-            content: `مرحباً ${userData?.name || "لاعب"} / Hello! 👋\nأنا مساعدك الرياضي / I'm your AI Sports Assistant\n⚽ نصايح تكتيكية / Tactical tips\n💪 برامج تدريب / Training programs\n🔥 تحفيز / Motivation\n📊 تحليل أداء / Performance analysis`
+            content: ` Hello! ${userData?.name || "لاعب"} \n I'm your AI Sports Assistant\n I can Help You in : \n 1- Tactical tips\n 2- Training programs\n 3- Motivation\n 4- Performance analysis`
         }
     ]);
     const [input, setInput] = useState("");
@@ -81,14 +81,14 @@ CRITICAL RULES:
                 throw new Error(data.error.message);
             }
 
-            const aiReply = data.choices?.[0]?.message?.content || "Sorry, an error occurred. / عذراً، حدث خطأ.";
+            const aiReply = data.choices?.[0]?.message?.content || "Sorry, an error occurred.";
             setMessages(prev => [...prev, { role: "assistant", content: aiReply }]);
 
         } catch (err) {
             console.error(err);
             setMessages(prev => [...prev, {
                 role: "assistant",
-                content: "⚠️ Connection error. Please check your internet. / خطأ في الاتصال. تحقق من الإنترنت."
+                content: "Connection error. Please check your internet."
             }]);
         }
 
@@ -114,7 +114,7 @@ CRITICAL RULES:
                         <FaRobot className="text-emerald-400 text-lg" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-white font-bold text-sm">AI Sports Assistant / المساعد الرياضي</h3>
+                        <h3 className="text-white font-bold text-xl">AI Sports Assistant</h3>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                             <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">AI Powered</span>
@@ -127,24 +127,24 @@ CRITICAL RULES:
 
                 {/* Player Info Strip */}
                 <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center gap-3 flex-shrink-0 overflow-x-auto">
-                    <span className="text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap">Stats:</span>
+                    <span className="text-[13px] text-White font-bold uppercase whitespace-nowrap"> Stats : </span>
                     {userData?.position && (
-                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[15px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
                             {userData.position}
                         </span>
                     )}
                     {userData?.goals > 0 && (
-                        <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[15px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
                             {userData.goals} Goals ⚽
                         </span>
                     )}
                     {userRank && (
-                        <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[15px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold whitespace-nowrap">
                             Rank #{userRank}
                         </span>
                     )}
                     {nextMatch && (
-                        <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[15px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
                             vs {nextMatch.opponentName}
                         </span>
                     )}
@@ -156,14 +156,13 @@ CRITICAL RULES:
                         <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                             {msg.role === "assistant" && (
                                 <div className="w-7 h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center mr-2 flex-shrink-0 mt-1 border border-emerald-500/20">
-                                    <FaRobot className="text-emerald-400 text-xs" />
+                                    <FaRobot className="text-emerald-400 text-xl" />
                                 </div>
                             )}
-                            <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                                msg.role === "user"
-                                    ? "bg-emerald-600 text-white rounded-br-sm"
-                                    : "bg-white/5 border border-white/10 text-gray-200 rounded-bl-sm"
-                            }`}>
+                            <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user"
+                                ? "bg-emerald-600 text-white rounded-br-sm"
+                                : "bg-white/5 border border-white/10 text-gray-200 rounded-bl-sm"
+                                }`}>
                                 {msg.content}
                             </div>
                         </div>
@@ -174,7 +173,7 @@ CRITICAL RULES:
                             <div className="w-7 h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center mr-2 flex-shrink-0 border border-emerald-500/20">
                                 <FaRobot className="text-emerald-400 text-xs" />
                             </div>
-                            <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl flex items-center gap-1.5">
+                            <div className="bg-black border border-white/10 px-4 py-3 rounded-2xl flex items-center gap-1.5">
                                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
                                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
                                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
@@ -208,7 +207,7 @@ CRITICAL RULES:
                                 sendMessage();
                             }
                         }}
-                        placeholder="Ask me anything / اسألني أي حاجة..."
+                        placeholder="Ask me anything "
                         className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500/50 transition-all placeholder-gray-600"
                     />
                     <button
