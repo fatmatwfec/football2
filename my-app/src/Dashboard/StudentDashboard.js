@@ -5,7 +5,8 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot } from "react-icons/fa";
+import AIChatModal from "../components/AIChatModal";
 
 const StudentDashboard = () => {
     const [userData, setUserData] = useState(null);
@@ -27,8 +28,8 @@ const StudentDashboard = () => {
     const [allStudents, setAllStudents] = useState([]);
     const [tournament, setTournament] = useState(null);
     const [now, setNow] = useState(Date.now());
+    const [showAIChat, setShowAIChat] = useState(false);
 
-    // تحديث الوقت كل دقيقة لضمان دقة حالة المباريات اللايف
     useEffect(() => {
         const interval = setInterval(() => {
             setNow(Date.now());
@@ -87,14 +88,12 @@ const StudentDashboard = () => {
         };
     }, [navigate]);
 
-    // useEffect جديد لمتابعة الماتشات الخاصة بفريق الطالب
     useEffect(() => {
         if (!userData?.teamId) {
             setNextMatch(null);
             return;
         }
 
-        // 1. أولاً نبحث في الماتشات المجدولة رسمياً في مجموعة matches
         const scheduledMatches = matches.filter(m => {
             if (!m.date || !m.time) return false;
             const [y, mm, d] = m.date.split('-').map(Number);
@@ -106,7 +105,6 @@ const StudentDashboard = () => {
                 matchTime > now;
         });
 
-        // 2. ثانياً نبحث في البطولة (الـ Bracket) عن ماتشات غير مجدولة رسمياً بعد
         const bracketMatches = [];
         if (tournament?.rounds) {
             Object.entries(tournament.rounds).forEach(([rKey, roundMatches]) => {
@@ -115,7 +113,6 @@ const StudentDashboard = () => {
                     const notFinished = !m.winner;
 
                     if (isMyTeam && notFinished) {
-                        // نتأكد إنه مش موجود أصلاً في قائمة الماتشات (حتى القديمة منها لضمان عدم تكرارها هنا)
                         const alreadyScheduled = matches.some(sm =>
                             (sm.team1Id === m.team1?.id && sm.team2Id === m.team2?.id) ||
                             (sm.team1Id === m.team2?.id && sm.team2Id === m.team1?.id)
@@ -123,8 +120,7 @@ const StudentDashboard = () => {
 
                         if (!alreadyScheduled) {
                             const roundDateInfo = tournament.roundDateMap?.[rKey];
-                            
-                            // فحص إذا كان وقت الدور قد مضى بالفعل
+
                             let isPast = false;
                             if (roundDateInfo?.date) {
                                 const [y, mm, d] = roundDateInfo.date.split('-').map(Number);
@@ -160,7 +156,6 @@ const StudentDashboard = () => {
             return;
         }
 
-        // ترتيب حسب التاريخ والوقت
         const sorted = allPotentialMatches.sort((a, b) => {
             if (!a.date || a.date === "TBD") return 1;
             if (!b.date || b.date === "TBD") return -1;
@@ -171,7 +166,6 @@ const StudentDashboard = () => {
 
         const next = sorted[0];
 
-        // حل اسم الخصم
         let opponentName = "TBD";
         if (next.isFromBracket) {
             opponentName = next.team1Id === userData.teamId ? next.team2Name : next.team1Name;
@@ -181,10 +175,8 @@ const StudentDashboard = () => {
             opponentName = opponentTeam?.teamName || next.team1Name || next.team2Name || "TBD";
         }
 
-        // حل اسم الدور لو مش موجود (للماتشات المجدولة يدوياً)
         let roundLabel = next.roundLabel;
         if (!roundLabel && tournament?.rounds) {
-            // نحاول نعرف الدور من الـ IDs
             Object.entries(tournament.rounds).forEach(([rKey, roundMatches]) => {
                 const found = roundMatches.find(m =>
                     (m.team1?.id === next.team1Id && m.team2?.id === next.team2Id) ||
@@ -226,7 +218,6 @@ const StudentDashboard = () => {
         };
     }, []);
 
-    // فصل منطق تصفية المباريات ليعتمد على الوقت الحالي (now)
     useEffect(() => {
         const DURATION = 20 * 60 * 1000;
 
@@ -260,8 +251,8 @@ const StudentDashboard = () => {
                     goals: doc.data().goals || 0,
                     score: doc.data().score || 0
                 }));
+                
 
-                // ترتيب حسب الأهداف أولاً، ثم النقاط
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
 
                 setAllStudents(students.map(s => ({
@@ -289,21 +280,17 @@ const StudentDashboard = () => {
 
         try {
             const teamRef = doc(db, "teams", req.teamId);
-
-            // ✅ تحقق إن التيم موجود
             const teamSnap = await getDoc(teamRef);
 
             if (!teamSnap.exists()) {
                 return alert("Team not found ");
             }
 
-            // ✅ ضيف اللاعب للتيم
             await updateDoc(teamRef, {
                 memberIds: arrayUnion(user.uid),
                 members: arrayUnion(userData.name),
             });
 
-            // ✅ تحديث بيانات المستخدم
             await updateDoc(doc(db, "users", user.uid), {
                 hasTeam: true,
                 teamId: req.teamId,
@@ -319,7 +306,6 @@ const StudentDashboard = () => {
         }
     };
 
-    // رفض الدعوة
     const rejectInvite = async (req) => {
         const user = auth.currentUser;
         const updatedRequests = userData.teamRequests.filter(
@@ -330,7 +316,6 @@ const StudentDashboard = () => {
         });
     };
 
-    // ترك الفريق
     const leaveTeam = async () => {
         const user = auth.currentUser;
         const index = teamData.memberIds.findIndex((id) => id === user.uid);
@@ -367,10 +352,8 @@ const StudentDashboard = () => {
         if (!window.confirm("Are you sure you want to delete the team? All members will become Free Agents.")) return;
 
         try {
-            // 1. نجلب كل الأعضاء الحاليين في الفريق لتحديث بياناتهم
             const memberIds = teamData.memberIds;
 
-            // 2. تحديث كل لاعب في الفريق ليصبح Free Agent
             const updatePromises = memberIds.map(id =>
                 updateDoc(doc(db, "users", id), { hasTeam: false, teamId: "", assignedTeam: "", teamRequests: [] })
             );
@@ -383,7 +366,6 @@ const StudentDashboard = () => {
         }
     };
 
-    // إزالة لاعب (من قبل القائد)
     const removePlayer = async (index) => {
         const newIds = [...teamData.memberIds];
         const newNames = [...teamData.members];
@@ -404,14 +386,12 @@ const StudentDashboard = () => {
         });
     };
 
-
     const MAX_PLAYERS = 7;
 
     const sendInvite = async () => {
         if (!newMemberCode.trim()) return alert("Enter student code");
 
         try {
-            // ✅ هات بيانات التيم
             const teamRef = doc(db, "teams", userData.teamId);
             const teamSnap = await getDoc(teamRef);
 
@@ -420,12 +400,10 @@ const StudentDashboard = () => {
             const team = teamSnap.data();
             const players = team.members || [];
 
-            // ✅ تحقق من العدد
             if (players.length >= MAX_PLAYERS) {
                 return alert("Team is full! Remove a player first.");
             }
 
-            // ✅ دور على الطالب
             const q = query(collection(db, "users"), where("studentCode", "==", newMemberCode));
             const snap = await getDocs(q);
 
@@ -438,7 +416,6 @@ const StudentDashboard = () => {
                 return alert("Student already in a team");
             }
 
-            // ✅ منع تكرار الدعوة
             const existingRequests = studentData.teamRequests || [];
             const alreadyInvited = existingRequests.some((req) => req.teamId === teamData.id);
 
@@ -446,7 +423,6 @@ const StudentDashboard = () => {
                 return alert("Invite already sent to this student");
             }
 
-            // ✅ إرسال الدعوة
             await updateDoc(doc(db, "users", studentDoc.id), {
                 teamRequests: arrayUnion({
                     teamId: teamData.id,
@@ -475,7 +451,7 @@ const StudentDashboard = () => {
                 memberIds: arrayUnion(playerId),
                 members: arrayUnion(playerName),
                 neededPositions: arrayRemove(playerPos),
-                needsPosition: null // keep for legacy
+                needsPosition: null
             });
 
             batch.update(userRef, {
@@ -487,7 +463,6 @@ const StudentDashboard = () => {
             });
 
             await batch.commit();
-            console.log(`Auto-matched ${playerName} to ${teamName}`);
             return true;
         } catch (err) {
             console.error("Auto-assign error:", err);
@@ -498,7 +473,7 @@ const StudentDashboard = () => {
     const handleRequestPlayer = async (position) => {
         if (!teamData) return;
         const currentNeeded = teamData.neededPositions || [];
-        
+
         if (position === null) {
             try {
                 await updateDoc(doc(db, "teams", teamData.id), {
@@ -509,32 +484,30 @@ const StudentDashboard = () => {
             return;
         }
 
-        // Toggle logic
         let updatedNeeded;
         if (currentNeeded.includes(position)) {
             updatedNeeded = currentNeeded.filter(p => p !== position);
         } else {
             updatedNeeded = [...currentNeeded, position];
-            
-            // --- AUTO MATCH LOGIC (Captain requesting) ---
+
             if ((teamData.memberIds?.length || 0) < 7) {
-                const matchingSolo = allStudents.find(s => 
-                    (s.searchingForTeam || s.playSolo) && 
-                    !s.hasTeam && 
+                const matchingSolo = allStudents.find(s =>
+                    (s.searchingForTeam || s.playSolo) &&
+                    !s.hasTeam &&
                     s.position === position &&
-                    s.id !== userData.uid // not self
+                    s.id !== userData.uid
                 );
 
                 if (matchingSolo) {
                     const success = await autoAssign(matchingSolo.id, matchingSolo.name, position, teamData.id, teamData.teamName);
                     if (success) {
                         alert(`Auto-matched! ${matchingSolo.name} (${position}) has joined your team! ⚽`);
-                        return; // Done
+                        return;
                     }
                 }
             }
         }
-        
+
         try {
             await updateDoc(doc(db, "teams", teamData.id), {
                 neededPositions: updatedNeeded,
@@ -557,8 +530,7 @@ const StudentDashboard = () => {
 
     const handlePlaySolo = async (specificPos = null) => {
         if (!userData) return;
-        
-        // If canceling
+
         if (userData.searchingForTeam) {
             try {
                 await updateDoc(doc(db, "users", userData.uid), {
@@ -570,15 +542,13 @@ const StudentDashboard = () => {
             return;
         }
 
-        // If initiating, show modal if no position passed
         if (!specificPos) {
             setShowSoloModal(true);
             return;
         }
 
-        // --- AUTO MATCH LOGIC (Student joining solo) ---
-        const matchingTeam = approvedTeams.find(t => 
-            (t.neededPositions || []).includes(specificPos) && 
+        const matchingTeam = approvedTeams.find(t =>
+            (t.neededPositions || []).includes(specificPos) &&
             (t.memberIds?.length || 0) < 7
         );
 
@@ -668,12 +638,21 @@ const StudentDashboard = () => {
                             </button>
                         </div>
                     </div>
-                    <button
-                        onClick={() => signOut(auth)}
-                        className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-5 py-2 rounded-xl transition font-bold text-sm"
-                    >
-                        Sign Out
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowAIChat(true)}
+                            className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl transition font-bold text-sm"
+                        >
+                            <FaRobot size={14} />
+                            <span className="hidden sm:inline">AI Coach</span>
+                        </button>
+                        <button
+                            onClick={() => signOut(auth)}
+                            className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-5 py-2 rounded-xl transition font-bold text-sm"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
                 </div>
             </nav>
 
@@ -684,24 +663,19 @@ const StudentDashboard = () => {
                         <aside className="lg:col-span-4 space-y-6">
                             {/* Profile Card */}
                             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10 text-center shadow-xl">
-                                {/* حاوية الصورة أو الحرف */}
                                 <div className="w-40 h-40 mx-auto mb-6 flex items-center justify-center rounded-full overflow-hidden shadow-lg border-2 border-white/10">
                                     {userData?.photo ? (
-                                        // إذا كانت الصورة موجودة
                                         <img src={userData.photo} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
-                                        // إذا لم تكن الصورة موجودة، نظهر أول حرف مع الخلفية الملونة
                                         <div className="w-full h-full bg-gradient-to-tr from-green-500 to-emerald-700 flex items-center justify-center text-4xl font-bold text-white">
                                             {userData?.name ? userData.name[0].toUpperCase() : "?"}
                                         </div>
                                     )}
                                 </div>
 
-                                {/* بيانات الطالب */}
                                 <h2 className="text-2xl font-bold">{userData?.name || "Student Name"}</h2>
                                 <p className="text-gray-400 mt-1">ID : {userData?.studentCode || "N/A"}</p>
 
-                                {/* حالة الفريق */}
                                 <div className="mt-5">
                                     {userData?.hasTeam ? (
                                         <span className="bg-green-500/20 text-green-400 px-5 py-2 rounded-xl border border-green-500/30 inline-block">
@@ -712,6 +686,30 @@ const StudentDashboard = () => {
                                             No Team Yet
                                         </span>
                                     )}
+                                </div>
+                            </div>
+
+                            {/* AI Coach Card - Quick Access */}
+                            <div
+                                onClick={() => setShowAIChat(true)}
+                                className="bg-gradient-to-br from-emerald-900/30 to-transparent backdrop-blur-xl rounded-3xl p-6 border border-emerald-500/20 shadow-xl cursor-pointer hover:border-emerald-500/40 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center border border-emerald-500/30 group-hover:bg-emerald-500/30 transition-all">
+                                        <FaRobot className="text-emerald-400 text-xl" />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <h3 className="text-white font-bold text-sm">AI Coach</h3>
+                                        <p className="text-emerald-400/70 text-[10px] font-bold uppercase tracking-widest">اسأل مساعدك الرياضي</p>
+                                    </div>
+                                    <span className="text-emerald-400 group-hover:translate-x-1 transition-transform">❯</span>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-1.5">
+                                    {["نصايح تكتيكية", "تدريب", "تحفيز"].map(tag => (
+                                        <span key={tag} className="text-[9px] bg-emerald-500/10 text-emerald-500/70 px-2 py-0.5 rounded-full border border-emerald-500/10 font-bold">
+                                            {tag}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
 
@@ -751,7 +749,7 @@ const StudentDashboard = () => {
                                 </button>
                             </div>
 
-                            {/* Captain Options: Request Players */}
+                            {/* Captain Options */}
                             {isCaptain && (
                                 <div className="space-y-6">
                                     <div className="bg-gradient-to-br from-emerald-950/40 to-black backdrop-blur-xl rounded-3xl p-6 border border-emerald-500/20 shadow-xl">
@@ -782,7 +780,6 @@ const StudentDashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* Solo Players List for Captains */}
                                     <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                                         <h3 className="text-sm font-bold mb-4 text-left uppercase tracking-widest text-gray-400">Available Solo Players</h3>
                                         <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1 text-left">
@@ -811,7 +808,6 @@ const StudentDashboard = () => {
                             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                                 <h3 className="text-lg font-bold mb-4 text-left">Settings</h3>
                                 <div className="space-y-3">
-                                    {/* Position Selector */}
                                     <div>
                                         <label className="text-gray-400 text-xs font-bold uppercase block mb-2">Your Position</label>
                                         <div className="grid grid-cols-3 gap-2">
@@ -846,8 +842,6 @@ const StudentDashboard = () => {
                         {/* Main Content */}
                         <main className="lg:col-span-8 space-y-6">
 
-                            {/* --- FIXED SECTION: Stats & Next Match --- */}
-                            {/* Tournament Registration - NEW SECTION */}
                             {tournament?.registrationOpen && (
                                 <div className="bg-gradient-to-br from-emerald-600/20 to-transparent backdrop-blur-xl rounded-3xl p-8 border border-emerald-500/20 shadow-xl mb-6 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
@@ -949,7 +943,6 @@ const StudentDashboard = () => {
 
                             {userData?.hasTeam && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    {/* Statistics Card - تم تعديله ليقرأ من userData مباشرة */}
                                     <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
                                         <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                                             <span className="size-2 bg-green-500 rounded-full"></span>
@@ -974,7 +967,6 @@ const StudentDashboard = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        {/* تنبيه في حالة الإيقاف */}
                                         {userData?.redCards > 0 && (
                                             <p className="mt-3 text-[10px] text-red-500 font-bold text-center animate-pulse">
                                                 You are suspended due to a red card!
@@ -982,7 +974,6 @@ const StudentDashboard = () => {
                                         )}
                                     </div>
 
-                                    {/* Next Match Card */}
                                     <div className="bg-gradient-to-br from-blue-600/20 to-transparent backdrop-blur-xl rounded-3xl p-6 border border-blue-500/20 shadow-xl relative overflow-hidden">
                                         <div className="absolute top-0 right-0 p-4">
                                             <span className="text-[8px] font-black text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full uppercase tracking-widest border border-blue-500/20">
@@ -1018,7 +1009,6 @@ const StudentDashboard = () => {
 
                             <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
                                 <h3 className="text-lg font-bold mb-4 text-red-400">Live Matches</h3>
-
                                 {liveMatches.length === 0 ? (
                                     <p className="text-gray-400 text-sm">No live matches</p>
                                 ) : (
@@ -1052,7 +1042,6 @@ const StudentDashboard = () => {
                             <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mt-6">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                                     <h3 className="text-lg font-bold text-yellow-400">Match History</h3>
-
                                     <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 w-full sm:w-auto">
                                         <button
                                             onClick={() => setHistoryTab("myTeam")}
@@ -1147,14 +1136,13 @@ const StudentDashboard = () => {
                                                         }
                                                     </span>
                                                     {userData.uid === teamData.captainId && playerName !== userData.name && (
-                                                        <button onClick={() => removePlayer(i)} className="text-red-400 text-sm hover:underline" >
+                                                        <button onClick={() => removePlayer(i)} className="text-red-400 text-sm hover:underline">
                                                             Remove
                                                         </button>
                                                     )}
                                                 </div>
                                             ))}
                                         </div>
-
                                     ) : (
                                         <>
                                             {userData?.teamRequests?.length > 0 ? (
@@ -1180,15 +1168,16 @@ const StudentDashboard = () => {
                                     {userData?.hasTeam && (
                                         <div className="mt-4 space-y-2">
                                             {userData.uid === teamData?.captainId ? (
-                                                <button onClick={deleteTeam} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl transition shadow-lg shadow-red-500/20" >
+                                                <button onClick={deleteTeam} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl transition shadow-lg shadow-red-500/20">
                                                     Delete Team
                                                 </button>
-                                            ) : (<button onClick={leaveTeam} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-xl transition">
-                                                Leave Team
-                                            </button>
+                                            ) : (
+                                                <button onClick={leaveTeam} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-xl transition">
+                                                    Leave Team
+                                                </button>
                                             )}
-                                        </div>)}
-
+                                        </div>
+                                    )}
 
                                     {userData.uid === teamData?.captainId && (
                                         <div className="mt-6 bg-white/5 p-4 rounded-xl border border-white/10">
@@ -1219,7 +1208,6 @@ const StudentDashboard = () => {
                                     <span className="text-gray-400 block mb-1">Email</span>
                                     <span className="font-medium">{userData?.email}</span>
                                 </div>
-
                                 <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
                                     <span className="text-gray-400 block mb-1">Your Role</span>
                                     <span className="text-green-400 font-bold">
@@ -1245,6 +1233,7 @@ const StudentDashboard = () => {
                     onClose={() => setSelectedMatch(null)}
                 />
             )}
+
             {/* Play Solo Modal */}
             {showSoloModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1255,7 +1244,6 @@ const StudentDashboard = () => {
                         </div>
                         <h3 className="text-xl font-bold text-white mb-2 uppercase italic">Choose Your Position</h3>
                         <p className="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">Admin will see this when matching you</p>
-                        
                         <div className="space-y-3">
                             {['Forward', 'Defender', 'Goalkeeper'].map(pos => (
                                 <button
@@ -1267,18 +1255,28 @@ const StudentDashboard = () => {
                                 </button>
                             ))}
                         </div>
-                        
                         <button onClick={() => setShowSoloModal(false)} className="mt-6 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors">
                             Cancel
                         </button>
                     </div>
                 </div>
             )}
-        </div >
+
+            {/* AI Chat Modal */}
+            {showAIChat && (
+                <AIChatModal
+                    onClose={() => setShowAIChat(false)}
+                    userData={userData}
+                    teamData={teamData}
+                    nextMatch={nextMatch}
+                    userRank={userRank}
+                />
+            )}
+        </div>
     );
 };
 
-// --- Sub-components for Match Details ---
+// --- Sub-components ---
 
 const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
     if (!match) return null;
@@ -1318,7 +1316,6 @@ const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
                 </div>
 
                 <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                    {/* Header Score */}
                     <div className="flex items-center justify-between mb-8 p-8 bg-black/40 rounded-3xl border border-white/5 shadow-inner">
                         <div className="flex-1 text-center">
                             <div className="size-16 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
@@ -1348,9 +1345,7 @@ const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
                         </div>
                     )}
 
-                    {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Team 1 Stats */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -1369,7 +1364,6 @@ const MatchDetailsModal = ({ match, allStudents, approvedTeams, onClose }) => {
                             )}
                         </div>
 
-                        {/* Team 2 Stats */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
