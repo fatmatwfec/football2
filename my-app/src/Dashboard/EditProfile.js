@@ -142,7 +142,7 @@ const EditProfile = () => {
   const isDisabled = loading;
 
   return (
-    <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 px-4">
+    <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-black-900 to-slate-800 px-4">
 
       {/* Navbar */}
       <nav className="w-full border-b border-white/20 backdrop-blur-lg bg-white/5 fixed top-0 z-50">
@@ -150,7 +150,7 @@ const EditProfile = () => {
           <h1 className="text-2xl font-bold text-white">SCI-FOOTBALL</h1>
           <button
             onClick={() => navigate("/student")}
-            className="bg-blue-600/20 hover:bg-blue-600/40 px-4 py-2 rounded-full text-white"
+            className="bg-blue-600/20 hover:bg-green-800/40 px-4 py-2 rounded-full text-white"
           >
             Back
           </button>
@@ -171,7 +171,7 @@ const EditProfile = () => {
             alt="profile"
             className="w-32 h-32 rounded-full"
           />
-          <label className="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full cursor-pointer text-white">
+          <label className="absolute bottom-0 right-0 bg-green-800 p-2 rounded-full cursor-pointer text-white">
             +
             <input type="file" className="hidden" onChange={handleImageChange} />
           </label>
@@ -220,7 +220,7 @@ const EditProfile = () => {
         <button
           onClick={handleUpdate}
           disabled={isDisabled}
-          className={`mt-6 w-full py-3 rounded bg-blue-600 text-white ${isDisabled ? "opacity-50" : ""
+          className={`mt-6 w-full py-3 rounded bg-green-800 text-white ${isDisabled ? "opacity-50" : ""
             }`}
         >
           {loading ? "Saving..." : "Save Changes"}
