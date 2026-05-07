@@ -509,8 +509,8 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
 
                 <div>
                   <label className="text-slate-500 text-xs font-medium mb-2 block">Team Size</label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {[2, 3, 4, 5, 6, 7].map(num => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[5, 6, 7].map(num => (
                       <button
                         key={num}
                         onClick={() => setPlayerCount(num)}
