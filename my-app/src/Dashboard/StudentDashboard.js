@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot, FaEnvelope } from "react-icons/fa";
 import AIChatModal from "../components/AIChatModal";
 
 const StudentDashboard = () => {
@@ -255,11 +255,15 @@ const StudentDashboard = () => {
 
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
 
-                setAllStudents(students.map(s => ({
-                    id: s.id,
-                    name: querySnapshot.docs.find(d => d.id === s.id)?.data().name,
-                    teamId: querySnapshot.docs.find(d => d.id === s.id)?.data().teamId
-                })));
+                setAllStudents(students.map(s => {
+                    const studentDoc = querySnapshot.docs.find(d => d.id === s.id)?.data();
+                    return {
+                        id: s.id,
+                        name: studentDoc?.name,
+                        teamId: studentDoc?.teamId,
+                        email: studentDoc?.email
+                    };
+                }));
 
                 const rank = students.findIndex(s => s.id === userData.uid) + 1;
                 setUserRank(rank);
@@ -1136,22 +1140,32 @@ const StudentDashboard = () => {
                                     <h3 className="text-lg font-bold mb-4 text-left">Team's Members</h3>
                                     {userData?.hasTeam ? (
                                         <div className="space-y-3">
-                                            {teamData?.members?.map((playerName, i) => (
-                                                <div key={i} className="flex justify-between bg-black/40 p-2 rounded">
-                                                    <span className="flex items-center gap-2">
-                                                        <span className="size-2 bg-green-500 rounded-full"></span>
-                                                        {playerName}
-                                                        {teamData.memberIds[i] === teamData.captainId &&
-                                                            <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 rounded">Leader</span>
-                                                        }
-                                                    </span>
-                                                    {userData.uid === teamData.captainId && playerName !== userData.name && (
-                                                        <button onClick={() => removePlayer(i)} className="text-red-400 text-sm hover:underline">
-                                                            Remove
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
+                                            {teamData?.members?.map((playerName, i) => {
+                                                const memberId = teamData.memberIds[i];
+                                                const memberInfo = allStudents.find(s => s.id === memberId);
+                                                return (
+                                                    <div key={i} className="flex flex-col bg-black/40 p-3 rounded-xl border border-white/5">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="flex items-center gap-2">
+                                                                <span className="size-2 bg-green-500 rounded-full"></span>
+                                                                <span className="font-bold text-white">{playerName}</span>
+                                                                {memberId === teamData.captainId &&
+                                                                    <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Leader</span>
+                                                                }
+                                                            </span>
+                                                            {userData.uid === teamData.captainId && memberId !== userData.uid && (
+                                                                <button onClick={() => removePlayer(i)} className="text-red-400 text-[10px] font-bold uppercase hover:underline">
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="mt-1.5 ml-4 flex items-center gap-2">
+                                                            <FaEnvelope size={10} className="text-emerald-500/50" />
+                                                            <span className="text-[11px] text-gray-400 select-all">{memberInfo?.email || "Loading email..."}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <>
