@@ -316,7 +316,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
             <table className="w-full min-w-[800px]">
               <thead className="bg-black/50 border-b border-white/5">
                 <tr>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rank</th>
+                  {showTop10 && <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rank</th>}
                   <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Player</th>
                   <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Account Info</th>
                   <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Team</th>
@@ -332,12 +332,8 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                 </tr>
               </thead>
               <tbody>
-                {(showTop10 ? sortedByFilter.slice(0, 10) : displayedPlayers).length > 0 ? (
-                  [...(showTop10 ? sortedByFilter.slice(0, 10) : displayedPlayers)].sort((a, b) => {
-                    const valA = getStat(a, 'goals');
-                    const valB = getStat(b, 'goals');
-                    return valB - valA;
-                  }).map((player) => {
+                { (showTop10 ? sortedByFilter.slice(0, 10) : displayedPlayers).length > 0 ? (
+                  (showTop10 ? sortedByFilter.slice(0, 10) : displayedPlayers).map((player) => {
                     const playerRank = getPlayerRank(player.id);
 
                     return (
@@ -345,11 +341,13 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                         key={player.id}
                         className="border-b border-white/5 hover:bg-white/5 transition-colors group"
                       >
-                        <td className="py-3 px-4 text-center">
-                          <span className={`font-bold ${playerRank <= 3 && playerRank !== '--' ? 'text-yellow-400' : 'text-white'}`}>
-                            #{playerRank}
-                          </span>
-                        </td>
+                        {showTop10 && (
+                          <td className="py-3 px-4 text-center">
+                            <span className={`font-bold ${playerRank <= 3 && playerRank !== '--' ? 'text-yellow-400' : 'text-white'}`}>
+                              #{playerRank}
+                            </span>
+                          </td>
+                        )}
 
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
@@ -449,9 +447,9 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                       </tr>
                     );
                   })
-                ) : (
+                  ) : (
                   <tr>
-                    <td colSpan={10} className="py-16 text-center">
+                    <td colSpan={showTop10 ? 10 : 8} className="py-16 text-center">
                       <div className="text-slate-600 italic">
                         <FaFutbol className="mx-auto text-4xl mb-3 opacity-20" />
                         No players found
