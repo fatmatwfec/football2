@@ -476,6 +476,11 @@ const StudentDashboard = () => {
 
     const handleRequestPlayer = async (position) => {
         if (!teamData) return;
+        
+        if ((teamData.memberIds?.length || 0) >= 7 && position !== null) {
+            return alert("Your team is full (7/7)! You cannot request more players.");
+        }
+
         const currentNeeded = teamData.neededPositions || [];
 
         if (position === null) {
@@ -760,19 +765,26 @@ const StudentDashboard = () => {
                                         <h3 className="text-lg font-bold mb-1 text-left text-emerald-400">Recruit Players</h3>
                                         <p className="text-[10px] text-gray-400 mb-4 text-left uppercase tracking-widest">Need specific positions?</p>
                                         <div className="grid grid-cols-1 gap-2 text-left">
-                                            {['Goalkeeper', 'Defender', 'Forward'].map((pos) => (
-                                                <button
-                                                    key={pos}
-                                                    onClick={() => handleRequestPlayer(pos)}
-                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${(teamData?.neededPositions || []).includes(pos)
-                                                        ? 'bg-emerald-500 text-black border-emerald-500'
-                                                        : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
-                                                        }`}
-                                                >
-                                                    <span>Need {pos}</span>
-                                                    {(teamData?.neededPositions || []).includes(pos) && <FaCheckCircle size={14} />}
-                                                </button>
-                                            ))}
+                                            {['Goalkeeper', 'Defender', 'Midfielder', 'Forward'].map((pos) => {
+                                                const isFull = (teamData?.memberIds?.length || 0) >= 7;
+                                                const isRequested = (teamData?.neededPositions || []).includes(pos);
+                                                return (
+                                                    <button
+                                                        key={pos}
+                                                        onClick={() => handleRequestPlayer(pos)}
+                                                        disabled={isFull && !isRequested}
+                                                        className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${isRequested
+                                                            ? 'bg-emerald-500 text-black border-emerald-500'
+                                                            : isFull 
+                                                                ? 'bg-white/5 border-white/5 text-gray-600 cursor-not-allowed opacity-50'
+                                                                : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
+                                                            }`}
+                                                    >
+                                                        <span>{isFull && !isRequested ? `Full (7/7)` : `Need ${pos}`}</span>
+                                                        {isRequested && <FaCheckCircle size={14} />}
+                                                    </button>
+                                                );
+                                            })}
                                             {(teamData?.neededPositions?.length > 0 || teamData?.needsPosition) && (
                                                 <button
                                                     onClick={() => handleRequestPlayer(null)}
