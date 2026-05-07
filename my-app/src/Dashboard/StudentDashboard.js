@@ -811,7 +811,7 @@ const StudentDashboard = () => {
                                     <div>
                                         <label className="text-gray-400 text-xs font-bold uppercase block mb-2">Your Position</label>
                                         <div className="grid grid-cols-3 gap-2">
-                                            {['Forward', 'Defender', 'Goalkeeper'].map((pos) => (
+                                            {['Forward', 'Defender', 'Goalkeeper', 'Midfielder'].map((pos) => (
                                                 <button
                                                     key={pos}
                                                     onClick={() => handlePositionChange(pos)}
@@ -821,7 +821,7 @@ const StudentDashboard = () => {
                                                         : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                                                         }`}
                                                 >
-                                                    {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : '🧤 Goalkeeper'}
+                                                    {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : pos === 'Goalkeeper' ? '🧤 Goalkeeper' : '⚽ Midfielder'}
                                                 </button>
                                             ))}
                                         </div>
@@ -948,23 +948,33 @@ const StudentDashboard = () => {
                                             <span className="size-2 bg-green-500 rounded-full"></span>
                                             Your Stats
                                         </h3>
-                                        <div className="grid grid-cols-3 gap-2 text-center">
-                                            <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-xs text-gray-400 uppercase font-black truncate" title={currentTournamentName}>Rank in {currentTournamentName}</p>
-                                                <p className="text-2xl font-black text-blue-400">#{userRank || "—"}</p>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                                            <div className="bg-gradient-to-b from-blue-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-blue-500/30 group">
+                                                <FaTrophy className="text-blue-400 mx-auto mb-2 group-hover:scale-110 transition-transform" size={14} />
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Rank</p>
+                                                <p className="text-xl font-black text-white mt-1">#{userRank || "—"}</p>
                                             </div>
-                                            <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-xs text-gray-400 uppercase font-black">Goals</p>
-                                                <p className="text-2xl font-black text-emerald-400">{userData?.goals || 0}</p>
+                                            <div className="bg-gradient-to-b from-emerald-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-emerald-500/30 group">
+                                                <FaFutbol className="text-emerald-400 mx-auto mb-2 group-hover:scale-110 transition-transform" size={14} />
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Goals</p>
+                                                <p className="text-xl font-black text-white mt-1">{userData?.goals || 0}</p>
                                             </div>
-                                            <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-xs text-gray-400 uppercase font-black">Cards</p>
-                                                <div className="flex justify-center gap-2 mt-1">
-                                                    <span className="w-3 h-4 bg-yellow-400 rounded-sm" title="Yellow Cards"></span>
-                                                    <span className="text-xs font-bold">{userData?.yellowCards || 0}</span>
-                                                    <span className="w-3 h-4 bg-red-600 rounded-sm" title="Red Cards"></span>
-                                                    <span className="text-xs font-bold">{userData?.redCards || 0}</span>
+                                            <div className="bg-gradient-to-b from-amber-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-amber-500/30 group">
+                                                <div className="flex justify-center gap-1.5 mb-2 group-hover:scale-110 transition-transform">
+                                                    <div className="w-2.5 h-3.5 bg-yellow-400 rounded-sm shadow-[0_0_8px_rgba(250,204,21,0.3)]"></div>
+                                                    <div className="w-2.5 h-3.5 bg-red-600 rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.3)]"></div>
                                                 </div>
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Cards</p>
+                                                <p className="text-lg font-black text-white mt-1">
+                                                    <span className="text-yellow-400">{userData?.yellowCards || 0}</span>
+                                                    <span className="text-gray-600 mx-1">/</span>
+                                                    <span className="text-red-500">{userData?.redCards || 0}</span>
+                                                </p>
+                                            </div>
+                                            <div className="bg-gradient-to-b from-purple-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-purple-500/30 group">
+                                                <FaRunning className="text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" size={14} />
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Position</p>
+                                                <p className="text-[10px] font-black text-purple-400 mt-2 uppercase truncate">{userData?.position || '—'}</p>
                                             </div>
                                         </div>
                                         {userData?.redCards > 0 && (
@@ -1245,13 +1255,13 @@ const StudentDashboard = () => {
                         <h3 className="text-xl font-bold text-white mb-2 uppercase italic">Choose Your Position</h3>
                         <p className="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">Admin will see this when matching you</p>
                         <div className="space-y-3">
-                            {['Forward', 'Defender', 'Goalkeeper'].map(pos => (
+                            {['Forward', 'Defender', 'Goalkeeper', 'Midfielder'].map(pos => (
                                 <button
                                     key={pos}
                                     onClick={() => triggerPlaySolo(pos)}
                                     className="w-full py-4 bg-white/5 hover:bg-blue-500 hover:text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3"
                                 >
-                                    {pos === 'Forward' ? '⚡' : pos === 'Defender' ? '🛡️' : '🧤'} {pos}
+                                    {pos === 'Forward' ? '⚡' : pos === 'Defender' ? '🛡️' : pos === 'Goalkeeper' ? '🧤' : '⚽'} {pos}
                                 </button>
                             ))}
                         </div>
