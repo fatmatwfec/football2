@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { signOut, updatePassword, onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "expo-router";
+import AIChatSidebar from "../Aichatsidebar";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +36,7 @@ const getSuspensionType = (player) => {
 // ─── Main Component ────────────────────────────────────────────
 export default function admin() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [showAI, setShowAI] = useState(false);
   const [stats, setStats] = useState({ total: 0, pending: 0, free: 0, approved: 0 });
   const [pendingTeams, setPendingTeams] = useState([]);
   const [approvedTeams, setApprovedTeams] = useState([]);
@@ -847,8 +849,11 @@ export default function admin() {
           <View style={s.headerLogo}>
             <Text style={s.headerLogoText}>SFC</Text>
           </View>
-          <Text style={s.headerTitle}>Science FC League</Text>
-        </View>
+          <Text style={s.headerTitle}>Science FC League</Text>  
+        </View>      
+        <TouchableOpacity style={s.addBtn} onPress={() => setShowAI(true)}>
+            <Text style={s.addBtnText}>🤖 AI</Text>
+          </TouchableOpacity>
         <TouchableOpacity style={s.addBtn} onPress={() => { setAddModalView("options"); setShowAddModal(true); }}>
           <Text style={s.addBtnText}> + Create </Text>
         </TouchableOpacity>
@@ -1817,6 +1822,16 @@ export default function admin() {
           </View>
         </View>
       </Modal>
+
+      
+      <AIChatSidebar
+        visible={showAI}
+        onClose={() => setShowAI(false)}
+        stats={stats}
+        players={players}
+        teams={approvedTeams}
+        matches={matches}
+      />
     </View>
   );
 }
@@ -1929,7 +1944,7 @@ const s = StyleSheet.create({
   headerLogo: { width: 46, height: 46, borderRadius: 12, backgroundColor: "#00FF9C", justifyContent: "center", alignItems: "center" },
   headerLogoText: { color: "#000", fontWeight: "900", fontSize: 13 },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  addBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  addBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12},
   addBtnText: { color: "#000", fontWeight: "800", fontSize: 13 },
 
   // Content

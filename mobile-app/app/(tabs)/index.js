@@ -11,6 +11,7 @@ import {
   collection, query, where, deleteDoc, getDoc, writeBatch
 } from "firebase/firestore";
 import { useRouter } from "expo-router";
+import AIChatModal from "../Aichatmodal";
 
 const { width } = Dimensions.get("window");
 
@@ -25,6 +26,7 @@ const getRoundLabel = (roundIndex, totalRounds) => {
 
 export default function StudentDashboard() {
   const [userData, setUserData] = useState(null);
+  const [showAI, setShowAI] = useState(false);
   const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newMemberCode, setNewMemberCode] = useState("");
@@ -713,7 +715,7 @@ export default function StudentDashboard() {
             </View>
 
             {/* AI Coach Section */}
-            <TouchableOpacity style={styles.aiCoachCard} onPress={() => Alert.alert("AI Coach", "Coming Soon!")}>
+            <TouchableOpacity style={styles.aiCoachCard} onPress={() => setShowAI(true)}>
               <View>
                 <Text style={styles.aiCoachTitle}>AI Coach</Text>
                 <Text style={styles.aiCoachSubtitle}>اسأل مساعدك الرياضي</Text>
@@ -1117,6 +1119,15 @@ export default function StudentDashboard() {
           </View>
         </View>
       </Modal>
+
+      <AIChatModal
+  visible={showAI}
+  onClose={() => setShowAI(false)}
+  userData={userData}
+  teamData={teamData}
+  nextMatch={nextMatch}
+  userRank={userRank}
+/>
     </ImageBackground>
   );
 }
@@ -1156,8 +1167,8 @@ const styles = StyleSheet.create({
   
   // Cards
   card: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-  statsCard: { flex: 1, marginRight: 8 },
-  nextMatchCard: { flex: 1, marginLeft: 8 },
+  statsCard: { flex: 1, marginRight: 0,marginBottom:16 },
+  nextMatchCard: { flex: 1, marginLeft: 0 },
   
   // Profile
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#16a34a", alignSelf: "center", justifyContent: "center", alignItems: "center", marginBottom: 12 },
@@ -1170,11 +1181,11 @@ const styles = StyleSheet.create({
   badgeText: { color: "#fff", fontWeight: "600" },
   
   // Stats
-  statsRow: { flexDirection: "row", marginBottom: 16 },
+  statsRow: { flexDirection: "column", marginBottom: 16 },
   statsGrid: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
-  statBox: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 16, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
-  statLabel: { color: "#9ca3af", fontSize: 9, fontWeight: "bold", textTransform: "uppercase", marginBottom: 4 },
-  statValue: { fontSize: 24, fontWeight: "bold" },
+  statBox: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 16, padding: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  statLabel: { color: "#9ca3af", fontSize: 10, fontWeight: "bold", textTransform: "uppercase", marginBottom: 4 },
+  statValue: { fontSize: 20, fontWeight: "bold" },
   cardsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   yellowCard: { width: 10, height: 14, backgroundColor: "#facc15", borderRadius: 2 },
   redCard: { width: 10, height: 14, backgroundColor: "#ef4444", borderRadius: 2 },
