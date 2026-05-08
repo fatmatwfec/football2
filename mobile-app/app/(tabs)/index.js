@@ -395,6 +395,63 @@ export default function StudentDashboard() {
       return false;
     }
   };
+  const getRemainingTime = () => {
+
+    if (!tournament?.createdAt) {
+      return "Expired";
+    }
+
+    const createdAt =
+      tournament.createdAt?.toDate
+        ? tournament.createdAt.toDate().getTime()
+        : typeof tournament.createdAt === "number"
+          ? tournament.createdAt
+          : new Date(tournament.createdAt).getTime();
+
+    // 48 Hours Deadline
+    const deadline =
+      createdAt + 48 * 60 * 60 * 1000;
+
+    const currentTime = Date.now();
+
+    const diff = deadline - currentTime;
+
+    if (diff <= 0) {
+      return "Expired";
+    }
+
+    const hours = Math.floor(
+      diff / (1000 * 60 * 60)
+    );
+
+    const minutes = Math.floor(
+      (diff % (1000 * 60 * 60)) /
+      (1000 * 60)
+    );
+
+    return `${hours}h ${minutes}m`;
+  };
+  const getDeadlineString = () => {
+    if (!tournament?.createdAt) return null;
+
+    const createdAt =
+      tournament.createdAt?.toDate
+        ? tournament.createdAt.toDate().getTime()
+        : typeof tournament.createdAt === 'number'
+          ? tournament.createdAt
+          : new Date(tournament.createdAt).getTime();
+
+    const deadline = createdAt + 48 * 60 * 60 * 1000;
+
+    const date = new Date(deadline);
+
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+
+    return `${day} ${month}, ${hours}:${minutes}`;
+  };
 
   const handleRequestPlayer = async (position) => {
     if (!teamData) return;
@@ -514,19 +571,17 @@ export default function StudentDashboard() {
     <ImageBackground source={require("../../assets/images/background.jpg")} style={styles.bg}>
       {/* Sticky Navbar with transparent background */}
       <View style={styles.stickyNavbar}>
-        <View style={styles.navLeft}>
-          <TouchableOpacity onPress={() => setActiveView("dashboard")}>
-            <Text style={styles.logo}>SCI-FOOTBALL</Text>
-          </TouchableOpacity>
-          <View style={styles.navLinks}>
-            <View style={styles.navRight}>
-              <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
-                <Text style={styles.signOutText}>Sign Out</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+
+        <TouchableOpacity onPress={() => setActiveView("dashboard")}>
+          <Text style={styles.logo}>SCI-FOOTBALL</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
+
+
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -551,11 +606,240 @@ export default function StudentDashboard() {
               </View>
             </View>
 
-            <view style={styles.card}>
+            <View style={styles.card}>
               <TouchableOpacity style={styles.primaryBtn} onPress={() => setActiveView("tournament")}>
                 <Text style={[styles.primaryBtnText, activeView === "tournament" && styles.navLinkActive]}> Tournament</Text>
               </TouchableOpacity>
-            </view>
+            </View>
+            {tournament?.registrationOpen && (
+              <View style={styles.tournamentCard}>
+
+                {/* Status */}
+                <View style={styles.statusContainer}>
+
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      getRemainingTime() === "Expired"
+                        ? styles.statusExpired
+                        : styles.statusOpen
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.statusDot,
+                        {
+                          backgroundColor:
+                            getRemainingTime() === "Expired"
+                              ? "#ef4444"
+                              : "#10b981",
+                        },
+                      ]}
+                    />
+
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color:
+                            getRemainingTime() === "Expired"
+                              ? "#f87171"
+                              : "#34d399",
+                        },
+                      ]}
+                    >
+                      {getRemainingTime() === "Expired"
+                        ? "REGISTRATION CLOSED"
+                        : "REGISTRATION OPEN"}
+                    </Text>
+                  </View>
+
+                  {getRemainingTime() !== "Expired" && (
+                    <Text style={styles.deadlineText}>
+                      Ends: {getDeadlineString()}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Main Content */}
+                <View style={styles.tournamentContent}>
+
+                  {/* Info */}
+                  <View style={styles.tournamentInfo}>
+
+                    <Text style={styles.tournamentTitle}>
+                      Tournament Name : {tournament.registrationTitle}
+                    </Text>
+
+                    {/* Dates */}
+                    <View style={styles.dateRow}>
+
+                      <View style={styles.dateCard}>
+                        <Text style={styles.dateLabel}>
+                          STARTS
+                        </Text>
+
+                        <Text style={styles.dateValue}>
+                          {tournament.startDate || "TBD"}
+                        </Text>
+                      </View>
+
+                      <View style={styles.dateCard}>
+                        <Text style={styles.dateLabel}>
+                          ENDS
+                        </Text>
+
+                        <Text style={styles.dateValue}>
+                          {tournament.endDate || "TBD"}
+                        </Text>
+                      </View>
+
+                    </View>
+
+                    {/* Description */}
+                    <Text style={styles.description}>
+                      {getRemainingTime() === "Expired"
+                        ? "Registration for this tournament has ended."
+                        : "Captains can register their teams now."}
+                    </Text>
+
+                    {/* Remaining Time */}
+                    {getRemainingTime() !== "Expired" && (
+                      <View style={styles.remainingBox}>
+                        <Text style={styles.remainingLabel}>
+                          CLOSES IN:
+                        </Text>
+
+                        <Text style={styles.remainingValue}>
+                          {getRemainingTime()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Actions */}
+                <View style={{ marginTop: 20 }}>
+
+                  {getRemainingTime() === "Expired" ? (
+
+                    <View style={styles.lockedBox}>
+                      <Text style={styles.lockedTitle}>
+                        TIME LIMIT REACHED
+                      </Text>
+
+                      <Text style={styles.lockedSub}>
+                        Registration Locked
+                      </Text>
+                    </View>
+
+                  ) : userData?.uid === teamData?.captainId ? (
+
+                    tournament.registeredTeamIds?.includes(
+                      userData.teamId
+                    ) ? (
+
+                      <View style={styles.registeredBox}>
+
+                        <Text style={styles.registeredText}>
+                          ✓ REGISTERED
+                        </Text>
+
+                        <TouchableOpacity
+                          onPress={async () => {
+                            Alert.alert(
+                              "Withdraw",
+                              "Withdraw from tournament?",
+                              [
+                                {
+                                  text: "Cancel",
+                                  style: "cancel",
+                                },
+                                {
+                                  text: "Withdraw",
+                                  style: "destructive",
+                                  onPress: async () => {
+                                    await updateDoc(
+                                      doc(
+                                        db,
+                                        "tournaments",
+                                        "main"
+                                      ),
+                                      {
+                                        registeredTeamIds:
+                                          arrayRemove(
+                                            userData.teamId
+                                          ),
+                                      }
+                                    );
+                                  },
+                                },
+                              ]
+                            );
+                          }}
+                        >
+                          <Text style={styles.withdrawText}>
+                            Withdraw Team
+                          </Text>
+                        </TouchableOpacity>
+
+                      </View>
+
+                    ) : (
+
+                      <TouchableOpacity
+                        style={styles.joinButton}
+                        onPress={async () => {
+
+                          if (
+                            (teamData?.memberIds?.length || 0) < 5
+                          ) {
+                            Alert.alert(
+                              "Error",
+                              "Your team must have at least 5 players ⚽"
+                            );
+                            return;
+                          }
+
+                          await updateDoc(
+                            doc(db, "tournaments", "main"),
+                            {
+                              registeredTeamIds: arrayUnion(
+                                userData.teamId
+                              ),
+                            }
+                          );
+
+                          Alert.alert(
+                            "Success",
+                            "Team Registered 🏆"
+                          );
+                        }}
+                      >
+                        <Text style={styles.joinButtonText}>
+                          JOIN TOURNAMENT
+                        </Text>
+                      </TouchableOpacity>
+
+                    )
+
+                  ) : (
+
+                    <View style={styles.waitingBox}>
+                      <Text style={styles.waitingTitle}>
+                        WAITING FOR CAPTAIN
+                      </Text>
+
+                      <Text style={styles.waitingSub}>
+                        Only leaders can register
+                      </Text>
+                    </View>
+
+                  )}
+                </View>
+
+              </View>
+            )}
 
             {/* Team Options - No Team */}
             {!userData?.hasTeam && (
@@ -597,6 +881,10 @@ export default function StudentDashboard() {
                         <View style={styles.redCard} />
                         <Text style={styles.cardCount}>{userData?.redCards || 0}</Text>
                       </View>
+                    </View>
+                    <View style={styles.largeCard}>
+                      <Text style={styles.statLabel}>Position</Text>
+                      <Text style={[styles.statValue, { color: "#c334d3" }]}>{userData?.position || 0}</Text>
                     </View>
                   </View>
                   {userData?.redCards > 0 && (
@@ -732,20 +1020,51 @@ export default function StudentDashboard() {
               <Text style={styles.sectionTitle}>👥 Team's Members</Text>
               {userData?.hasTeam && teamData ? (
                 <>
-                  {(teamData.members || []).map((playerName, i) => (
-                    <View key={i} style={styles.memberRow}>
-                      <View style={styles.memberDot} />
-                      <Text style={styles.memberName}>{playerName}</Text>
-                      {teamData.memberIds?.[i] === teamData.captainId && (
-                        <Text style={styles.captainBadge}>Leader</Text>
-                      )}
-                      {isCaptain && playerName !== userData.name && (
-                        <TouchableOpacity onPress={() => removePlayer(i)}>
-                          <Text style={styles.removeBtn}>Remove</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
+
+                  {teamData?.members?.map((playerName, i) => {
+                    const memberId = teamData.memberIds[i];
+                    const memberInfo = allStudents.find(s => s.id === memberId);
+
+                    return (
+                      <View key={i} style={styles.memberCard}>
+
+                        <View style={styles.topRow}>
+
+                          <View style={styles.nameRow}>
+                            <View style={styles.greenDot} />
+
+                            <Text style={styles.playerName}>
+                              {playerName}
+                            </Text>
+
+                            {memberId === teamData.captainId && (
+                              <View style={styles.leaderBadge}>
+                                <Text style={styles.leaderText}>
+                                  Leader
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+
+                          {userData.uid === teamData.captainId &&
+                            memberId !== userData.uid && (
+                              <TouchableOpacity onPress={() => removePlayer(i)}>
+                                <Text style={styles.removeBtn}>
+                                  Remove
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <View style={styles.emailRow}>
+
+                          <Text style={styles.memberEmail}>
+                            {memberInfo?.email || "Loading email..."}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
 
                   {isCaptain && (
                     <View style={styles.inviteSection}>
@@ -1152,8 +1471,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 20,
     paddingHorizontal: 16,
+    width: "100%",
 
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.1)",
@@ -1166,7 +1486,7 @@ const styles = StyleSheet.create({
   navLink: { color: "#9ca3af", fontWeight: "bold", fontSize: 14 },
   navLinkActive: { color: "#22c55e" },
   navRight: { flexDirection: "row", gap: 12 },
-  signOutBtn: { backgroundColor: "rgba(239,68,68,0.15)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  signOutBtn: { backgroundColor: "rgba(239,68,68,0.15)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   signOutText: { color: "#f87171", fontWeight: "600" },
 
   // Cards
@@ -1186,9 +1506,18 @@ const styles = StyleSheet.create({
 
   // Stats
   statsRow: { flexDirection: "column", marginBottom: 16 },
-  statsGrid: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
-  statBox: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 16, padding: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  statBox: { width: "48%", flex: 1, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 24, padding: 5, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
   statLabel: { color: "#9ca3af", fontSize: 10, fontWeight: "bold", textTransform: "uppercase", marginBottom: 4 },
+  largeCard: {
+    width: "100%",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
   statValue: { fontSize: 20, fontWeight: "bold" },
   cardsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   yellowCard: { width: 10, height: 14, backgroundColor: "#facc15", borderRadius: 2 },
@@ -1300,6 +1629,218 @@ const styles = StyleSheet.create({
   soloPlayerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22c55e" },
   noSoloText: { color: "#475569", fontSize: 11, textAlign: "center", paddingVertical: 16 },
   soloNote: { color: "#475569", fontSize: 9, marginTop: 8, textAlign: "center" },
+  tournamentCard: {
+    backgroundColor: "rgba(16,185,129,0.08)",
+    borderRadius: 30,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.2)",
+    marginBottom: 20,
+  },
+
+  statusContainer: {
+    alignItems: "flex-end",
+    marginBottom: 20,
+  },
+
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+
+  statusOpen: {
+    backgroundColor: "rgba(16,185,129,0.1)",
+    borderColor: "rgba(16,185,129,0.2)",
+  },
+
+  statusExpired: {
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderColor: "rgba(239,68,68,0.2)",
+  },
+
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+
+  statusText: {
+    fontSize: 10,
+    fontWeight: "900",
+  },
+
+  deadlineText: {
+    color: "#6ee7b7",
+    fontSize: 10,
+    marginTop: 6,
+    fontWeight: "700",
+  },
+
+  tournamentContent: {
+    flexDirection: "row",
+  },
+
+  trophyBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    marginRight: 16,
+  },
+
+  trophyOpen: {
+    backgroundColor: "rgba(16,185,129,0.15)",
+    borderColor: "rgba(16,185,129,0.3)",
+  },
+
+  trophyExpired: {
+    backgroundColor: "rgba(239,68,68,0.15)",
+    borderColor: "rgba(239,68,68,0.3)",
+  },
+
+  tournamentInfo: {
+    flex: 1,
+  },
+
+  tournamentTitle: {
+    color: "white",
+    fontSize: 22,
+    fontWeight: "900",
+    marginBottom: 12,
+  },
+
+  dateRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+
+  dateCard: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+
+  dateLabel: {
+    color: "#9ca3af",
+    fontSize: 9,
+    fontWeight: "900",
+  },
+
+  dateValue: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+    marginTop: 3,
+  },
+
+  description: {
+    color: "#cbd5e1",
+    fontSize: 13,
+    lineHeight: 20,
+  },
+
+  remainingBox: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+
+  remainingLabel: {
+    color: "#94a3b8",
+    fontSize: 10,
+    fontWeight: "bold",
+    marginRight: 8,
+  },
+
+  remainingValue: {
+    color: "#34d399",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  joinButton: {
+    backgroundColor: "#10b981",
+    paddingVertical: 16,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+
+  joinButtonText: {
+    color: "black",
+    fontWeight: "900",
+    fontSize: 14,
+  },
+
+  registeredBox: {
+    alignItems: "center",
+    gap: 10,
+  },
+
+  registeredText: {
+    color: "#34d399",
+    fontWeight: "900",
+    fontSize: 13,
+  },
+
+  withdrawText: {
+    color: "#ef4444",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+
+  waitingBox: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 20,
+    padding: 16,
+    alignItems: "center",
+  },
+
+  waitingTitle: {
+    color: "#94a3b8",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+
+  waitingSub: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+
+  lockedBox: {
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderRadius: 20,
+    padding: 16,
+    alignItems: "center",
+  },
+
+  lockedTitle: {
+    color: "#ef4444",
+    fontWeight: "900",
+    fontSize: 10,
+  },
+
+  lockedSub: {
+    color: "white",
+    fontWeight: "bold",
+    marginTop: 4,
+  },
 
   // TOURNAMENT TAB STYLES
   tournamentContainer: { padding: 0, paddingBottom: 40 },
@@ -1367,6 +1908,73 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(0,255,156,0.2)"
+  },
+  memberCard: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 10,
+  },
+
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+
+  greenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#22C55E',
+  },
+
+  playerName: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  leaderBadge: {
+    backgroundColor: 'rgba(234,179,8,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+
+  leaderText: {
+    color: '#EAB308',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+
+  removeBtn: {
+    color: '#F87171',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    marginLeft: 16,
+  },
+
+  memberEmail: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
   teamCountText: { color: "#00FF9C", fontSize: 10, fontWeight: "800" },
   bracketSubHeader: { color: "#64748b", fontSize: 10, fontWeight: "800", letterSpacing: 1, marginBottom: 18 },
@@ -1448,7 +2056,18 @@ const styles = StyleSheet.create({
   noTournamentIconText: { fontSize: 36 },
   noTournamentTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 8 },
   noTournamentSub: { color: "#9ca3af", fontSize: 12, textAlign: "center" },
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginLeft: 16,
+    gap: 6,
+  },
 
+  memberEmail: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
   archiveSection: { marginTop: 8, marginBottom: 20 },
   archiveToggleBtn: {
     flexDirection: "row",
@@ -1479,6 +2098,7 @@ const styles = StyleSheet.create({
   archiveCardTitle: { color: "#fff", fontWeight: "700", fontSize: 13 },
   archiveWinner: { color: "#fbbf24", fontSize: 11, fontWeight: "700", marginTop: 2 },
   archiveDate: { color: "#64748b", fontSize: 10, fontWeight: "600", marginTop: 2 },
+
 
   backToDashboardBtn: {
     backgroundColor: "rgba(255,255,255,0.1)",

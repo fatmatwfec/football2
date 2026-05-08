@@ -1868,10 +1868,10 @@ export default function admin() {
       <View style={s.bottomNav}>
         {[
           { id: "dashboard", icon: "🏠", label: "HOME" },
-          { id: "players", icon: "🏃", label: "PLAYERS" },
-          { id: "teams", icon: "🛡", label: "TEAMS" },
-          { id: "tournament", icon: "🗂", label: "TOURNAMENT" },
           { id: "matches", icon: "📅", label: "MATCHES" },
+          { id: "teams", icon: "🛡", label: "TEAMS" },
+          { id: "players", icon: "🏃", label: "PLAYERS" },
+          { id: "tournament", icon: "🗂", label: "TOURNAMENT" },
           { id: "settings", icon: "⚙️", label: "SETTINGS" },
         ].map(tab => (
           <TouchableOpacity key={tab.id} style={s.navBtn} onPress={() => setActiveTab(tab.id)}>

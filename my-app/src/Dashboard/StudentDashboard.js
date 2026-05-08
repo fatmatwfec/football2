@@ -176,14 +176,24 @@ const StudentDashboard = () => {
         }
 
         let roundLabel = next.roundLabel;
+
         if (!roundLabel && tournament?.rounds) {
             Object.entries(tournament.rounds).forEach(([rKey, roundMatches]) => {
-                const found = roundMatches.find(m =>
-                    (m.team1?.id === next.team1Id && m.team2?.id === next.team2Id) ||
-                    (m.team1?.id === next.team2Id && m.team2?.id === next.team1Id)
+
+                const found = roundMatches.find(
+                    (m) =>
+                        (m.team1?.id === next.team1Id &&
+                            m.team2?.id === next.team2Id) ||
+
+                        (m.team1?.id === next.team2Id &&
+                            m.team2?.id === next.team1Id)
                 );
+
                 if (found) {
-                    roundLabel = getRoundLabel(parseInt(rKey), Object.keys(tournament.rounds).length);
+                    roundLabel = getRoundLabel(
+                        parseInt(rKey),
+                        Object.keys(tournament.rounds).length
+                    );
                 }
             });
         }
@@ -191,8 +201,9 @@ const StudentDashboard = () => {
         setNextMatch({
             ...next,
             opponentName,
-            roundLabel: roundLabel || "Friendly Match"
+            roundLabel: roundLabel || "Friendly Match",
         });
+
     }, [matches, approvedTeams, userData?.teamId, tournament, now]);
 
     useEffect(() => {
@@ -251,7 +262,7 @@ const StudentDashboard = () => {
                     goals: doc.data().goals || 0,
                     score: doc.data().score || 0
                 }));
-                
+
 
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
 
@@ -496,7 +507,7 @@ const StudentDashboard = () => {
 
     const handleRequestPlayer = async (position) => {
         if (!teamData) return;
-        
+
         if ((teamData.memberIds?.length || 0) >= 7 && position !== null) {
             return alert("Your team is full (7/7)! You cannot request more players.");
         }
@@ -795,7 +806,7 @@ const StudentDashboard = () => {
                                                         disabled={isFull && !isRequested}
                                                         className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${isRequested
                                                             ? 'bg-emerald-500 text-black border-emerald-500'
-                                                            : isFull 
+                                                            : isFull
                                                                 ? 'bg-white/5 border-white/5 text-gray-600 cursor-not-allowed opacity-50'
                                                                 : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
                                                             }`}
