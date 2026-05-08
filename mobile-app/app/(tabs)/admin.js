@@ -33,6 +33,7 @@ const getSuspensionType = (player) => {
   if (Number(player.redCards || 0) > 0) return "red";
   return "yellow";
 };
+
 // ─── Main Component ────────────────────────────────────────────
 export default function admin() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -58,6 +59,18 @@ export default function admin() {
   const [newMatchPitch, setNewMatchPitch] = useState("Main Pitch");
   const [selectedFreeAgents, setSelectedFreeAgents] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showMatchModal, setShowMatchModal] = useState(null); 
+
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
+  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
+  const [showStartDateModal, setShowStartDateModal] = useState(false);
+  const [showEndDateModal, setShowEndDateModal] = useState(false);
+  const [tempYear, setTempYear] = useState(new Date().getFullYear());
+  const [tempMonth, setTempMonth] = useState(new Date().getMonth() + 1);
+  const [tempDay, setTempDay] = useState(new Date().getDate());
+  const [tempHour, setTempHour] = useState(9);
+  const [tempMinute, setTempMinute] = useState(0);
+  const [datePickerTarget, setDatePickerTarget] = useState(null);
 
   // Result modal
   const [resultMatch, setResultMatch] = useState(null);
@@ -99,6 +112,7 @@ export default function admin() {
   const [tournamentEndDate, setTournamentEndDate] = useState("");
   const [showArchive, setShowArchive] = useState(false);
   const [archived, setArchived] = useState([]);
+  const [expandedArchive, setExpandedArchive] = useState({});
   //  const [scheduleModal, setScheduleModal] = useState(null);
 
   // Build squad
@@ -114,7 +128,39 @@ export default function admin() {
   const router = useRouter();
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 60000);
+    const interval = setInterval(async () => {
+    const nowMs = Date.now();
+    setNow(nowMs);
+
+    const DURATION = 20 * 60 * 1000;
+    const toUpdate = matches.filter(m => {
+      if (m.status === 'completed') return false;
+      if (!m.date || !m.time) return false;
+      const [y, mm, d] = m.date.split('-').map(Number);
+      const [h, min] = m.time.split(':').map(Number);
+      const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+      const isLive = matchTime <= nowMs && nowMs < matchTime + DURATION;
+      const isPast = nowMs >= matchTime + DURATION;
+      if (isLive && m.status !== 'live') return true;
+      if (isPast && m.status !== 'pending_result') return true;
+      return false;
+    });
+
+    if (toUpdate.length > 0) {
+      const batch = writeBatch(db);
+      const nowMs2 = Date.now();
+      toUpdate.forEach(m => {
+        const [y, mm, d] = m.date.split('-').map(Number);
+        const [h, min] = m.time.split(':').map(Number);
+        const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+        const newStatus = (matchTime <= nowMs2 && nowMs2 < matchTime + DURATION)
+          ? 'live' : 'pending_result';
+        batch.update(doc(db, 'matches', m.id), { status: newStatus });
+      });
+      try { await batch.commit(); } catch (e) { console.error(e); }
+    }
+      
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -780,23 +826,21 @@ export default function admin() {
 
 
   const displayedPlayers = useMemo(() => {
-    // 1. خد نسخة جديدة من المصفوفة (عشان الـ sort ما يضربش الـ state الأصلية)
     let list = [...allPlayers];
 
-    // 2. اعمل الـ Sort هنا جوه الـ useMemo
+    // Sort
     list.sort((a, b) => {
-      // استخدم Number للتأكد إن المقارنة حسابية مش نصية
       const valA = Number(getStat(a, 'goals')) || 0;
       const valB = Number(getStat(b, 'goals')) || 0;
-      return valB - valA; // الترتيب من الكبير للصغير
+      return valB - valA; 
     });
 
-    // 3. طبق الـ Top 10 بعد الترتيب
+    // Top 10 
     if (showTop10) {
       list = list.slice(0, 10);
     }
 
-    // 4. طبق باقي الفلاتر (Pending, Search, etc.)
+    // (Pending, Search, etc.)
     if (playersSubTab === "pending") {
       list = list.filter(p => !p.isVerified);
     } else if (playersSubTab === "free") {
@@ -809,7 +853,8 @@ export default function admin() {
       const term = searchTerm.toLowerCase();
       list = list.filter(p =>
         p.name?.toLowerCase().includes(term) ||
-        p.assignedTeam?.toLowerCase().includes(term)
+        p.assignedTeam?.toLowerCase().includes(term)||
+        p.position?.toLowerCase().includes(term) 
       );
     }
 
@@ -838,6 +883,91 @@ export default function admin() {
     return `🏆 ${statsFilter}`;
   };
 
+ const handleAssignToTeam = async (player, team) => {
+    try {
+      const teamObj = approvedTeams.find(t => t.id === team.id);
+      if (getTeamMembers(teamObj).length >= 7) {
+        Alert.alert('Team Full', 'This team already has 7 players!');
+        return;
+      }
+      const batch = writeBatch(db);
+      const neededPositions = (team.neededPositions || []).filter(p => p !== player.position);
+      batch.update(doc(db, 'teams', team.id), {
+        memberIds: arrayUnion(player.id),
+        members: arrayUnion(player.name),
+        neededPositions,
+        needsPosition: neededPositions.length > 0 ? neededPositions[0] : null,
+      });
+      batch.update(doc(db, 'users', player.id), {
+        hasTeam: true,
+        teamId: team.id,
+        assignedTeam: team.teamName,
+        searchingForTeam: false,
+      });
+      await batch.commit();
+      setShowMatchModal(null);
+      Alert.alert('✅ Done!', `${player.name} assigned to ${team.teamName}`);
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const getTournamentDeadline = () => {
+    if (!tournament?.createdAt) return null;
+    const createdAt = tournament.createdAt?.toDate
+      ? tournament.createdAt.toDate().getTime()
+      : new Date(tournament.createdAt).getTime();
+    return createdAt + 48 * 60 * 60 * 1000;
+  };
+
+  const getTournamentRemainingTime = () => {
+    const deadline = getTournamentDeadline();
+    if (!deadline) return null;
+    const diff = deadline - now;
+    if (diff <= 0) return 'Expired';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  const getTournamentDeadlineString = () => {
+    const deadline = getTournamentDeadline();
+    if (!deadline) return null;
+    return new Date(deadline).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+
+  const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
+
+  const openDatePicker = (target) => {
+    const today = new Date();
+    setTempYear(today.getFullYear());
+    setTempMonth(today.getMonth() + 1);
+    setTempDay(today.getDate());
+    setDatePickerTarget(target);
+    setShowDatePickerModal(true);
+  };
+
+  const confirmDate = () => {
+    const y = tempYear;
+    const m = String(tempMonth).padStart(2, "0");
+    const d = String(Math.min(tempDay, getDaysInMonth(tempYear, tempMonth))).padStart(2, "0");
+    const dateStr = `${y}-${m}-${d}`;
+    if (datePickerTarget === "schedule") setDateInput(dateStr);
+    else if (datePickerTarget === "start") setTournamentStartDate(dateStr);
+    else if (datePickerTarget === "end") setTournamentEndDate(dateStr);
+    setShowDatePickerModal(false);
+  };
+
+  const confirmTime = () => {
+    const h = String(tempHour).padStart(2, "0");
+    const min = String(tempMinute).padStart(2, "0");
+    setTournamentStartTime(`${h}:${min}`);
+    setShowTimePickerModal(false);
+  };
+
   // ════════════════════════════════════════════════════════════
   //  RENDER
   // ════════════════════════════════════════════════════════════
@@ -851,12 +981,20 @@ export default function admin() {
           </View>
           <Text style={s.headerTitle}>Science FC League</Text>  
         </View>      
-        <TouchableOpacity style={s.addBtn} onPress={() => setShowAI(true)}>
-            <Text style={s.addBtnText}>🤖 AI</Text>
-          </TouchableOpacity>
-        <TouchableOpacity style={s.addBtn} onPress={() => { setAddModalView("options"); setShowAddModal(true); }}>
-          <Text style={s.addBtnText}> + Create </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "column", gap: 6, alignItems: "stretch" }}>
+  <TouchableOpacity 
+    style={[s.addBtn, { alignItems: "center" }]} 
+    onPress={() => { setAddModalView("options"); setShowAddModal(true); }}
+  >
+    <Text style={s.addBtnText}>+ Create</Text>
+  </TouchableOpacity>
+  <TouchableOpacity 
+    style={[s.addBtn, { backgroundColor: "#1e293b", borderWidth: 1, borderColor: "rgba(0,255,156,0.3)", alignItems: "center" }]} 
+    onPress={() => setShowAI(true)}
+  >
+    <Text style={[s.addBtnText, { color: "#00FF9C" }]}>🤖 AI</Text>
+  </TouchableOpacity>
+</View>
       </View>
 
       {/* ── Content ── */}
@@ -904,6 +1042,7 @@ export default function admin() {
             </View>
 
             {/* Tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 0 }}>
             <View style={s.dashTabRow}>
               {[{ id: "live", label: "Live Matches" },
               { id: "history", label: "Match History" },
@@ -923,6 +1062,7 @@ export default function admin() {
                 </TouchableOpacity>
               ))}
             </View>
+            </ScrollView>
 
             {activeClick === "live" && (
               liveMatches.length === 0
@@ -1211,7 +1351,7 @@ export default function admin() {
                   { id: "all", label: "ALL" },
                   { id: "pending", label: `PENDING (${allPlayers.filter(p => !p.isVerified).length})` },
                   { id: "free", label: `FREE AGENTS` },
-                  { id: "solo", label: "SOLO" }].map(f => (
+                  { id: "solo", label: `SOLO (${allPlayers.filter(p => p.searchingForTeam && !p.hasTeam).length})` }].map(f => (
                     <TouchableOpacity
                       key={f.id}
                       onPress={() => setPlayersSubTab(f.id)}
@@ -1224,6 +1364,40 @@ export default function admin() {
                   ))}
               </View>
             </ScrollView>
+
+            {/* Team Recruitment Requests */}
+            {playersSubTab === 'solo' && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ color: '#a78bfa', fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+                  🔮 Teams Looking for Players
+                </Text>
+                {approvedTeams.filter(t => t.needsPosition || t.neededPositions?.length > 0).length === 0 ? (
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <Text style={{ color: '#475569', fontSize: 12, fontStyle: 'italic', textAlign: 'center' }}>No active team requests</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 4 }}>
+                      {approvedTeams.filter(t => t.needsPosition || t.neededPositions?.length > 0).map(t => (
+                        <View key={t.id} style={{
+                          backgroundColor: 'rgba(167,139,250,0.1)', borderRadius: 14, padding: 14,
+                          borderWidth: 1, borderColor: 'rgba(167,139,250,0.25)', minWidth: 160
+                        }}>
+                          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13, marginBottom: 4 }}>{t.teamName}</Text>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                            {(t.neededPositions || [t.needsPosition]).filter(Boolean).map((pos, i) => (
+                              <View key={i} style={{ backgroundColor: 'rgba(167,139,250,0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                                <Text style={{ color: '#a78bfa', fontSize: 9, fontWeight: '800', textTransform: 'uppercase' }}>{pos}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+            )}
 
             {/* Table Header */}
             <View style={s.tableHeader}>
@@ -1279,6 +1453,15 @@ export default function admin() {
                         </TouchableOpacity>
                       ) : (
                         <View style={s.verifiedBadge}><Text style={s.verifiedText}>✓ Active</Text></View>
+                      )}
+
+                      {playersSubTab === 'solo' && !player.hasTeam && (
+                        <TouchableOpacity
+                          style={{ backgroundColor: '#a78bfa', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, marginBottom: 6,width:64,alignItems:'center', }}
+                          onPress={() => setShowMatchModal(player)}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 10 }}>Match</Text>
+                        </TouchableOpacity>
                       )}
                       <TouchableOpacity
                         style={s.playerActionBtn}
@@ -1346,10 +1529,27 @@ export default function admin() {
                   <View style={s.setupCard}>
                     <Text style={s.setupCardTitle}>1. ANNOUNCE TOURNAMENT</Text>
                     <TextInput style={s.modalInput} placeholder="e.g. Ramadan Cup 2025" placeholderTextColor="#475569" value={tournamentName} onChangeText={setTournamentName} />
-                    <Text style={s.inputLabel}>Start Date (YYYY-MM-DD)</Text>
-                    <TextInput style={s.modalInput} placeholder="2025-01-01" placeholderTextColor="#475569" value={tournamentStartDate} onChangeText={setTournamentStartDate} />
-                    <Text style={s.inputLabel}>End Date (YYYY-MM-DD)</Text>
-                    <TextInput style={s.modalInput} placeholder="2025-01-15" placeholderTextColor="#475569" value={tournamentEndDate} onChangeText={setTournamentEndDate} />
+                    <Text style={s.inputLabel}>Start Date</Text>
+                    <TouchableOpacity
+                      style={[s.modalInput, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+                      onPress={() => openDatePicker("start")}
+                    >
+                      <Text style={{ color: tournamentStartDate ? "#fff" : "#475569", fontSize: 14 }}>
+                        {tournamentStartDate || "Tap to select start date"}
+                      </Text>
+                      <Text style={{ fontSize: 18 }}>📅</Text>
+                    </TouchableOpacity>
+
+                    <Text style={s.inputLabel}>End Date</Text>
+                    <TouchableOpacity
+                      style={[s.modalInput, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+                      onPress={() => openDatePicker("end")}
+                    >
+                      <Text style={{ color: tournamentEndDate ? "#fff" : "#475569", fontSize: 14 }}>
+                        {tournamentEndDate || "Tap to select end date"}
+                      </Text>
+                      <Text style={{ fontSize: 18 }}>📅</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={s.primaryBtn} onPress={handleOpenRegistration}><Text style={s.primaryBtnText}>Open Registration</Text></TouchableOpacity>
                   </View>
                 )}
@@ -1359,7 +1559,50 @@ export default function admin() {
                       <Text style={s.regLiveTitle}>🟢 Registration Live: {tournament.registrationTitle}</Text>
                       <View style={s.pulseDot} />
                     </View>
+
+                     {/* Deadline Countdown */}
+                      {getTournamentDeadlineString() && (
+                        <View style={{ backgroundColor: 'rgba(0,255,156,0.06)', borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,255,156,0.15)' }}>
+                          <Text style={{ color: '#64748b', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 }}>
+                            Registration Deadline
+                          </Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                              {getTournamentDeadlineString()}
+                            </Text>
+                            <Text style={{
+                              color: getTournamentRemainingTime() === 'Expired' ? '#ef4444' : '#00FF9C',
+                              fontSize: 11, fontWeight: '900',
+                              }}>
+                              {getTournamentRemainingTime()}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
                     <Text style={s.regRange}>{tournament.startDate} → {tournament.endDate}</Text>
+
+                     {/* Registered Teams List */}
+                    {tournament.registeredTeamIds?.length > 0 ? (
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#475569', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                          Registered Teams ({tournament.registeredTeamIds.length})
+                        </Text>
+                        {tournament.registeredTeamIds.map(tid => {
+                          const t = approvedTeams.find(x => x.id === tid);
+                          return (
+                            <View key={tid} style={s.registeredTeamRow}>
+                              <Text style={s.registeredTeamName}>{t?.teamName || tid}</Text>
+                              <Text style={{ color: '#00FF9C' }}>✓</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <Text style={{ color: '#475569', fontSize: 12, fontStyle: 'italic', marginBottom: 12 }}>
+                        No teams registered yet...
+                      </Text>
+                    )}
                     {tournament.registeredTeamIds?.map(tid => {
                       const t = approvedTeams.find(x => x.id === tid);
                       return <View key={tid} style={s.registeredTeamRow}><Text style={s.registeredTeamName}>{t?.teamName || tid}</Text><Text style={{ color: "#00FF9C" }}>✓</Text></View>;
@@ -1370,9 +1613,29 @@ export default function admin() {
                 {!tournament?.registrationOpen && (tournament?.registeredTeamIds || tournament?.status === "setup") && (
                   <View style={s.setupCard}>
                     <Text style={s.setupCardTitle}>SCHEDULE DATES</Text>
-                    <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-                      <TextInput style={[s.modalInput, { flex: 1, marginBottom: 0 }]} placeholder="Date (YYYY-MM-DD)" placeholderTextColor="#475569" value={dateInput} onChangeText={setDateInput} />
-                      <TextInput style={[s.modalInput, { width: 90, marginBottom: 0 }]} placeholder="HH:MM" placeholderTextColor="#475569" value={tournamentStartTime} onChangeText={setTournamentStartTime} />
+                   <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
+                      <TouchableOpacity
+                        style={[s.modalInput, { flex: 1, marginBottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+                        onPress={() => openDatePicker("schedule")}
+                      >
+                        <Text style={{ color: dateInput ? "#fff" : "#475569", fontSize: 14 }}>
+                          {dateInput || "Select Date"}
+                        </Text>
+                        <Text style={{ fontSize: 18 }}>📅</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[s.modalInput, { width: 110, marginBottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+                        onPress={() => {
+                          const [h, min] = tournamentStartTime.split(":").map(Number);
+                          setTempHour(h);
+                          setTempMinute(Math.round(min / 5) * 5);
+                          setShowTimePickerModal(true);
+                        }}
+                      >
+                        <Text style={{ color: "#fff", fontSize: 14 }}>{tournamentStartTime}</Text>
+                        <Text style={{ fontSize: 16 }}>🕐</Text>
+                      </TouchableOpacity>
                     </View>
                     <TouchableOpacity style={[s.secondaryBtn, { marginBottom: 12 }]} onPress={() => {
                       if (!dateInput) return;
@@ -1473,26 +1736,89 @@ export default function admin() {
                   </View>
                   <Text style={{ color: "#64748b" }}>{showArchive ? "▲" : "▼"}</Text>
                 </TouchableOpacity>
-                {showArchive && archived.map(t => (
-                  <View key={t.id} style={s.archiveCard}>
-                    <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <Text style={{ color: "#64748b", fontSize: 14 }}>🏆</Text>
-                          <Text style={s.archiveCardTitle}>{(t.name || "Unnamed Tournament").toUpperCase()}</Text>
+                {showArchive && archived.map(t => {
+                  const isExpanded = expandedArchive[t.id];
+                  const roundKeys = Object.keys(t.rounds || {}).sort((a, b) => parseInt(a) - parseInt(b));
+                  const totalRounds = roundKeys.length;
+
+                  return (
+                    <View key={t.id} style={s.archiveCard}>
+                      {/* Header Row */}
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}
+                        onPress={() => setExpandedArchive(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <Text style={{ color: "#64748b", fontSize: 14 }}>🏆</Text>
+                            <Text style={s.archiveCardTitle}>{(t.name || "Unnamed Tournament").toUpperCase()}</Text>
+                          </View>
+                          {t.finalWinner && <Text style={s.archiveWinner}>🏆 {t.finalWinner.name}</Text>}
+                          <Text style={s.archiveDate}>
+                            {t.archivedAt?.toDate?.()?.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) || ""} • {t.numTeams} TEAMS • {totalRounds} ROUNDS
+                          </Text>
                         </View>
-                        {t.finalWinner && <Text style={s.archiveWinner}>🏆 {t.finalWinner.name}</Text>}
-                        <Text style={s.archiveDate}>{t.archivedAt?.toDate?.()?.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) || ""} • {t.numTeams} TEAMS • {Object.keys(t.rounds || {}).length} ROUNDS</Text>
-                      </View>
-                      <View style={{ flexDirection: "row", gap: 10 }}>
-                        <TouchableOpacity onPress={() => Alert.alert("Delete", "Delete this archived tournament?", [{ text: "Cancel" }, { text: "Delete", style: "destructive", onPress: async () => { await deleteDoc(doc(db, "tournaments_archive", t.id)); setArchived(prev => prev.filter(x => x.id !== t.id)); } }])}>
-                          <Text style={{ color: "#64748b", fontSize: 16 }}>🗑</Text>
-                        </TouchableOpacity>
-                        <Text style={{ color: "#64748b" }}>▼</Text>
-                      </View>
+                        <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+                          <TouchableOpacity onPress={() => Alert.alert("Delete", "Delete this archived tournament?", [
+                            { text: "Cancel" },
+                            {
+                              text: "Delete", style: "destructive", onPress: async () => {
+                                await deleteDoc(doc(db, "tournaments_archive", t.id));
+                                setArchived(prev => prev.filter(x => x.id !== t.id));
+                              }
+                            }
+                          ])}>
+                            <Text style={{ color: "#64748b", fontSize: 16 }}>🗑</Text>
+                          </TouchableOpacity>
+                          <Text style={{ color: "#64748b" }}>{isExpanded ? "▲" : "▼"}</Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Expanded Details */}
+                      {isExpanded && (
+                        <View style={{ marginTop: 14 }}>
+                          {/* Winner Banner */}
+                          {t.finalWinner && (
+                            <View style={{ backgroundColor: "rgba(234,179,8,0.07)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "rgba(234,179,8,0.2)", alignItems: "center", marginBottom: 14 }}>
+                              <Text style={{ color: "#eab308", fontSize: 9, fontWeight: "800", letterSpacing: 2 }}>TOURNAMENT CHAMPION</Text>
+                              <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900", marginTop: 4 }}>🏆 {t.finalWinner.name}</Text>
+                            </View>
+                          )}
+
+                          {/* Bracket per round */}
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <View style={{ flexDirection: "row", gap: 12 }}>
+                              {roundKeys.map((rKey, rIdx) => (
+                                <View key={rKey} style={{ width: 160 }}>
+                                  <Text style={{ color: "#00FF9C", fontSize: 8, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, textAlign: "center", marginBottom: 8 }}>
+                                    {getRoundLabel(rIdx, totalRounds)}
+                                  </Text>
+                                  {(t.rounds[rKey] || []).map((match, mIdx) => (
+                                    <View key={mIdx} style={{ backgroundColor: "#1e293b", borderRadius: 10, padding: 8, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" }}>
+                                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                        <Text style={{ color: match.winner?.id === match.team1?.id ? "#00FF9C" : "#94a3b8", fontSize: 11, fontWeight: match.winner?.id === match.team1?.id ? "800" : "400", flex: 1 }} numberOfLines={1}>
+                                          {match.team1?.name || "TBD"}
+                                        </Text>
+                                        {match.winner?.id === match.team1?.id && <Text style={{ fontSize: 10 }}>✓</Text>}
+                                      </View>
+                                      <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginVertical: 3 }} />
+                                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                                        <Text style={{ color: match.winner?.id === match.team2?.id ? "#00FF9C" : "#94a3b8", fontSize: 11, fontWeight: match.winner?.id === match.team2?.id ? "800" : "400", flex: 1 }} numberOfLines={1}>
+                                          {match.isBye ? "BYE" : (match.team2?.name || "TBD")}
+                                        </Text>
+                                        {match.winner?.id === match.team2?.id && <Text style={{ fontSize: 10 }}>✓</Text>}
+                                      </View>
+                                    </View>
+                                  ))}
+                                </View>
+                              ))}
+                            </View>
+                          </ScrollView>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>
@@ -1507,7 +1833,7 @@ export default function admin() {
             <View style={[s.settingCard, { marginTop: 20 }]}>
               <Text style={s.settingCardTitle}>🔑 Admin Security</Text>
               <Text style={s.settingCardSub}>Change your account password</Text>
-              <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flexDirection: "column", gap: 10 }}>
                 <TextInput style={[s.modalInput, { flex: 1, marginBottom: 0 }]} placeholder="New password..." placeholderTextColor="#475569" secureTextEntry value={newPassword} onChangeText={setNewPassword} />
                 <TouchableOpacity style={s.updatePassBtn} onPress={handleUpdatePassword}><Text style={s.updatePassText}>💾 Update</Text></TouchableOpacity>
               </View>
@@ -1832,6 +2158,208 @@ export default function admin() {
         teams={approvedTeams}
         matches={matches}
       />
+
+      {/* ════ MATCHMAKING MODAL ════ */}
+      <Modal visible={!!showMatchModal} transparent animationType="slide" onRequestClose={() => setShowMatchModal(null)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>🔮 Match Player</Text>
+              <TouchableOpacity onPress={() => setShowMatchModal(null)} style={{ marginLeft: 'auto' }}>
+                <Text style={{ color: '#94a3b8', fontSize: 20 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {showMatchModal && (
+              <>
+                <Text style={{ color: '#94a3b8', textAlign: 'center', marginBottom: 16, fontSize: 13 }}>
+                  Assign <Text style={{ color: '#fff', fontWeight: '800' }}>{showMatchModal.name}</Text>
+                  {showMatchModal.position ? ` (${showMatchModal.position})` : ''} to a team
+                </Text>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Teams needing this position */}
+                  {approvedTeams.filter(t =>
+                    (t.neededPositions || []).includes(showMatchModal.position) ||
+                    t.needsPosition === showMatchModal.position
+                  ).length > 0 && (
+                      <>
+                        <Text style={{ color: '#a78bfa', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                          🎯 Teams Needing {showMatchModal.position}
+                        </Text>
+                        {approvedTeams
+                          .filter(t =>
+                            (t.neededPositions || []).includes(showMatchModal.position) ||
+                            t.needsPosition === showMatchModal.position
+                          )
+                          .map(t => (
+                            <TouchableOpacity
+                              key={t.id}
+                              style={[s.agentRow, { borderColor: 'rgba(167,139,250,0.35)', backgroundColor: 'rgba(167,139,250,0.08)', marginBottom: 8 }]}
+                              onPress={() => handleAssignToTeam(showMatchModal, t)}
+                            >
+                              <View>
+                                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>{t.teamName}</Text>
+                                <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
+                                  {(t.neededPositions || [t.needsPosition]).filter(Boolean).map((pos, i) => (
+                                    <View key={i} style={{
+                                      backgroundColor: pos === showMatchModal.position ? '#a78bfa' : 'rgba(167,139,250,0.15)',
+                                      paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6
+                                    }}>
+                                      <Text style={{ color: pos === showMatchModal.position ? '#fff' : '#a78bfa', fontSize: 8, fontWeight: '800' }}>{pos}</Text>
+                                    </View>
+                                  ))}
+                                </View>
+                              </View>
+                              <Text style={{ color: '#a78bfa', fontSize: 11, fontWeight: '800' }}>Match →</Text>
+                            </TouchableOpacity>
+                          ))
+                        }
+                        <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 }} />
+                      </>
+                    )}
+
+                  {/* All other teams */}
+                  <Text style={{ color: '#475569', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                    All Other Teams
+                  </Text>
+                  {approvedTeams
+                    .filter(t =>
+                      !(t.neededPositions || []).includes(showMatchModal.position) &&
+                      t.needsPosition !== showMatchModal.position
+                    )
+                    .map(t => (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={[s.agentRow, { marginBottom: 8 }]}
+                        onPress={() => handleAssignToTeam(showMatchModal, t)}
+                      >
+                        <Text style={{ color: '#e2e8f0', fontWeight: '700' }}>{t.teamName}</Text>
+                        <Text style={{ color: '#475569', fontSize: 11 }}>
+                          {getTeamMembers(t).length}/7
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  }
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+
+      {/* ════ DATE PICKER MODAL ════ */}
+<Modal visible={showDatePickerModal} transparent animationType="fade" onRequestClose={() => setShowDatePickerModal(false)}>
+  <View style={s.modalOverlay}>
+    <View style={[s.modalBox, { maxHeight: 420 }]}>
+      <View style={s.modalHeader}>
+        <Text style={s.modalTitle}>📅 Select Date</Text>
+        <TouchableOpacity onPress={() => setShowDatePickerModal(false)} style={{ marginLeft: "auto" }}>
+          <Text style={{ color: "#94a3b8", fontSize: 20 }}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 24 }}>
+        <ScrollPicker
+          label="Day"
+          width={70}
+          data={Array.from({ length: getDaysInMonth(tempYear, tempMonth) }, (_, i) => ({
+            value: i + 1,
+            label: String(i + 1).padStart(2, "0"),
+          }))}
+          selected={tempDay}
+          onSelect={setTempDay}
+        />
+        <ScrollPicker
+          label="Month"
+          width={110}
+          data={[
+            { value: 1, label: "Jan" }, { value: 2, label: "Feb" },
+            { value: 3, label: "Mar" }, { value: 4, label: "Apr" },
+            { value: 5, label: "May" }, { value: 6, label: "Jun" },
+            { value: 7, label: "Jul" }, { value: 8, label: "Aug" },
+            { value: 9, label: "Sep" }, { value: 10, label: "Oct" },
+            { value: 11, label: "Nov" }, { value: 12, label: "Dec" },
+          ]}
+          selected={tempMonth}
+          onSelect={setTempMonth}
+        />
+        <ScrollPicker
+          label="Year"
+          width={90}
+          data={Array.from({ length: 3 }, (_, i) => {
+            const y = new Date().getFullYear() + i;
+            return { value: y, label: String(y) };
+          })}
+          selected={tempYear}
+          onSelect={setTempYear}
+        />
+      </View>
+
+      {/* Preview */}
+      <View style={{ backgroundColor: "rgba(0,255,156,0.06)", borderRadius: 12, padding: 12, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(0,255,156,0.15)" }}>
+        <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Selected Date</Text>
+        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
+          {String(Math.min(tempDay, getDaysInMonth(tempYear, tempMonth))).padStart(2, "0")} / {String(tempMonth).padStart(2, "0")} / {tempYear}
+        </Text>
+      </View>
+
+      <TouchableOpacity style={s.primaryBtn} onPress={confirmDate}>
+        <Text style={s.primaryBtnText}>Confirm Date</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+
+{/* ════ TIME PICKER MODAL ════ */}
+<Modal visible={showTimePickerModal} transparent animationType="fade" onRequestClose={() => setShowTimePickerModal(false)}>
+  <View style={s.modalOverlay}>
+    <View style={[s.modalBox, { maxHeight: 380 }]}>
+      <View style={s.modalHeader}>
+        <Text style={s.modalTitle}>🕐 Select Time</Text>
+        <TouchableOpacity onPress={() => setShowTimePickerModal(false)} style={{ marginLeft: "auto" }}>
+          <Text style={{ color: "#94a3b8", fontSize: 20 }}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 24 }}>
+        <ScrollPicker
+          label="Hour"
+          width={90}
+          data={Array.from({ length: 24 }, (_, i) => ({
+            value: i,
+            label: String(i).padStart(2, "0"),
+          }))}
+          selected={tempHour}
+          onSelect={setTempHour}
+        />
+        <Text style={{ color: "#00FF9C", fontSize: 28, fontWeight: "900", marginTop: 20 }}>:</Text>
+        <ScrollPicker
+          label="Min"
+          width={90}
+          data={Array.from({ length: 12 }, (_, i) => ({
+            value: i * 5,
+            label: String(i * 5).padStart(2, "0"),
+          }))}
+          selected={tempMinute}
+          onSelect={setTempMinute}
+        />
+      </View>
+
+      {/* Preview */}
+      <View style={{ backgroundColor: "rgba(0,255,156,0.06)", borderRadius: 12, padding: 12, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(0,255,156,0.15)" }}>
+        <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Selected Time</Text>
+        <Text style={{ color: "#fff", fontSize: 22, fontWeight: "900" }}>
+          {String(tempHour).padStart(2, "0")} : {String(tempMinute).padStart(2, "0")}
+        </Text>
+      </View>
+
+      <TouchableOpacity style={s.primaryBtn} onPress={confirmTime}>
+        <Text style={s.primaryBtnText}>Confirm Time</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
     </View>
   );
 }
@@ -1934,6 +2462,62 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete }) => {
   );
 };
 
+const ScrollPicker = ({ data, selected, onSelect, width = 80, label }) => {
+  const ITEM_H = 44;
+  const ref = React.useRef(null);
+  const idx = data.findIndex(d => d.value === selected);
+
+  React.useEffect(() => {
+    if (ref.current && idx >= 0) {
+      ref.current.scrollTo({ y: idx * ITEM_H, animated: false });
+    }
+  }, [selected]);
+
+  return (
+    <View style={{ alignItems: "center", width }}>
+      {label && <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{label}</Text>}
+      <View style={{ height: ITEM_H * 5, width, overflow: "hidden", position: "relative" }}>
+        {/* Highlight Center */}
+        <View style={{ position: "absolute", top: ITEM_H * 2, left: 0, right: 0, height: ITEM_H, backgroundColor: "rgba(0,255,156,0.08)", borderTopWidth: 1, borderBottomWidth: 1, borderColor: "rgba(0,255,156,0.25)", zIndex: 1, pointerEvents: "none" }} />
+        {/* Top Fade */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: ITEM_H * 2, zIndex: 2, pointerEvents: "none", background: "transparent" }} />
+        <ScrollView
+          ref={ref}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_H}
+          decelerationRate="fast"
+          contentContainerStyle={{ paddingVertical: ITEM_H * 2 }}
+          onMomentumScrollEnd={(e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
+            const clamped = Math.max(0, Math.min(index, data.length - 1));
+            onSelect(data[clamped].value);
+          }}
+        >
+          {data.map((item) => (
+            <TouchableOpacity
+              key={item.value}
+              onPress={() => {
+                onSelect(item.value);
+                const i = data.findIndex(d => d.value === item.value);
+                ref.current?.scrollTo({ y: i * ITEM_H, animated: true });
+              }}
+              style={{ height: ITEM_H, justifyContent: "center", alignItems: "center" }}
+            >
+              <Text style={{
+                color: item.value === selected ? "#00FF9C" : "#64748b",
+                fontSize: item.value === selected ? 20 : 15,
+                fontWeight: item.value === selected ? "900" : "400",
+              }}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
+  );
+};
+
 // ─── Styles ────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#020617" },
@@ -1960,10 +2544,10 @@ const s = StyleSheet.create({
   livePillText: { color: "#00FF9C", fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
   heroTitle: { color: "#fff", fontSize: 28, fontWeight: "900", textAlign: "center", marginBottom: 10, letterSpacing: -0.5 },
   heroSub: { color: "#64748b", fontSize: 14, textAlign: "center", marginBottom: 24, lineHeight: 20 },
-  heroButtons: { flexDirection: "row", gap: 12 },
-  heroBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 6 },
+  heroButtons: { flexDirection: "column", gap: 10, width: "100%", paddingHorizontal: 16 },
+  heroBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, alignItems: "center"},
   heroBtnText: { color: "#000", fontWeight: "800", fontSize: 14 },
-  heroBtnOutline: { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14 },
+  heroBtnOutline: { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, alignItems: "center" },
   heroBtnOutlineText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
   // Champion
@@ -2033,11 +2617,12 @@ const s = StyleSheet.create({
   matchTabRow: { flexDirection: "row" },
   matchTabBtn: { paddingHorizontal: 14, paddingVertical: 12 },
   matchTabText: { color: "#475569", fontWeight: "700", fontSize: 11 },
-  matchStatsFooter: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 28, marginTop: 28, paddingTop: 20, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)" },
-  matchStat: { alignItems: "center" },
-  matchStatNum: { color: "#fff", fontSize: 28, fontWeight: "900" },
-  matchStatLabel: { color: "#475569", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, marginTop: 3, fontWeight: "700" },
-  matchStatDivider: { width: 1, height: 36, backgroundColor: "rgba(255,255,255,0.07)" },
+  matchStatsFooter: { flexDirection: "row", justifyContent: "space-evenly", alignItems: "center", marginTop: 28, paddingTop: 20, paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1,
+   borderTopColor: "rgba(255,255,255,0.07)", backgroundColor: "#0f172a", borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
+  matchStat: { alignItems: "center", flex: 1 },
+  matchStatNum: { color: "#fff", fontSize: 32, fontWeight: "900", letterSpacing: -1 },
+  matchStatLabel: { color: "#475569", fontSize: 8, textTransform: "uppercase", letterSpacing: 1, marginTop: 4, fontWeight: "800", textAlign: "center" },
+  matchStatDivider: { width: 1, height: 40, backgroundColor: "rgba(255,255,255,0.08)" },
 
   // Round filter
   roundFilterBtn: { paddingHorizontal: 15, paddingVertical: 6, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
@@ -2046,31 +2631,31 @@ const s = StyleSheet.create({
 
   //players
   playerCard: {
-    flexDirection: "row", gap: 10, backgroundColor: "#0f172a",
-    borderRadius: 16, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: "rgb(66, 154, 104)", alignItems: "flex-start",
+    flexDirection: "row", gap: 8, backgroundColor: "#0f172a",
+    borderRadius: 16, padding: 12,  marginBottom: 10,
+    borderWidth: 1, borderColor: "rgb(66, 154, 104)", alignItems: "center",
   },
   playerCardSuspended: { borderColor: "rgb(214, 109, 109)" },
-  playerRankBadge: { width: 50 },
-  playerRank: { color: "#97b3db", fontWeight: "bold", fontSize: 25 },
+  playerRankBadge: { width: 36 },
+  playerRank: { color: "#97b3db", fontWeight: "bold", fontSize: 18 },
   playerAvatar: {
-    width: 45, height: 45, borderRadius: 12,
+    width: 38, height: 38, borderRadius: 10,
     backgroundColor: "rgba(0,255,156,0.15)", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: "rgba(0,255,156,0.3)",
   },
-  playerAvatarText: { color: "#00FF9C", fontSize: 20, fontWeight: "bold" },
-  playerName: { color: "#fff", fontWeight: "bold", fontSize: 15 },
-  playerSub: { color: "#acb0b5", fontSize: 12, marginTop: 2 },
-  playerTeam: { color: "#00FF9C", fontSize: 13, fontWeight: "bold", marginTop: 2 },
-  playerStats: { flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" },
-  playerStatGoals: { color: "#00FF9C", fontSize: 12, fontWeight: "bold" },
-  playerStatYellow: { color: "#eab308", fontSize: 12, fontWeight: "bold" },
+  playerAvatarText: { color: "#00FF9C", fontSize: 16, fontWeight: "bold" },
+  playerName: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  playerSub: { color: "#acb0b5", fontSize: 10, marginTop: 1 },
+  playerTeam: { color: "#00FF9C", fontSize: 11, fontWeight: "bold", marginTop: 1 },
+  playerStats: { flexDirection: "row", gap: 8, marginTop: 4, flexWrap: "wrap" },
+  playerStatGoals: { color: "#00FF9C", fontSize: 11, fontWeight: "bold" },
+  playerStatYellow: { color: "#eab308", fontSize: 11, fontWeight: "bold" },
   playerStatRed: { color: "#ef4444", fontSize: 12, fontWeight: "bold" },
   suspendBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, fontSize: 9, fontWeight: "bold", color: "#fff" },
-  passRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  passLabel: { color: "#64748b", fontSize: 9, marginRight: 4 },
-  passValue: { color: "#fbbf24", fontSize: 11, fontStyle: "italic", fontWeight: "bold" },
-  playerActions: { alignItems: "flex-end", gap: 8 },
+  passRow: { flexDirection: "row", alignItems: "center", marginTop: 3 },
+  passLabel: { color: "#64748b", fontSize: 8, marginRight: 3 },
+  passValue: { color: "#fbbf24", fontSize: 10, fontStyle: "italic", fontWeight: "bold" },
+  playerActions: { alignItems: "flex-end", gap: 6, justifyContent: "center", minWidth: 68  },
   activateBtn: { backgroundColor: "#ea580c", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   activateBtnText: { color: "#fff", fontWeight: "bold", fontSize: 10 },
   verifiedBadge: { backgroundColor: "rgba(0,255,156,0.1)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
