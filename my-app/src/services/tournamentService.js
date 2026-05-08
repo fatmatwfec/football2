@@ -257,7 +257,8 @@ export const clearTournament = async () => {
     let count = 0;
     matchesSnap.docs.forEach(d => {
       const m = d.data();
-      if (m.tournamentName === tName || (m.tournamentName && m.tournamentName !== "Friendly")) {
+      // Only delete matches that belong to THIS tournament
+      if (tName && m.tournamentName === tName) {
         batch.delete(d.ref);
         count++;
       }

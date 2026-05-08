@@ -85,7 +85,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
       setMatches(cache);
     });
     return () => unsubMatches();
-  }, [tournament?.name, tournament?.registrationTitle]);
+  }, [tournament?.name, tournament?.registrationTitle, tournament?.registeredTeamIds]);
 
   const numTeams         = teams?.length ?? 0;
   const tournamentWinner = useMemo(() => getTournamentWinner(tournament), [tournament]);
@@ -93,19 +93,25 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const handleRunDraw = async () => {
     if (readOnly) return;
     
-    // تصفية الفرق لتشمل فقط المسجلين
+    // تصفية الفرق لتشمل فقط المسجلين والذين لديهم 5 لاعبين على الأقل
     const registeredTeams = teams.filter(t => 
       tournament?.registeredTeamIds?.includes(t.id)
     );
 
-    const targetTeams = registeredTeams.length > 0 ? registeredTeams : teams;
+    const targetTeams = (registeredTeams.length > 0 ? registeredTeams : teams)
+      .filter(t => (t.memberIds?.length || 0) >= 5);
 
     if (targetTeams.length < 3) {
-      alert(`Need at least 3 teams. Currently registered: ${registeredTeams.length}`);
+      const smallTeams = (registeredTeams.length > 0 ? registeredTeams : teams)
+        .filter(t => (t.memberIds?.length || 0) < 5);
+      
+      alert(`Need at least 3 teams with 5+ players. 
+        Currently found ${targetTeams.length} valid teams. 
+        Note: ${smallTeams.length} teams were excluded because they have less than 5 players.`);
       return;
     }
 
-    const finalTournamentName = tournamentName.trim() || tournament?.registrationTitle;
+    const finalTournamentName = tournamentName.trim() || tournament?.name || tournament?.registrationTitle || `Tournament ${new Date().toLocaleDateString()}`;
     if (!finalTournamentName) {
       alert("Please enter a tournament name.");
       return;
@@ -523,7 +529,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
         {scheduleModal && !readOnly && (
           <ScheduleMatchModal
             prefill={scheduleModal}
-            tournamentName={tournament?.name}
+            tournamentName={tournament?.name || tournament?.registrationTitle}
             startDate={tournament?.startDate}
             endDate={tournament?.endDate}
             onClose={() => setScheduleModal(null)}

@@ -321,22 +321,58 @@ const StudentDashboard = () => {
     };
 
     const leaveTeam = async () => {
+        if (!window.confirm("Are you sure you want to leave the team?")) return;
+        
         const user = auth.currentUser;
         const index = teamData.memberIds.findIndex((id) => id === user.uid);
         if (index === -1) return;
+
         const newMemberIds = [...teamData.memberIds];
         const newMembers = [...teamData.members];
         newMemberIds.splice(index, 1);
         newMembers.splice(index, 1);
-        await updateDoc(doc(db, "teams", userData.teamId), {
-            memberIds: newMemberIds,
-            members: newMembers,
-        });
-        await updateDoc(doc(db, "users", user.uid), {
-            hasTeam: false,
-            teamId: "",
-            assignedTeam: "",
-        });
+
+        try {
+            const batch = writeBatch(db);
+
+            // If the one leaving is the captain
+            if (userData.uid === teamData.captainId) {
+                if (newMemberIds.length > 0) {
+                    // Transfer leadership to the first person in the remaining list
+                    const newCaptainId = newMemberIds[0];
+                    const newCaptainName = newMembers[0];
+                    
+                    batch.update(doc(db, "teams", userData.teamId), {
+                        memberIds: newMemberIds,
+                        members: newMembers,
+                        captainId: newCaptainId,
+                        captainName: newCaptainName
+                    });
+                } else {
+                    // No members left, delete team
+                    batch.delete(doc(db, "teams", userData.teamId));
+                }
+            } else {
+                // Normal member leaving
+                batch.update(doc(db, "teams", userData.teamId), {
+                    memberIds: newMemberIds,
+                    members: newMembers,
+                });
+            }
+
+            // Update user document
+            batch.update(doc(db, "users", user.uid), {
+                hasTeam: false,
+                teamId: "",
+                assignedTeam: "",
+            });
+
+            await batch.commit();
+            alert("You have left the team. Leadership has been transferred if applicable.");
+        } catch (err) {
+            console.error("Error leaving team:", err);
+            alert("Failed to leave team.");
+        }
     };
 
     const handlePositionChange = async (newPosition) => {
@@ -352,23 +388,7 @@ const StudentDashboard = () => {
         setSavingPosition(false);
     };
 
-    const deleteTeam = async () => {
-        if (!window.confirm("Are you sure you want to delete the team? All members will become Free Agents.")) return;
 
-        try {
-            const memberIds = teamData.memberIds;
-
-            const updatePromises = memberIds.map(id =>
-                updateDoc(doc(db, "users", id), { hasTeam: false, teamId: "", assignedTeam: "", teamRequests: [] })
-            );
-            await Promise.all(updatePromises);
-            await deleteDoc(doc(db, "teams", teamData.id));
-            alert("Team has been deleted successfully.");
-        } catch (err) {
-            console.error("Error deleting team:", err);
-            alert("Failed to delete team.");
-        }
-    };
 
     const removePlayer = async (index) => {
         const newIds = [...teamData.memberIds];
@@ -1203,15 +1223,9 @@ const StudentDashboard = () => {
 
                                     {userData?.hasTeam && (
                                         <div className="mt-4 space-y-2">
-                                            {userData.uid === teamData?.captainId ? (
-                                                <button onClick={deleteTeam} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl transition shadow-lg shadow-red-500/20">
-                                                    Delete Team
-                                                </button>
-                                            ) : (
-                                                <button onClick={leaveTeam} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-xl transition">
-                                                    Leave Team
-                                                </button>
-                                            )}
+                                            <button onClick={leaveTeam} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-xl transition">
+                                                Leave Team
+                                            </button>
                                         </div>
                                     )}
 
