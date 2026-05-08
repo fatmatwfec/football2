@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot, FaEnvelope, FaPhone } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot, FaEnvelope, FaPhone, FaExternalLinkAlt } from "react-icons/fa";
 import AIChatModal from "../components/AIChatModal";
 
 const StudentDashboard = () => {
@@ -29,6 +29,8 @@ const StudentDashboard = () => {
     const [tournament, setTournament] = useState(null);
     const [now, setNow] = useState(Date.now());
     const [showAIChat, setShowAIChat] = useState(false);
+    const [scoutingCart, setScoutingCart] = useState([]);
+    const [isCartOpen, setIsCartOpen] = useState(false);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -634,6 +636,56 @@ const StudentDashboard = () => {
         return new Date(deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     };
 
+    // Scouting Cart Functions
+    const addToCart = (player) => {
+        if (scoutingCart.find(p => p.id === player.id)) {
+            alert("Player already in scouting list!");
+            return;
+        }
+        if (scoutingCart.length >= 7) {
+            alert("You can only scout up to 7 players at a time.");
+            return;
+        }
+        setScoutingCart([...scoutingCart, player]);
+        setIsCartOpen(true);
+    };
+
+    const removeFromCart = (playerId) => {
+        setScoutingCart(scoutingCart.filter(p => p.id !== playerId));
+    };
+
+    const sendBulkInvites = async () => {
+        if (!scoutingCart.length) return;
+        if (!isCaptain) return alert("Only Team Leaders can send invites.");
+
+        try {
+            const batch = writeBatch(db);
+            const inviteData = {
+                teamId: userData.teamId,
+                teamName: userData.assignedTeam,
+                captainId: userData.uid,
+                captainName: userData.name,
+                captainEmail: userData.email,
+                timestamp: new Date()
+            };
+
+            scoutingCart.forEach(player => {
+                const playerRef = doc(db, "users", player.id);
+                batch.update(playerRef, {
+                    teamRequests: arrayUnion(inviteData)
+                });
+            });
+
+            await batch.commit();
+            alert(`Sent invites to ${scoutingCart.length} players successfully!`);
+            setScoutingCart([]);
+            setIsCartOpen(false);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to send invites.");
+        }
+    };
+
     if (loading) {
         return (
             <div className="loader">
@@ -709,9 +761,13 @@ const StudentDashboard = () => {
 
                                 <div className="mt-5">
                                     {userData?.hasTeam ? (
-                                        <span className="bg-green-500/20 text-green-400 px-5 py-2 rounded-xl border border-green-500/30 inline-block">
-                                            Team Name : {userData?.assignedTeam}
-                                        </span>
+                                        <div 
+                                            onClick={() => navigate(`/team/${userData.teamId}`)}
+                                            className="bg-green-500/20 text-green-400 px-5 py-2 rounded-xl border border-green-500/30 inline-flex items-center gap-2 cursor-pointer hover:bg-green-500/30 transition-all group"
+                                        >
+                                            <span className="font-bold">Team: {userData?.assignedTeam}</span>
+                                            <FaExternalLinkAlt size={10} className="group-hover:scale-110 transition-transform" />
+                                        </div>
                                     ) : (
                                         <span className="bg-orange-500/20 text-orange-400 px-5 py-2 rounded-xl border border-orange-500/30 inline-block">
                                             No Team Yet

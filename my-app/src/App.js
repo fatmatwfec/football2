@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ChangePassword from './Dashboard/ChangePassword';
 import CreateTeam from './Dashboard/CreateTeam';
 import EditProfile from './Dashboard/EditProfile';
+import TeamDetails from './Dashboard/TeamDetails';
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -67,6 +68,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/team/:teamId" element={<TeamDetails />} />
         </Routes>
       </div>
     </Router>

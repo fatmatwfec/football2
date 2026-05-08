@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, collection, deleteDoc, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt, FaStar, FaRegStar } from 'react-icons/fa';
+import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt, FaStar, FaRegStar, FaExternalLinkAlt } from 'react-icons/fa';
 import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel, buildMatchCache} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
 
@@ -677,6 +678,7 @@ const ScheduleMatchModal = ({ prefill, tournamentName, startDate, endDate, onClo
 
 // ─── Archived Tournament Card ─────────────────────────────────
 const ArchivedTournamentCard = ({ tournament, onDelete, currentUserId, readOnly }) => {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -743,7 +745,18 @@ const ArchivedTournamentCard = ({ tournament, onDelete, currentUserId, readOnly 
         <div className="flex items-center gap-3">
           <FaTrophy className={`text-lg ${winner ? 'text-yellow-500' : 'text-slate-600'}`} />
           <div>
-            <p className="text-white font-bold text-sm uppercase">{tournament.name || (winner ? winner.name : 'Unfinished Tournament')}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-white font-bold text-sm uppercase">{tournament.name || (winner ? winner.name : 'Unfinished Tournament')}</p>
+              {winner && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); navigate(`/team/${winner.id}`); }}
+                  className="text-emerald-500 hover:text-white transition-colors"
+                  title="View Champion Profile"
+                >
+                  <FaExternalLinkAlt size={10} />
+                </button>
+              )}
+            </div>
             <p className="text-slate-500 text-[8px] font-bold uppercase">{archivedDate} · {tournament.numTeams} teams · {totalRounds} rounds</p>
           </div>
         </div>
@@ -977,14 +990,28 @@ const MatchCard = ({ match, roundIndex, totalRounds, roundDate, matches, onAdvan
   );
 };
 // ─── Team Slot ────────────────────────────────────────────────
-const TeamSlot = ({ team, isWinner, onClick, clickable }) => (
-  <div onClick={onClick} className={`flex items-center justify-between p-2 rounded-lg border transition-all text-xs font-bold uppercase ${
-    isWinner ? 'bg-emerald-500/20 border-emerald-500 text-white' : 'bg-slate-900/40 border-white/5 text-slate-300'
-  } ${clickable ? 'cursor-pointer hover:bg-slate-700' : ''}`}>
-    <span className="truncate">{team ? team.name : <span className="text-slate-600">TBD</span>}</span>
-    {isWinner && <FaCheckCircle className="text-emerald-500 flex-shrink-0 ml-1" size={10} />}
-  </div>
-);
+const TeamSlot = ({ team, isWinner, onClick, clickable }) => {
+  const navigate = useNavigate();
+  return (
+    <div onClick={onClick} className={`flex items-center justify-between p-2 rounded-lg border transition-all text-xs font-bold uppercase ${
+      isWinner ? 'bg-emerald-500/20 border-emerald-500 text-white' : 'bg-slate-900/40 border-white/5 text-slate-300'
+    } ${clickable ? 'cursor-pointer hover:bg-slate-700' : ''}`}>
+      <div className="flex items-center gap-2 truncate">
+        <span className="truncate">{team ? team.name : <span className="text-slate-600">TBD</span>}</span>
+        {team && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); navigate(`/team/${team.id}`); }}
+            className="text-emerald-500 hover:text-white transition-colors"
+            title="View Team Profile"
+          >
+            <FaExternalLinkAlt size={8} />
+          </button>
+        )}
+      </div>
+      {isWinner && <FaCheckCircle className="text-emerald-500 flex-shrink-0 ml-1" size={10} />}
+    </div>
+  );
+};
 
 // ─── Wizard Step ──────────────────────────────────────────────
 const WizardStep = ({ step, currentStep, label }) => {

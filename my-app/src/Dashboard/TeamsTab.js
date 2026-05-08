@@ -4,10 +4,11 @@ import {
   doc, writeBatch, arrayUnion, arrayRemove,
   collection, getDocs, query, where,
 } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import {
   FaUserPlus, FaShieldAlt, FaUserMinus, FaTrashAlt, FaFutbol, 
   FaSearch, FaTimes, FaBan, FaPen, FaCheck,
-  FaTrophy, FaUsers, FaGamepad
+  FaTrophy, FaUsers, FaGamepad, FaExternalLinkAlt
 } from 'react-icons/fa';
 import { updateTeamNameInTournament } from '../services/tournamentService';
 
@@ -28,6 +29,7 @@ const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
   const [teamSearch, setTeamSearch] = useState('');
   const [renamingTeamId, setRenamingTeamId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
+  const navigate = useNavigate();
 
   // Auto-Repair Captains: Use actual players with matching teamId as source of truth
   React.useEffect(() => {
@@ -258,6 +260,13 @@ const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
                         ) : (
                           <>
                             <h3 className="text-white font-black text-2xl">{team.teamName}</h3>
+                            <button 
+                              onClick={() => navigate(`/team/${team.id}`)}
+                              className="text-emerald-500 hover:text-white transition-colors"
+                              title="View Full Profile"
+                            >
+                              <FaExternalLinkAlt size={14} />
+                            </button>
                             {!readOnly && (
                               <button onClick={(e) => startRename(team, e)} className="text-slate-500 hover:text-emerald-400">
                                 <FaPen size={12} />
