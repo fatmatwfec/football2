@@ -29,6 +29,7 @@ const AdminDashboard = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [currentTournamentName, setCurrentTournamentName] = useState("");
+  const [archivedTournaments, setArchivedTournaments] = useState([]);
 
   useEffect(() => {
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
@@ -55,11 +56,15 @@ const AdminDashboard = () => {
     });
 
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setMatches(data);
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setMatches(data);
     });
 
-    return () => { unsubUsers(); unsubTeams(); unsubMatches(); unsubTournament(); };
+    const unsubArchive = onSnapshot(collection(db, "tournaments_archive"), (snap) => {
+        setArchivedTournaments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubUsers(); unsubTeams(); unsubMatches(); unsubTournament(); unsubArchive(); };
   }, []);
 
   // Effect to fix matches when tournament name is loaded
@@ -529,6 +534,8 @@ const AdminDashboard = () => {
                   players={filteredPlayers}
                   matches={enrichedMatches}
                   teams={approvedTeams}
+                  archivedTournaments={archivedTournaments}
+                  currentTournamentName={currentTournamentName}
                 />
               </div>
             )}

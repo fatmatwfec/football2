@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
-import { doc, onSnapshot, collection, deleteDoc, updateDoc, arrayUnion, arrayRemove, setDoc } from 'firebase/firestore';
-import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt } from 'react-icons/fa';
+import { doc, onSnapshot, collection, deleteDoc, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { FaSitemap, FaTrophy, FaLock, FaRandom, FaCheckCircle, FaTimes, FaUsers, FaCog, FaCalendarPlus, FaArchive, FaChevronDown, FaChevronUp, FaFutbol, FaArrowLeft, FaTrash, FaClock, FaCalendarAlt, FaStar, FaRegStar } from 'react-icons/fa';
 import {generateBracket,manualAdvanceWinner,clearTournament,fetchArchivedTournaments,getTournamentWinner,getRoundLabel, buildMatchCache} from '../services/tournamentService';
 import { scheduleMatch } from '../services/matchService';
 
-const TournamentTab = ({ teams, onBack, readOnly = false }) => {
+const TournamentTab = ({ teams, onBack, readOnly = false, currentUserId = null }) => {
   const [tournament,    setTournament]    = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [wizardStep,    setWizardStep]    = useState(1);
@@ -558,6 +558,8 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
                   <ArchivedTournamentCard 
                     key={t.id} 
                     tournament={t} 
+                    currentUserId={currentUserId}
+                    readOnly={readOnly}
                     onDelete={async (id) => {
                       if (!window.confirm('Delete this archived tournament?')) return;
                       await deleteDoc(doc(db, 'tournaments_archive', id));
@@ -674,20 +676,70 @@ const ScheduleMatchModal = ({ prefill, tournamentName, startDate, endDate, onClo
 };
 
 // ─── Archived Tournament Card ─────────────────────────────────
-const ArchivedTournamentCard = ({ tournament, onDelete }) => {
+const ArchivedTournamentCard = ({ tournament, onDelete, currentUserId, readOnly }) => {
   const [expanded, setExpanded] = useState(false);
-  const winner    = tournament.finalWinner;
+  const [userRating, setUserRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [savingRating, setSavingRating] = useState(false);
+  const [avgRating, setAvgRating] = useState(0);
+  const [totalRatings, setTotalRatings] = useState(0);
+
+  const winner = tournament.finalWinner;
   const totalRounds = Object.keys(tournament.rounds || {}).length;
+
+  // Fetch individual rating and total stats
+  useEffect(() => {
+    if (!tournament.id) return;
+
+    // Fetch user's rating
+    if (currentUserId) {
+      const ratingId = `${tournament.id}_${currentUserId}`;
+      getDoc(doc(db, "tournament_ratings", ratingId)).then(snap => {
+        if (snap.exists()) setUserRating(snap.data().rating);
+      });
+    }
+
+    // Fetch global stats (Average)
+    const q = query(collection(db, "tournament_ratings"), where("tournamentId", "==", tournament.id));
+    getDocs(q).then(snap => {
+      if (!snap.empty) {
+        const ratings = snap.docs.map(d => d.data().rating);
+        const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+        setAvgRating(avg.toFixed(1));
+        setTotalRatings(ratings.length);
+      }
+    });
+  }, [currentUserId, tournament.id]);
+
+  const handleRate = async (rating) => {
+    if (!currentUserId || savingRating) return;
+    setSavingRating(true);
+    try {
+      const ratingId = `${tournament.id}_${currentUserId}`;
+      await setDoc(doc(db, "tournament_ratings", ratingId), {
+        tournamentId: tournament.id,
+        tournamentName: tournament.name || "Unnamed Tournament",
+        userId: currentUserId,
+        rating: rating,
+        timestamp: new Date()
+      });
+      setUserRating(rating);
+    } catch (err) {
+      console.error("Error saving rating:", err);
+    } finally {
+      setSavingRating(false);
+    }
+  };
 
   const archivedDate = tournament.archivedAt?.toDate
     ? tournament.archivedAt.toDate().toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'short', year: 'numeric',
-      })
+      day: '2-digit', month: 'short', year: 'numeric',
+    })
     : '—';
 
   return (
     <div className="bg-slate-900/40 rounded-xl border border-white/10 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/5 transition-all" onClick={() => setExpanded(v => !v)}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/5 transition-all" onClick={() => setExpanded(v => !v)}>
         <div className="flex items-center gap-3">
           <FaTrophy className={`text-lg ${winner ? 'text-yellow-500' : 'text-slate-600'}`} />
           <div>
@@ -695,14 +747,57 @@ const ArchivedTournamentCard = ({ tournament, onDelete }) => {
             <p className="text-slate-500 text-[8px] font-bold uppercase">{archivedDate} · {tournament.numTeams} teams · {totalRounds} rounds</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onDelete(tournament.id); }}
-            className="p-2 text-slate-500 hover:text-red-500 transition-colors"
-          >
-            <FaTrash size={12} />
-          </button>
-          {expanded ? <FaChevronUp className="text-slate-500" /> : <FaChevronDown className="text-slate-500" />}
+
+        <div className="flex items-center gap-6 mt-4 sm:mt-0" onClick={e => e.stopPropagation()}>
+          
+          {/* Admin Stats View */}
+          {!readOnly && totalRatings > 0 && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl text-center">
+              <p className="text-[7px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">Avg Rating</p>
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-sm font-black text-white">{avgRating}</span>
+                <FaStar className="text-yellow-500 text-[10px]" />
+                <span className="text-[8px] text-gray-500 ml-1">({totalRatings})</span>
+              </div>
+            </div>
+          )}
+
+          {/* Star Rating System (Visible to students ONLY) */}
+          {readOnly && (
+            <div className="flex flex-col items-center sm:items-end">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Rate Tournament</span>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    onClick={() => handleRate(star)}
+                    className="transition-transform hover:scale-125 focus:outline-none"
+                    disabled={savingRating}
+                  >
+                    {(hoverRating || userRating) >= star ? (
+                      <FaStar className="text-yellow-500 text-xl" />
+                    ) : (
+                      <FaRegStar className="text-gray-600 text-xl" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            {!readOnly && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(tournament.id); }}
+                className="p-2 text-slate-500 hover:text-red-500 transition-colors"
+              >
+                <FaTrash size={14} />
+              </button>
+            )}
+            {expanded ? <FaChevronUp className="text-slate-500" size={16} /> : <FaChevronDown className="text-slate-500" size={16} />}
+          </div>
         </div>
       </div>
 

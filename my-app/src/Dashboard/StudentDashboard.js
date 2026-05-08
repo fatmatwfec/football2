@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot, FaEnvelope } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot, FaEnvelope, FaPhone } from "react-icons/fa";
 import AIChatModal from "../components/AIChatModal";
 
 const StudentDashboard = () => {
@@ -266,16 +266,7 @@ const StudentDashboard = () => {
 
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
 
-                setAllStudents(students.map(s => {
-                    const studentDoc = querySnapshot.docs.find(d => d.id === s.id)?.data();
-                    return {
-                        id: s.id,
-                        name: studentDoc?.name,
-                        teamId: studentDoc?.teamId,
-                        email: studentDoc?.email
-                    };
-                }));
-
+                // Rank is already calculated in the 'students' array
                 const rank = students.findIndex(s => s.id === userData.uid) + 1;
                 setUserRank(rank);
             } catch (error) {
@@ -284,7 +275,7 @@ const StudentDashboard = () => {
         };
 
         fetchRank();
-    }, [userData?.uid, userData?.goals, userData?.score]);
+    }, [userData?.uid]);
 
     const acceptInvite = async (req) => {
         const user = auth.currentUser;
@@ -1202,9 +1193,17 @@ const StudentDashboard = () => {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <div className="mt-1.5 ml-4 flex items-center gap-2">
-                                                            <FaEnvelope size={10} className="text-emerald-500/50" />
-                                                            <span className="text-[11px] text-gray-400 select-all">{memberInfo?.email || "Loading email..."}</span>
+                                                        <div className="mt-2 ml-4 space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <FaEnvelope size={12} className="text-emerald-500/50" />
+                                                                <span className="text-xs text-gray-300 font-medium select-all">{memberInfo?.email || "Loading email..."}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <FaPhone size={10} className="text-blue-400/50" />
+                                                                <span className="text-xs text-gray-300 font-medium select-all">
+                                                                    {memberInfo?.phone || "—"}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
@@ -1214,14 +1213,23 @@ const StudentDashboard = () => {
                                         <>
                                             {userData?.teamRequests?.length > 0 ? (
                                                 userData.teamRequests.map((req, index) => (
-                                                    <div key={index} className="mb-3 p-3 bg-black/40 rounded-xl">
-                                                        <p className="font-bold">{req.teamName}</p>
-                                                        <div className="mt-2 space-x-2">
-                                                            <button onClick={() => acceptInvite(req)} className="bg-green-500 px-3 py-1 rounded">
+                                                    <div key={index} className="mb-3 p-4 bg-black/40 rounded-xl border border-white/5">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <p className="font-black text-white uppercase text-sm tracking-wider">{req.teamName}</p>
+                                                            <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-bold uppercase">Invitation</span>
+                                                        </div>
+                                                        <div className="space-y-1 mb-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <FaEnvelope size={10} className="text-gray-500" />
+                                                                <span className="text-[11px] text-gray-400">{req.captainEmail || "Captain Email"}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => acceptInvite(req)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-1.5 rounded-lg text-xs transition-colors">
                                                                 Accept
                                                             </button>
-                                                            <button onClick={() => rejectInvite(req)} className="bg-red-500 px-3 py-1 rounded">
-                                                                Reject
+                                                            <button onClick={() => rejectInvite(req)} className="flex-1 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 font-bold py-1.5 rounded-lg text-xs transition-colors border border-white/5">
+                                                                Decline
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1280,7 +1288,7 @@ const StudentDashboard = () => {
                     </div>
                 ) : (
                     <div className="animate-fade-slide-up">
-                        <TournamentTab teams={approvedTeams} onBack={() => setActiveView("dashboard")} readOnly={true} />
+                        <TournamentTab teams={approvedTeams} onBack={() => setActiveView("dashboard")} readOnly={true} currentUserId={userData?.uid} />
                     </div>
                 )}
             </div>

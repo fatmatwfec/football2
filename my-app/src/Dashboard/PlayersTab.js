@@ -3,7 +3,7 @@ import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, Fa
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 
-const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => {
+const PlayersTab = ({ players, matches = [], teams = [], archivedTournaments = [], currentTournamentName = "", readOnly = false }) => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [showBuildModal, setShowBuildModal] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(null); // stores the player being matched
@@ -29,13 +29,18 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
 
   const availableTournaments = useMemo(() => {
     const names = new Set();
-    allPlayers.forEach(p => {
-      if (p.tournamentStats) {
-        Object.keys(p.tournamentStats).forEach(name => names.add(name));
-      }
+    
+    // 1. Add current tournament name
+    if (currentTournamentName) names.add(currentTournamentName);
+    
+    // 2. Add all archived tournament names
+    archivedTournaments.forEach(t => {
+      const name = t.name || t.registrationTitle || t.tournamentName;
+      if (name) names.add(name);
     });
+
     return Array.from(names).sort();
-  }, [allPlayers]);
+  }, [archivedTournaments, currentTournamentName]);
 
   const getStat = (player, statType) => {
     if (statsFilter === "total") {
