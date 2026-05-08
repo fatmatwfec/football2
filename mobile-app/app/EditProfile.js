@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, Text, TextInput, TouchableOpacity, Image, 
-  StyleSheet, ScrollView, ActivityIndicator, Alert, SafeAreaView 
+import {
+  View, Text, TextInput, TouchableOpacity, Image,
+  StyleSheet, ScrollView, ActivityIndicator, Alert, SafeAreaView
 } from "react-native";
-//import * as ImagePicker from 'expo-image-picker';
-import { auth, db } from "../firebase"; 
+import * as ImagePicker from 'expo-image-picker';
+import { auth, db } from "../firebase";
 import { updateProfile, updateEmail } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
@@ -22,6 +22,8 @@ const EditProfile = () => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState("https://via.placeholder.com/150");
   const [loading, setLoading] = useState(false);
+  const [newImage, setNewImage] = useState(null);
+
 
   useEffect(() => {
     if (!user) return;
@@ -44,59 +46,94 @@ const EditProfile = () => {
   }, [user]);
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!result.canceled) {
-      const selectedImage = result.assets[0];
-      setImage(selectedImage.uri);
-      setPreview(selectedImage.uri);
+      if (!permission.granted) {
+        Alert.alert("Permission Denied", "اسمح بالوصول للصور");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        const selectedImage = result.assets[0];
+
+        setNewImage(selectedImage.uri);
+        setPreview(selectedImage.uri);
+      }
+    } catch (err) {
+      Alert.alert("Error", err.message);
     }
   };
 
   const uploadToCloudinary = async (fileUri) => {
-    const formData = new FormData();
-    formData.append("file", {
-      uri: fileUri,
-      type: "image/jpeg",
-      name: "profile.jpg",
-    });
-    formData.append("upload_preset", UPLOAD_PRESET);
+    try {
+      const formData = new FormData();
 
-    const res = await fetch(CLOUDINARY_URL, {
-      method: "POST",
-      body: formData,
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    const data = await res.json();
-    return data.secure_url;
+      formData.append("file", {
+        uri: fileUri,
+        type: "image/*",
+        name: "profile.jpg",
+      });
+
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      const res = await fetch(CLOUDINARY_URL, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!data.secure_url) {
+        throw new Error("Image upload failed");
+      }
+
+      return data.secure_url;
+    } catch (err) {
+      throw err;
+    }
   };
 
   const handleUpdate = async () => {
-    if (!user) return Alert.alert("Error", "User not logged in");
+    if (!user)
+      return Alert.alert("Error", "User not logged in");
+
     setLoading(true);
 
     try {
+
       let imageUrl = preview;
-      if (image) {
-        imageUrl = await uploadToCloudinary(image);
+
+      if (newImage) {
+        imageUrl = await uploadToCloudinary(newImage);
       }
 
       await updateProfile(user, { displayName: name, photoURL: imageUrl });
 
       if (email !== user.email) {
-        await updateEmail(user, email);
+        try {
+          await updateEmail(user, email);
+        } catch (e) {
+          Alert.alert(
+            "Email Update Failed",
+            "محتاج تسجل دخول تاني قبل تغيير الإيميل"
+          );
+        }
       }
 
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, { name, phone, photo: imageUrl });
 
       Alert.alert("Success", "✅ Profile updated successfully!");
-      navigation.goBack(); 
+      navigation.goBack();
     } catch (err) {
       Alert.alert("Update Failed", err.message);
     } finally {
@@ -112,7 +149,7 @@ const EditProfile = () => {
           <Text style={styles.backButton}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SCI-FOOTBALL</Text>
-        <View style={{ width: 40 }} /> 
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -120,7 +157,7 @@ const EditProfile = () => {
 
         {/* Profile Image */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: preview }} style={styles.profileImage} />
+          <Image source={{ uri: preview || "https://via.placeholder.com/150" }} style={styles.profileImage} />
           <TouchableOpacity style={styles.cameraIcon} onPress={pickImage}>
             <Text style={{ color: 'white', fontWeight: 'bold' }}>+</Text>
           </TouchableOpacity>
@@ -159,8 +196,8 @@ const EditProfile = () => {
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity 
-          style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+        <TouchableOpacity
+          style={[styles.saveButton, loading && { opacity: 0.7 }]}
           onPress={handleUpdate}
           disabled={loading}
         >

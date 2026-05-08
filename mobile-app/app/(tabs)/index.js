@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, ImageBackground, TextInput, Alert,
-  Modal, RefreshControl, Dimensions
+  Modal, RefreshControl, Dimensions, Image
 } from "react-native";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -594,9 +594,16 @@ export default function StudentDashboard() {
           <>
             {/* Profile Card */}
             <View style={styles.card}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{userData?.name?.[0]?.toUpperCase() || "?"}</Text>
-              </View>
+              {userData?.photo && userData.photo.length > 0 ? (
+                <Image source={{ uri: userData.photo }} style={styles.image} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {userData?.name?.[0]?.toUpperCase() ?? '?'}
+                  </Text>
+                </View>
+              )}
+
               <Text style={styles.name}>{userData?.name || "Student Name"}</Text>
               <Text style={styles.studentId}>ID: {userData?.studentCode || "N/A"}</Text>
               <View style={[styles.badge, userData?.hasTeam ? styles.badgeGreen : styles.badgeOrange]}>
@@ -1495,8 +1502,13 @@ const styles = StyleSheet.create({
   nextMatchCard: { flex: 1, marginLeft: 0 },
 
   // Profile
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#16a34a", alignSelf: "center", justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  avatarText: { fontSize: 32, fontWeight: "bold", color: "#fff" },
+  avatar: {
+    width: 100, height: 100, borderRadius: 50, backgroundColor: "#16a34a", alignSelf: "center", justifyContent: "center", alignItems: "center", marginBottom: 20, borderWidth: 2
+  },
+  image: {
+    width: 100, height: 100, borderRadius: 50, alignSelf: "center", justifyContent: "center", alignItems: "center", marginBottom: 20, borderWidth: 2
+  },
+  avatarText: { fontSize: 24, fontWeight: "bold", color: "#f2d9d9" },
   name: { fontSize: 22, fontWeight: "bold", color: "#fff", textAlign: "center" },
   studentId: { color: "#9ca3af", textAlign: "center", marginTop: 4 },
   badge: { alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, marginTop: 12 },
