@@ -829,6 +829,7 @@ export default function admin() {
     if (position === "Forward") return { bg: "rgba(34,197,94,0.15)", text: "#22c55e" };
     if (position === "Defender") return { bg: "rgba(59,130,246,0.15)", text: "#60a5fa" };
     if (position === "Goalkeeper") return { bg: "rgba(234,179,8,0.15)", text: "#eab308" };
+    if (position === "Midfielder") return { bg: "rgba(234,179,8,0.15)", text: "#217c07" };
     return { bg: "rgba(100,116,139,0.15)", text: "#94a3b8" };
   };
 
@@ -849,11 +850,11 @@ export default function admin() {
           <View style={s.headerLogo}>
             <Text style={s.headerLogoText}>SFC</Text>
           </View>
-          <Text style={s.headerTitle}>Science FC League</Text>  
-        </View>      
+          <Text style={s.headerTitle}>Science FC League</Text>
+        </View>
         <TouchableOpacity style={s.addBtn} onPress={() => setShowAI(true)}>
-            <Text style={s.addBtnText}>🤖 AI</Text>
-          </TouchableOpacity>
+          <Text style={s.addBtnText}>🤖 AI</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.addBtn} onPress={() => { setAddModalView("options"); setShowAddModal(true); }}>
           <Text style={s.addBtnText}> + Create </Text>
         </TouchableOpacity>
@@ -1823,7 +1824,7 @@ export default function admin() {
         </View>
       </Modal>
 
-      
+
       <AIChatSidebar
         visible={showAI}
         onClose={() => setShowAI(false)}
@@ -1944,7 +1945,7 @@ const s = StyleSheet.create({
   headerLogo: { width: 46, height: 46, borderRadius: 12, backgroundColor: "#00FF9C", justifyContent: "center", alignItems: "center" },
   headerLogoText: { color: "#000", fontWeight: "900", fontSize: 13 },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  addBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12},
+  addBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   addBtnText: { color: "#000", fontWeight: "800", fontSize: 13 },
 
   // Content

@@ -58,8 +58,8 @@ export default function StudentDashboard() {
 
   // Auth and user data listener
   useEffect(() => {
-    let unsubUser = () => {};
-    let unsubTeam = () => {};
+    let unsubUser = () => { };
+    let unsubTeam = () => { };
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -272,33 +272,37 @@ export default function StudentDashboard() {
   const deleteTeam = async () => {
     Alert.alert("Delete Team", "Are you sure? All members will become Free Agents.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
-        try {
-          const memberIds = teamData?.memberIds || [];
-          for (let id of memberIds) {
-            await updateDoc(doc(db, "users", id), { hasTeam: false, teamId: null, assignedTeam: null, teamRequests: [] });
+      {
+        text: "Delete", style: "destructive", onPress: async () => {
+          try {
+            const memberIds = teamData?.memberIds || [];
+            for (let id of memberIds) {
+              await updateDoc(doc(db, "users", id), { hasTeam: false, teamId: null, assignedTeam: null, teamRequests: [] });
+            }
+            await deleteDoc(doc(db, "teams", teamData.id));
+            Alert.alert("Success", "Team deleted successfully!");
+          } catch (err) {
+            Alert.alert("Error", err.message);
           }
-          await deleteDoc(doc(db, "teams", teamData.id));
-          Alert.alert("Success", "Team deleted successfully!");
-        } catch (err) {
-          Alert.alert("Error", err.message);
         }
-      }}
+      }
     ]);
   };
 
   const removePlayer = async (index) => {
     Alert.alert("Remove Player", "Are you sure?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: async () => {
-        const newIds = [...teamData.memberIds];
-        const newNames = [...teamData.members];
-        const removedId = newIds[index];
-        newIds.splice(index, 1);
-        newNames.splice(index, 1);
-        await updateDoc(doc(db, "teams", teamData.id), { memberIds: newIds, members: newNames });
-        await updateDoc(doc(db, "users", removedId), { hasTeam: false, teamId: null, assignedTeam: null });
-      }}
+      {
+        text: "Remove", style: "destructive", onPress: async () => {
+          const newIds = [...teamData.memberIds];
+          const newNames = [...teamData.members];
+          const removedId = newIds[index];
+          newIds.splice(index, 1);
+          newNames.splice(index, 1);
+          await updateDoc(doc(db, "teams", teamData.id), { memberIds: newIds, members: newNames });
+          await updateDoc(doc(db, "users", removedId), { hasTeam: false, teamId: null, assignedTeam: null });
+        }
+      }
     ]);
   };
 
@@ -508,34 +512,34 @@ export default function StudentDashboard() {
 
   return (
     <ImageBackground source={require("../../assets/images/background.jpg")} style={styles.bg}>
-       {/* Sticky Navbar with transparent background */}
-        <View style={styles.stickyNavbar}>
-          <View style={styles.navLeft}>
+      {/* Sticky Navbar with transparent background */}
+      <View style={styles.stickyNavbar}>
+        <View style={styles.navLeft}>
+          <TouchableOpacity onPress={() => setActiveView("dashboard")}>
+            <Text style={styles.logo}>SCI-FOOTBALL</Text>
+          </TouchableOpacity>
+          <View style={styles.navLinks}>
             <TouchableOpacity onPress={() => setActiveView("dashboard")}>
-              <Text style={styles.logo}>SCI-FOOTBALL</Text>
+              <Text style={[styles.navLink, activeView === "dashboard" && styles.navLinkActive]}>Dashboard</Text>
             </TouchableOpacity>
-            <View style={styles.navLinks}>
-              <TouchableOpacity onPress={() => setActiveView("dashboard")}>
-                <Text style={[styles.navLink, activeView === "dashboard" && styles.navLinkActive]}>Dashboard</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setActiveView("tournament")}>
-                <Text style={[styles.navLink, activeView === "tournament" && styles.navLinkActive]}>Tournament</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.navRight}>
-            <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
-              <Text style={styles.signOutText}>Sign Out</Text>
+            <TouchableOpacity onPress={() => setActiveView("tournament")}>
+              <Text style={[styles.navLink, activeView === "tournament" && styles.navLinkActive]}>Tournament</Text>
             </TouchableOpacity>
           </View>
         </View>
-      <ScrollView 
+        <View style={styles.navRight}>
+          <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={() => {}} colors={["#22c55e"]} />
+          <RefreshControl refreshing={loading} onRefresh={() => { }} colors={["#22c55e"]} />
         }
       >
-       
+
 
         {activeView === "dashboard" ? (
           <>
@@ -560,8 +564,8 @@ export default function StudentDashboard() {
                 <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/CreateTeam")}>
                   <Text style={styles.primaryBtnText}>Create Team</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.secondaryBtn, userData?.searchingForTeam && styles.secondaryBtnActive]} 
+                <TouchableOpacity
+                  style={[styles.secondaryBtn, userData?.searchingForTeam && styles.secondaryBtnActive]}
                   onPress={() => handlePlaySolo()}
                 >
                   <Text style={[styles.secondaryBtnText, userData?.searchingForTeam && styles.secondaryBtnTextActive]}>
@@ -658,14 +662,14 @@ export default function StudentDashboard() {
               <View style={styles.historyHeader}>
                 <Text style={[styles.sectionTitle, { color: "#fbbf24" }]}>📜 Match History</Text>
                 <View style={styles.historyTabs}>
-                  <TouchableOpacity 
-                    style={[styles.historyTab, historyTab === "myTeam" && styles.historyTabActive]} 
+                  <TouchableOpacity
+                    style={[styles.historyTab, historyTab === "myTeam" && styles.historyTabActive]}
                     onPress={() => setHistoryTab("myTeam")}
                   >
                     <Text style={[styles.historyTabText, historyTab === "myTeam" && styles.historyTabTextActive]}>My Team</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.historyTab, historyTab === "others" && styles.historyTabActive]} 
+                  <TouchableOpacity
+                    style={[styles.historyTab, historyTab === "others" && styles.historyTabActive]}
                     onPress={() => setHistoryTab("others")}
                   >
                     <Text style={[styles.historyTabText, historyTab === "others" && styles.historyTabTextActive]}>Other Teams</Text>
@@ -799,15 +803,15 @@ export default function StudentDashboard() {
               <Text style={styles.sectionTitle}>⚙️ Settings</Text>
               <Text style={styles.settingLabel}>Your Position</Text>
               <View style={styles.positionGrid}>
-                {['Forward', 'Defender', 'Goalkeeper'].map(pos => (
-                  <TouchableOpacity 
+                {['Forward', 'Defender', 'Goalkeeper', 'Midfielder'].map(pos => (
+                  <TouchableOpacity
                     key={pos}
-                    style={[styles.positionGridBtn, userData?.position === pos && styles.positionGridBtnActive]} 
-                    onPress={() => handlePositionChange(pos)} 
+                    style={[styles.positionGridBtn, userData?.position === pos && styles.positionGridBtnActive]}
+                    onPress={() => handlePositionChange(pos)}
                     disabled={savingPosition}
                   >
                     <Text style={[styles.positionGridBtnText, userData?.position === pos && styles.positionGridBtnTextActive]}>
-                      {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : '🧤 Goalkeeper'}
+                      {pos === 'Forward' ? 'Forward' : pos === 'Defender' ? 'Defender' : pos === 'Goalkeeper' ? 'Goalkeeper' : 'Midfielder'}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -839,10 +843,10 @@ export default function StudentDashboard() {
                 <Text style={styles.sectionTitle}>👑 Captain Options</Text>
                 <Text style={styles.recruitText}>Recruit Players - Need specific positions?</Text>
                 <View style={styles.positionButtons}>
-                  {['Goalkeeper', 'Defender', 'Forward'].map(pos => (
-                    <TouchableOpacity 
+                  {['Midfielder', 'Goalkeeper', 'Defender', 'Forward'].map(pos => (
+                    <TouchableOpacity
                       key={pos}
-                      style={[styles.positionBtn, (teamData?.neededPositions || []).includes(pos) && styles.positionBtnActive]} 
+                      style={[styles.positionBtn, (teamData?.neededPositions || []).includes(pos) && styles.positionBtnActive]}
                       onPress={() => handleRequestPlayer(pos)}
                     >
                       <Text style={[styles.positionBtnText, (teamData?.neededPositions || []).includes(pos) && styles.positionBtnTextActive]}>
@@ -856,7 +860,7 @@ export default function StudentDashboard() {
                     <Text style={styles.clearRequestsText}>Clear All Requests</Text>
                   </TouchableOpacity>
                 )}
-                
+
                 <Text style={styles.soloPlayersTitle}>Available Solo Players</Text>
                 <View style={styles.soloPlayersContainer}>
                   <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
@@ -921,7 +925,7 @@ export default function StudentDashboard() {
                   </View>
                 </View>
                 <Text style={styles.bracketSubHeader}>LIVE TOURNAMENT • KNOCKOUT STAGE</Text>
-                
+
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={styles.bracketColumnsContainer}>
                     {Object.keys(tournament.rounds)
@@ -1006,8 +1010,8 @@ export default function StudentDashboard() {
             {/* Past Tournaments Archive */}
             {archived.length > 0 && (
               <View style={styles.archiveSection}>
-                <TouchableOpacity 
-                  style={styles.archiveToggleBtn} 
+                <TouchableOpacity
+                  style={styles.archiveToggleBtn}
                   onPress={() => setShowArchive(!showArchive)}
                 >
                   <View style={styles.archiveToggleLeft}>
@@ -1020,7 +1024,7 @@ export default function StudentDashboard() {
                     {showArchive ? "▲" : "▼"}
                   </Text>
                 </TouchableOpacity>
-                
+
                 {showArchive && archived.map(t => (
                   <View key={t.id} style={styles.archiveCard}>
                     <View style={styles.archiveCardContent}>
@@ -1098,10 +1102,10 @@ export default function StudentDashboard() {
             <Text style={styles.soloModalTitle}>Choose Your Position</Text>
             <Text style={styles.soloModalSubtitle}>Admin will see this when matching you</Text>
             <View style={styles.soloModalButtons}>
-              {['Forward', 'Defender', 'Goalkeeper'].map(pos => (
-                <TouchableOpacity 
+              {['Forward', 'Defender', 'Goalkeeper', 'Midfielder'].map(pos => (
+                <TouchableOpacity
                   key={pos}
-                  style={styles.soloModalBtn} 
+                  style={styles.soloModalBtn}
                   onPress={() => {
                     setShowSoloModal(false);
                     handlePlaySolo(pos);
@@ -1121,41 +1125,41 @@ export default function StudentDashboard() {
       </Modal>
 
       <AIChatModal
-  visible={showAI}
-  onClose={() => setShowAI(false)}
-  userData={userData}
-  teamData={teamData}
-  nextMatch={nextMatch}
-  userRank={userRank}
-/>
+        visible={showAI}
+        onClose={() => setShowAI(false)}
+        userData={userData}
+        teamData={teamData}
+        nextMatch={nextMatch}
+        userRank={userRank}
+      />
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1 ,backgroundColor: "#020617"},
+  bg: { flex: 1, backgroundColor: "#020617" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
-  container: { padding: 16, paddingBottom: 40 ,backgroundColor: "#020617",paddingTop: 80 },
-  
+  container: { padding: 16, paddingBottom: 40, backgroundColor: "#020617", paddingTop: 80 },
+
   // Sticky Navbar
-  stickyNavbar: { 
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  zIndex: 10,
+  stickyNavbar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
 
-  flexDirection: "row", 
-  justifyContent: "space-between", 
-  alignItems: "center", 
-  paddingVertical: 16, 
-  paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
 
-  borderBottomWidth: 1, 
-  borderBottomColor: "rgba(255,255,255,0.1)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
 
-  backgroundColor: "rgba(15, 23, 42, 0.8)",
-},
+    backgroundColor: "rgba(15, 23, 42, 0.8)",
+  },
   navLeft: { flexDirection: "row", alignItems: "center", gap: 20 },
   logo: { fontSize: 20, fontWeight: "bold", color: "#22c55e" },
   navLinks: { flexDirection: "row", gap: 16 },
@@ -1164,12 +1168,12 @@ const styles = StyleSheet.create({
   navRight: { flexDirection: "row", gap: 12 },
   signOutBtn: { backgroundColor: "rgba(239,68,68,0.15)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
   signOutText: { color: "#f87171", fontWeight: "600" },
-  
+
   // Cards
   card: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-  statsCard: { flex: 1, marginRight: 0,marginBottom:16 },
+  statsCard: { flex: 1, marginRight: 0, marginBottom: 16 },
   nextMatchCard: { flex: 1, marginLeft: 0 },
-  
+
   // Profile
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#16a34a", alignSelf: "center", justifyContent: "center", alignItems: "center", marginBottom: 12 },
   avatarText: { fontSize: 32, fontWeight: "bold", color: "#fff" },
@@ -1179,7 +1183,7 @@ const styles = StyleSheet.create({
   badgeGreen: { backgroundColor: "rgba(34,197,94,0.2)", borderWidth: 1, borderColor: "rgba(34,197,94,0.3)" },
   badgeOrange: { backgroundColor: "rgba(249,115,22,0.2)", borderWidth: 1, borderColor: "rgba(249,115,22,0.3)" },
   badgeText: { color: "#fff", fontWeight: "600" },
-  
+
   // Stats
   statsRow: { flexDirection: "column", marginBottom: 16 },
   statsGrid: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
@@ -1192,12 +1196,12 @@ const styles = StyleSheet.create({
   cardCount: { color: "#fff", fontSize: 12, fontWeight: "bold" },
   suspendedText: { color: "#ef4444", fontSize: 11, fontWeight: "bold", textAlign: "center", marginTop: 10 },
   sectionTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", marginBottom: 12 },
-  
+
   // Info Rows
   infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)" },
   infoLabel: { color: "#9ca3af" },
   infoValue: { color: "#fff", fontWeight: "500" },
-  
+
   // Buttons
   primaryBtn: { backgroundColor: "#22c55e", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginBottom: 10 },
   primaryBtnText: { color: "#000", fontWeight: "bold", fontSize: 15 },
@@ -1205,7 +1209,7 @@ const styles = StyleSheet.create({
   secondaryBtnActive: { backgroundColor: "rgba(249,115,22,0.2)", borderColor: "rgba(249,115,22,0.3)" },
   secondaryBtnText: { color: "#60a5fa", fontWeight: "600" },
   secondaryBtnTextActive: { color: "#f97316" },
-  
+
   // Live Matches
   matchesContainer: { maxHeight: 200, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", borderRadius: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.2)" },
   matchRow: { backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
@@ -1216,7 +1220,7 @@ const styles = StyleSheet.create({
   matchTeamsContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   matchTeam: { color: "#fff", fontWeight: "bold", fontSize: 12, flex: 1, textAlign: "center" },
   matchVs: { color: "#9ca3af", fontSize: 10, marginHorizontal: 8 },
-  
+
   // History
   historyHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap" },
   historyTabs: { flexDirection: "row", gap: 8 },
@@ -1236,13 +1240,13 @@ const styles = StyleSheet.create({
   emptyHistory: { alignItems: "center", paddingVertical: 20 },
   emptyHistoryEmoji: { fontSize: 32, marginBottom: 8 },
   emptyHistoryText: { color: "#475569", fontSize: 12 },
-  
+
   // AI Coach
   aiCoachCard: { backgroundColor: "rgba(34,197,94,0.15)", borderRadius: 16, padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "rgba(34,197,94,0.3)", marginBottom: 16 },
   aiCoachTitle: { fontSize: 14, fontWeight: "bold", color: "#22c55e", marginBottom: 4 },
   aiCoachSubtitle: { fontSize: 10, color: "#22c55e", opacity: 0.7 },
   aiCoachArrow: { fontSize: 18, color: "#22c55e" },
-  
+
   // Team Members
   memberRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 12, padding: 12, marginBottom: 6 },
   memberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22c55e" },
@@ -1265,21 +1269,21 @@ const styles = StyleSheet.create({
   rejectBtn: { flex: 1, backgroundColor: "rgba(239,68,68,0.2)", borderRadius: 10, padding: 8, alignItems: "center" },
   rejectBtnText: { color: "#f87171", fontWeight: "bold", fontSize: 12 },
   noTeamText: { color: "#475569", fontStyle: "italic", textAlign: "center", padding: 20 },
-  
+
   // Settings
   settingLabel: { color: "#9ca3af", fontSize: 11, marginBottom: 8 },
-  positionGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
-  positionGridBtn: { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 10, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  positionGrid: { flexDirection: "row", gap: 8, marginBottom: 20 },
+  positionGridBtn: { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
   positionGridBtnActive: { backgroundColor: "rgba(34,197,94,0.2)", borderColor: "#22c55e" },
   positionGridBtnText: { color: "#9ca3af", fontSize: 10, fontWeight: "bold" },
   positionGridBtnTextActive: { color: "#22c55e" },
   settingBtn: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, padding: 14, marginBottom: 8 },
   settingBtnText: { color: "#fff" },
-  
+
   // Info Grid
   infoGrid: { flexDirection: "row", gap: 12, marginBottom: 16 },
   infoCard: { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-  
+
   // Captain Options
   recruitText: { color: "#9ca3af", fontSize: 11, marginBottom: 12 },
   positionButtons: { flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" },
@@ -1296,73 +1300,73 @@ const styles = StyleSheet.create({
   soloPlayerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22c55e" },
   noSoloText: { color: "#475569", fontSize: 11, textAlign: "center", paddingVertical: 16 },
   soloNote: { color: "#475569", fontSize: 9, marginTop: 8, textAlign: "center" },
-  
+
   // TOURNAMENT TAB STYLES
   tournamentContainer: { padding: 0, paddingBottom: 40 },
-  
-  tournamentHeaderCard: { 
-    backgroundColor: "rgba(0,255,156,0.08)", 
-    borderRadius: 24, 
-    padding: 20, 
-    marginBottom: 16, 
-    borderWidth: 1, 
-    borderColor: "rgba(0,255,156,0.2)" 
+
+  tournamentHeaderCard: {
+    backgroundColor: "rgba(0,255,156,0.08)",
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,255,156,0.2)"
   },
   tournamentHeaderRow: { flexDirection: "row", alignItems: "center", gap: 16 },
-  tournamentIconCircle: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 18, 
-    backgroundColor: "rgba(0,255,156,0.15)", 
-    alignItems: "center", 
-    justifyContent: "center", 
-    borderWidth: 1, 
-    borderColor: "rgba(0,255,156,0.3)" 
+  tournamentIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,255,156,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,255,156,0.3)"
   },
   tournamentIconText: { fontSize: 28 },
   tournamentInfoContainer: { flex: 1 },
   tournamentName: { color: "#fff", fontWeight: "bold", fontSize: 18 },
   tournamentPeriod: { color: "#9ca3af", fontSize: 12, marginTop: 4 },
-  
-  championBannerContainer: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "center", 
-    gap: 16, 
-    backgroundColor: "rgba(234,179,8,0.1)", 
-    borderRadius: 20, 
-    padding: 18, 
-    borderWidth: 1, 
-    borderColor: "rgba(234,179,8,0.22)", 
-    marginBottom: 16 
+
+  championBannerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    backgroundColor: "rgba(234,179,8,0.1)",
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(234,179,8,0.22)",
+    marginBottom: 16
   },
   championTrophy: { fontSize: 32 },
   championInfo: { alignItems: "center" },
   championLabel: { color: "#eab308", fontSize: 10, fontWeight: "800", letterSpacing: 2 },
   championTeamName: { color: "#fff", fontSize: 20, fontWeight: "900", textTransform: "uppercase" },
-  
-  bracketMainContainer: { 
-    backgroundColor: "#0f172a", 
-    borderRadius: 20, 
-    padding: 18, 
-    borderWidth: 1, 
-    borderColor: "rgba(255,255,255,0.07)", 
-    marginBottom: 20 
+
+  bracketMainContainer: {
+    backgroundColor: "#0f172a",
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    marginBottom: 20
   },
-  bracketHeaderRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    marginBottom: 8 
+  bracketHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8
   },
   bracketMainTitle: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  teamCountBadge: { 
-    backgroundColor: "rgba(0,255,156,0.1)", 
-    paddingHorizontal: 10, 
-    paddingVertical: 4, 
-    borderRadius: 10, 
-    borderWidth: 1, 
-    borderColor: "rgba(0,255,156,0.2)" 
+  teamCountBadge: {
+    backgroundColor: "rgba(0,255,156,0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0,255,156,0.2)"
   },
   teamCountText: { color: "#00FF9C", fontSize: 10, fontWeight: "800" },
   bracketSubHeader: { color: "#64748b", fontSize: 10, fontWeight: "800", letterSpacing: 1, marginBottom: 18 },
@@ -1371,71 +1375,71 @@ const styles = StyleSheet.create({
   bracketRoundHeader: { alignItems: "center", marginBottom: 14 },
   bracketRoundTitle: { color: "#00FF9C", fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1.5 },
   bracketRoundDate: { color: "#64748b", fontSize: 8, marginTop: 4 },
-  bracketMatchCard: { 
-    backgroundColor: "#1e293b", 
-    borderRadius: 14, 
-    padding: 12, 
-    marginBottom: 14, 
-    borderWidth: 1, 
-    borderColor: "rgba(255,255,255,0.07)" 
+  bracketMatchCard: {
+    backgroundColor: "#1e293b",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
   },
-  bracketMatchNumber: { 
-    color: "#475569", 
-    fontSize: 8, 
-    fontWeight: "800", 
-    textTransform: "uppercase", 
-    letterSpacing: 1, 
-    textAlign: "center", 
-    marginBottom: 10 
+  bracketMatchNumber: {
+    color: "#475569",
+    fontSize: 8,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    textAlign: "center",
+    marginBottom: 10
   },
-  bracketTeamLine: { 
-    paddingVertical: 10, 
-    paddingHorizontal: 12, 
-    borderRadius: 10, 
-    backgroundColor: "rgba(255,255,255,0.04)", 
-    marginBottom: 6, 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "space-between", 
-    borderWidth: 1, 
-    borderColor: "rgba(255,255,255,0.05)" 
+  bracketTeamLine: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    marginBottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)"
   },
-  bracketTeamLineWinner: { 
-    backgroundColor: "rgba(0,255,156,0.1)", 
-    borderColor: "rgba(0,255,156,0.25)" 
+  bracketTeamLineWinner: {
+    backgroundColor: "rgba(0,255,156,0.1)",
+    borderColor: "rgba(0,255,156,0.25)"
   },
   bracketTeamName: { color: "#e2e8f0", fontWeight: "700", fontSize: 12 },
   bracketTeamNameWinner: { color: "#00FF9C" },
   winnerCheckmark: { color: "#00FF9C", fontSize: 12, fontWeight: "bold" },
-  byeContainer: { 
-    paddingVertical: 10, 
-    paddingHorizontal: 12, 
-    borderRadius: 10, 
-    borderWidth: 1, 
-    borderColor: "#334155", 
-    borderStyle: "dashed", 
+  byeContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#334155",
+    borderStyle: "dashed",
     alignItems: "center",
     marginBottom: 6
   },
   byeText: { color: "#475569", fontWeight: "700", fontSize: 10 },
   bracketMatchTime: { marginTop: 8, alignItems: "center" },
   bracketTimeText: { color: "#475569", fontSize: 9 },
-  
-  noTournamentCard: { 
-    backgroundColor: "rgba(255,255,255,0.05)", 
-    borderRadius: 24, 
-    padding: 32, 
-    alignItems: "center", 
+
+  noTournamentCard: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 24,
+    padding: 32,
+    alignItems: "center",
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)"
   },
-  noTournamentIcon: { 
-    width: 72, 
-    height: 72, 
-    borderRadius: 24, 
-    backgroundColor: "rgba(255,255,255,0.05)", 
-    alignItems: "center", 
+  noTournamentIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
     borderWidth: 1,
@@ -1444,30 +1448,30 @@ const styles = StyleSheet.create({
   noTournamentIconText: { fontSize: 36 },
   noTournamentTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 8 },
   noTournamentSub: { color: "#9ca3af", fontSize: 12, textAlign: "center" },
-  
+
   archiveSection: { marginTop: 8, marginBottom: 20 },
-  archiveToggleBtn: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    backgroundColor: "rgba(255,255,255,0.05)", 
-    padding: 16, 
-    borderRadius: 14, 
-    borderWidth: 1, 
-    borderColor: "rgba(255,255,255,0.07)", 
-    marginBottom: 8 
+  archiveToggleBtn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    marginBottom: 8
   },
   archiveToggleLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   archiveIcon: { color: "#00FF9C", fontSize: 13 },
   archiveToggleText: { color: "#64748b", fontWeight: "800", fontSize: 11, letterSpacing: 1 },
   archiveArrow: { color: "#64748b" },
-  archiveCard: { 
-    backgroundColor: "rgba(255,255,255,0.05)", 
-    borderRadius: 14, 
-    padding: 16, 
-    marginBottom: 8, 
-    borderWidth: 1, 
-    borderColor: "rgba(255,255,255,0.06)" 
+  archiveCard: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)"
   },
   archiveCardContent: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   archiveCardLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
@@ -1475,17 +1479,17 @@ const styles = StyleSheet.create({
   archiveCardTitle: { color: "#fff", fontWeight: "700", fontSize: 13 },
   archiveWinner: { color: "#fbbf24", fontSize: 11, fontWeight: "700", marginTop: 2 },
   archiveDate: { color: "#64748b", fontSize: 10, fontWeight: "600", marginTop: 2 },
-  
-  backToDashboardBtn: { 
-    backgroundColor: "rgba(255,255,255,0.1)", 
-    paddingHorizontal: 20, 
-    paddingVertical: 14, 
-    borderRadius: 14, 
+
+  backToDashboardBtn: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 14,
     alignItems: "center",
     marginTop: 8
   },
   backToDashboardText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
-  
+
   // Modals
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" },
   modalContent: { backgroundColor: "#0f172a", borderRadius: 24, width: "90%", maxWidth: 400, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
@@ -1499,7 +1503,7 @@ const styles = StyleSheet.create({
   modalScore: { color: "#60a5fa", fontSize: 28, fontWeight: "bold", marginTop: 8 },
   modalVs: { color: "#9ca3af", fontSize: 16, fontWeight: "bold", marginHorizontal: 16 },
   modalDate: { color: "#9ca3af", fontSize: 12, textAlign: "center" },
-  
+
   // Solo Modal
   soloModalContent: { backgroundColor: "#0f172a", borderRadius: 24, width: "85%", maxWidth: 350, padding: 24, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
   soloModalIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: "rgba(59,130,246,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 16, borderWidth: 1, borderColor: "rgba(59,130,246,0.3)" },
