@@ -28,6 +28,7 @@ const AdminDashboard = () => {
   const [allTeams, setAllTeams] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [currentTournamentName, setCurrentTournamentName] = useState("");
 
   useEffect(() => {
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
@@ -44,13 +45,65 @@ const AdminDashboard = () => {
       setStats(prev => ({ ...prev, pending: all.filter(t => t.status === "pending").length }));
     });
 
+    const unsubTournament = onSnapshot(doc(db, 'tournaments', 'main'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setCurrentTournamentName(data.name || data.registrationTitle || "");
+      } else {
+        setCurrentTournamentName("");
+      }
+    });
+
     const unsubMatches = onSnapshot(collection(db, "matches"), (snap) => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setMatches(data);
     });
 
-    return () => { unsubUsers(); unsubTeams(); unsubMatches(); };
+    return () => { unsubUsers(); unsubTeams(); unsubMatches(); unsubTournament(); };
   }, []);
+
+  // Effect to fix matches when tournament name is loaded
+  useEffect(() => {
+    if (matches.length === 0) return;
+
+    // Explicitly use "Science FC League" as the target name if currentTournamentName is generic, missing, or "kkkk"
+    const isJunkName = !currentTournamentName || 
+                       currentTournamentName.startsWith("Tournament 2026") || 
+                       currentTournamentName.toLowerCase() === "kkkk";
+
+    const targetName = isJunkName ? "Science FC League" : currentTournamentName;
+
+    // If the database has a junk name, fix the tournament document itself too!
+    if (isJunkName) {
+       updateDoc(doc(db, "tournaments", "main"), { name: "Science FC League" }).catch(console.error);
+    }
+
+    // Use batch for matches to avoid choking the browser
+    const fixMatches = async () => {
+      const batch = writeBatch(db);
+      let count = 0;
+
+      matches.forEach(m => {
+        const needsFix = (m.tournamentName === "Friendly" || !m.tournamentName || m.tournamentName.startsWith("Tournament 2026") || m.tournamentName.toLowerCase() === "kkkk") && m.team1Id && m.team2Id;
+        
+        if (needsFix && m.tournamentName !== targetName) {
+           batch.update(doc(db, "matches", m.id), { tournamentName: targetName });
+           count++;
+        }
+      });
+
+      if (count > 0) {
+        try {
+          await batch.commit();
+          console.log(`Successfully fixed ${count} matches.`);
+        } catch (err) {
+          console.error("Batch fix failed:", err);
+        }
+      }
+    };
+
+    fixMatches();
+  }, [currentTournamentName, matches.length]);
 
   // ✅ مفيش players state منفصلة — البيانات بتيجي من Firebase في allUsers
   // لما الـ redCards بتتصفر في Firestore، الـ onSnapshot هيحدّث allUsers تلقائياً
