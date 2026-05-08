@@ -519,18 +519,12 @@ export default function StudentDashboard() {
             <Text style={styles.logo}>SCI-FOOTBALL</Text>
           </TouchableOpacity>
           <View style={styles.navLinks}>
-            <TouchableOpacity onPress={() => setActiveView("dashboard")}>
-              <Text style={[styles.navLink, activeView === "dashboard" && styles.navLinkActive]}>Dashboard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setActiveView("tournament")}>
-              <Text style={[styles.navLink, activeView === "tournament" && styles.navLinkActive]}>Tournament</Text>
-            </TouchableOpacity>
+            <View style={styles.navRight}>
+              <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
+                <Text style={styles.signOutText}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-        <View style={styles.navRight}>
-          <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
         </View>
       </View>
       <ScrollView
@@ -556,6 +550,12 @@ export default function StudentDashboard() {
                 </Text>
               </View>
             </View>
+
+            <view style={styles.card}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => setActiveView("tournament")}>
+                <Text style={[styles.primaryBtnText, activeView === "tournament" && styles.navLinkActive]}> Tournament</Text>
+              </TouchableOpacity>
+            </view>
 
             {/* Team Options - No Team */}
             {!userData?.hasTeam && (

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaTimes, FaPaperPlane, FaRobot } from "react-icons/fa";
 
+const fontStyle = `@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');`;
+
 const AIChatSidebar = ({ isOpen, onClose, stats, players = [], teams = [], matches = [], onUpdatePlayer }) => {
     const [messages, setMessages] = useState([
         {
@@ -11,6 +13,13 @@ const AIChatSidebar = ({ isOpen, onClose, stats, players = [], teams = [], match
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const bottomRef = useRef(null);
+
+    useEffect(() => {
+        const style = document.createElement("style");
+        style.textContent = fontStyle;
+        document.head.appendChild(style);
+        return () => document.head.removeChild(style);
+    }, []);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,7 +47,24 @@ const AIChatSidebar = ({ isOpen, onClose, stats, players = [], teams = [], match
         ? [...teams].sort((a, b) => getTeamStrength(b) - getTeamStrength(a))[0]
         : null;
 
-    const systemPrompt = `You are a smart AI assistant for the admin of SCI-Football — a student football tournament management system.
+    const buildSystemPrompt = (userMessage) => {
+        const arabicPattern = /[\u0600-\u06FF]/;
+        const isArabic = arabicPattern.test(userMessage);
+        const detectedLang = isArabic ? "Arabic" : "English";
+
+        return `You are a smart AI assistant for the admin of SCI-Football — a student football tournament management system.
+
+=== CRITICAL LANGUAGE RULE — HIGHEST PRIORITY ===
+The admin's message is written in: ${detectedLang}
+You MUST reply ENTIRELY in ${detectedLang}.
+- Do NOT mix languages under any circumstances.
+- Do NOT translate or transliterate proper nouns and names — keep them exactly as they appear in the data.
+  Examples:
+  * Team name "Al-Ahly" → stays "Al-Ahly" (never write "الأهلي" unless the data itself uses Arabic)
+  * Player name "Mohamed" → stays "Mohamed" (never rewrite it in Arabic letters)
+- If replying in Arabic: write clean, simple Arabic. Never write English words using Arabic letters (e.g., never write "ستاتس" — say "إحصائيات" instead).
+- If replying in English: write clear professional English.
+=== END LANGUAGE RULE ===
 
 Current tournament data:
 - Total Players: ${stats?.total || players.length}
@@ -53,10 +79,10 @@ Current tournament data:
 
 Teams summary:
 ${teams.slice(0, 10).map(t => {
-        const tp = players.filter(p => p.teamId === t.id);
-        const goals = tp.reduce((s, p) => s + (p.goals || 0), 0);
-        return `- ${t.teamName}: ${tp.length} players, ${goals} goals, Strength ${getTeamStrength(t)}`;
-    }).join("\n")}
+            const tp = players.filter(p => p.teamId === t.id);
+            const goals = tp.reduce((s, p) => s + (p.goals || 0), 0);
+            return `- ${t.teamName}: ${tp.length} players, ${goals} goals, Strength ${getTeamStrength(t)}`;
+        }).join("\n")}
 
 Suspended players:
 ${suspendedPlayers.slice(0, 10).map(p => `- ${p.name} (${p.suspendReason || "suspended"})`).join("\n") || "None"}
@@ -69,14 +95,12 @@ Your tasks as Admin AI Assistant:
 5. Suggest tactical improvements for the tournament
 6. Help manage scheduling and team organization
 
-CRITICAL RULES:
-- ALWAYS detect the language of the admin's message and reply in the SAME language
-- If admin writes in Arabic, reply in clear Arabic
-- If admin writes in English, reply in English
+Additional rules:
 - Be analytical and data-driven in responses
 - Use bullet points for clarity
 - Reference actual data from the tournament in your answers
 - Be professional but friendly`;
+    };
 
     const sendMessage = async () => {
         if (!input.trim() || loading) return;
@@ -95,9 +119,9 @@ CRITICAL RULES:
                     "Authorization": `Bearer ${process.env.REACT_APP_AI_KEY}`
                 },
                 body: JSON.stringify({
-                    model: "openrouter/free",
+                    model: "openai/gpt-4o-mini",
                     messages: [
-                        { role: "system", content: systemPrompt },
+                        { role: "system", content: buildSystemPrompt(userMsg.content) },
                         ...updatedMessages.filter(m => m.content?.trim())
                     ],
                     max_tokens: 1000
@@ -105,10 +129,7 @@ CRITICAL RULES:
             });
 
             const data = await response.json();
-
-            if (data.error) {
-                throw new Error(data.error.message);
-            }
+            if (data.error) throw new Error(data.error.message);
 
             const aiReply = data.choices?.[0]?.message?.content || "عذراً، حدث خطأ.";
             setMessages(prev => [...prev, { role: "assistant", content: aiReply }]);
@@ -142,7 +163,10 @@ CRITICAL RULES:
             />
 
             {/* Sidebar */}
-            <div className={`fixed top-0 right-0 h-full w-full md:w-[440px] z-[500] transform transition-transform duration-500 ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
+            <div
+                style={{ fontFamily: "'Tajawal', sans-serif" }}
+                className={`fixed top-0 right-0 h-full w-full md:w-[440px] z-[500] transform transition-transform duration-500 ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+            >
                 <div className="h-full bg-[#0f172a] border-l border-white/10 flex flex-col shadow-2xl">
 
                     {/* Header */}
@@ -151,7 +175,7 @@ CRITICAL RULES:
                             <FaRobot className="text-emerald-400 text-lg" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-white font-bold text-3xl">AI Admin Assistant</h3>
+                            <h3 style={{ fontWeight: 800 }} className="text-white text-3xl">AI Admin Assistant</h3>
                             <div className="flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                                 <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Tournament Intelligence</span>
@@ -165,22 +189,22 @@ CRITICAL RULES:
                     {/* Stats Strip */}
                     <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center gap-2 flex-shrink-0 overflow-x-auto">
                         <span className="text-[15px] text-white font-bold uppercase whitespace-nowrap">Stats:</span>
-                        <span className="text-[16px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[14px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
                             {stats?.total || players.length} Players
                         </span>
-                        <span className="text-[16px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[14px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
                             {teams.length} Teams
                         </span>
-                        <span className="text-[16px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[14px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/20 font-bold whitespace-nowrap">
                             {completedMatches.length} Done
                         </span>
                         {suspendedPlayers.length > 0 && (
-                            <span className="text-[16px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
+                            <span className="text-[14px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
                                 {suspendedPlayers.length} Suspended 🚫
                             </span>
                         )}
                         {liveMatches.length > 0 && (
-                            <span className="text-[16px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 font-bold whitespace-nowrap animate-pulse">
+                            <span className="text-[14px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 font-bold whitespace-nowrap animate-pulse">
                                 🔴 {liveMatches.length} Live
                             </span>
                         )}

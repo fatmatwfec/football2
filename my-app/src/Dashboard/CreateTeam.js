@@ -88,8 +88,8 @@ const CreateTeam = () => {
         if (nameExists) return alert("Team name already exists");
 
         const filteredCodes = codes.filter(c => c.trim() !== "");
-        if (filteredCodes.length === 0)
-            return alert("Add at least one player");
+        if (filteredCodes.length < 4)
+            return alert("You must add at least 4 more players (Total 5 including yourself) to create a team.");
 
         if (filteredCodes.length > 6)
             return alert("Max 7 players allowed");

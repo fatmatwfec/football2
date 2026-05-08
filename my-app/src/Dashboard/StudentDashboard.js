@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs, getDoc, c
 import { useNavigate } from "react-router-dom";
 import TournamentTab from "./TournamentTab";
 import { getRoundLabel } from "../services/tournamentService";
-import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot } from "react-icons/fa";
+import { FaTimes, FaFutbol, FaIdCard, FaChevronRight, FaTrophy, FaCheckCircle, FaClock, FaRunning, FaRobot, FaEnvelope } from "react-icons/fa";
 import AIChatModal from "../components/AIChatModal";
 
 const StudentDashboard = () => {
@@ -255,11 +255,15 @@ const StudentDashboard = () => {
 
                 students.sort((a, b) => b.goals - a.goals || b.score - a.score);
 
-                setAllStudents(students.map(s => ({
-                    id: s.id,
-                    name: querySnapshot.docs.find(d => d.id === s.id)?.data().name,
-                    teamId: querySnapshot.docs.find(d => d.id === s.id)?.data().teamId
-                })));
+                setAllStudents(students.map(s => {
+                    const studentDoc = querySnapshot.docs.find(d => d.id === s.id)?.data();
+                    return {
+                        id: s.id,
+                        name: studentDoc?.name,
+                        teamId: studentDoc?.teamId,
+                        email: studentDoc?.email
+                    };
+                }));
 
                 const rank = students.findIndex(s => s.id === userData.uid) + 1;
                 setUserRank(rank);
@@ -472,6 +476,11 @@ const StudentDashboard = () => {
 
     const handleRequestPlayer = async (position) => {
         if (!teamData) return;
+        
+        if ((teamData.memberIds?.length || 0) >= 7 && position !== null) {
+            return alert("Your team is full (7/7)! You cannot request more players.");
+        }
+
         const currentNeeded = teamData.neededPositions || [];
 
         if (position === null) {
@@ -756,19 +765,26 @@ const StudentDashboard = () => {
                                         <h3 className="text-lg font-bold mb-1 text-left text-emerald-400">Recruit Players</h3>
                                         <p className="text-[10px] text-gray-400 mb-4 text-left uppercase tracking-widest">Need specific positions?</p>
                                         <div className="grid grid-cols-1 gap-2 text-left">
-                                            {['Goalkeeper', 'Defender', 'Forward'].map((pos) => (
-                                                <button
-                                                    key={pos}
-                                                    onClick={() => handleRequestPlayer(pos)}
-                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${(teamData?.neededPositions || []).includes(pos)
-                                                        ? 'bg-emerald-500 text-black border-emerald-500'
-                                                        : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
-                                                        }`}
-                                                >
-                                                    <span>Need {pos}</span>
-                                                    {(teamData?.neededPositions || []).includes(pos) && <FaCheckCircle size={14} />}
-                                                </button>
-                                            ))}
+                                            {['Goalkeeper', 'Defender', 'Midfielder', 'Forward'].map((pos) => {
+                                                const isFull = (teamData?.memberIds?.length || 0) >= 7;
+                                                const isRequested = (teamData?.neededPositions || []).includes(pos);
+                                                return (
+                                                    <button
+                                                        key={pos}
+                                                        onClick={() => handleRequestPlayer(pos)}
+                                                        disabled={isFull && !isRequested}
+                                                        className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-bold ${isRequested
+                                                            ? 'bg-emerald-500 text-black border-emerald-500'
+                                                            : isFull 
+                                                                ? 'bg-white/5 border-white/5 text-gray-600 cursor-not-allowed opacity-50'
+                                                                : 'bg-white/5 border-white/10 text-gray-300 hover:border-emerald-500/50 hover:text-white'
+                                                            }`}
+                                                    >
+                                                        <span>{isFull && !isRequested ? `Full (7/7)` : `Need ${pos}`}</span>
+                                                        {isRequested && <FaCheckCircle size={14} />}
+                                                    </button>
+                                                );
+                                            })}
                                             {(teamData?.neededPositions?.length > 0 || teamData?.needsPosition) && (
                                                 <button
                                                     onClick={() => handleRequestPlayer(null)}
@@ -811,7 +827,7 @@ const StudentDashboard = () => {
                                     <div>
                                         <label className="text-gray-400 text-xs font-bold uppercase block mb-2">Your Position</label>
                                         <div className="grid grid-cols-3 gap-2">
-                                            {['Forward', 'Defender', 'Goalkeeper'].map((pos) => (
+                                            {['Forward', 'Defender', 'Goalkeeper', 'Midfielder'].map((pos) => (
                                                 <button
                                                     key={pos}
                                                     onClick={() => handlePositionChange(pos)}
@@ -821,7 +837,7 @@ const StudentDashboard = () => {
                                                         : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                                                         }`}
                                                 >
-                                                    {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : '🧤 Goalkeeper'}
+                                                    {pos === 'Forward' ? '⚡ Forward' : pos === 'Defender' ? '🛡️ Defender' : pos === 'Goalkeeper' ? '🧤 Goalkeeper' : '⚽ Midfielder'}
                                                 </button>
                                             ))}
                                         </div>
@@ -948,23 +964,33 @@ const StudentDashboard = () => {
                                             <span className="size-2 bg-green-500 rounded-full"></span>
                                             Your Stats
                                         </h3>
-                                        <div className="grid grid-cols-3 gap-2 text-center">
-                                            <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-xs text-gray-400 uppercase font-black truncate" title={currentTournamentName}>Rank in {currentTournamentName}</p>
-                                                <p className="text-2xl font-black text-blue-400">#{userRank || "—"}</p>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                                            <div className="bg-gradient-to-b from-blue-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-blue-500/30 group">
+                                                <FaTrophy className="text-blue-400 mx-auto mb-2 group-hover:scale-110 transition-transform" size={14} />
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Rank</p>
+                                                <p className="text-xl font-black text-white mt-1">#{userRank || "—"}</p>
                                             </div>
-                                            <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-xs text-gray-400 uppercase font-black">Goals</p>
-                                                <p className="text-2xl font-black text-emerald-400">{userData?.goals || 0}</p>
+                                            <div className="bg-gradient-to-b from-emerald-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-emerald-500/30 group">
+                                                <FaFutbol className="text-emerald-400 mx-auto mb-2 group-hover:scale-110 transition-transform" size={14} />
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Goals</p>
+                                                <p className="text-xl font-black text-white mt-1">{userData?.goals || 0}</p>
                                             </div>
-                                            <div className="bg-black/40 p-3 rounded-2xl border border-white/5">
-                                                <p className="text-xs text-gray-400 uppercase font-black">Cards</p>
-                                                <div className="flex justify-center gap-2 mt-1">
-                                                    <span className="w-3 h-4 bg-yellow-400 rounded-sm" title="Yellow Cards"></span>
-                                                    <span className="text-xs font-bold">{userData?.yellowCards || 0}</span>
-                                                    <span className="w-3 h-4 bg-red-600 rounded-sm" title="Red Cards"></span>
-                                                    <span className="text-xs font-bold">{userData?.redCards || 0}</span>
+                                            <div className="bg-gradient-to-b from-amber-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-amber-500/30 group">
+                                                <div className="flex justify-center gap-1.5 mb-2 group-hover:scale-110 transition-transform">
+                                                    <div className="w-2.5 h-3.5 bg-yellow-400 rounded-sm shadow-[0_0_8px_rgba(250,204,21,0.3)]"></div>
+                                                    <div className="w-2.5 h-3.5 bg-red-600 rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.3)]"></div>
                                                 </div>
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Cards</p>
+                                                <p className="text-lg font-black text-white mt-1">
+                                                    <span className="text-yellow-400">{userData?.yellowCards || 0}</span>
+                                                    <span className="text-gray-600 mx-1">/</span>
+                                                    <span className="text-red-500">{userData?.redCards || 0}</span>
+                                                </p>
+                                            </div>
+                                            <div className="bg-gradient-to-b from-purple-500/10 to-transparent p-4 rounded-2xl border border-white/5 transition-all hover:border-purple-500/30 group">
+                                                <FaRunning className="text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" size={14} />
+                                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Position</p>
+                                                <p className="text-[10px] font-black text-purple-400 mt-2 uppercase truncate">{userData?.position || '—'}</p>
                                             </div>
                                         </div>
                                         {userData?.redCards > 0 && (
@@ -1126,22 +1152,32 @@ const StudentDashboard = () => {
                                     <h3 className="text-lg font-bold mb-4 text-left">Team's Members</h3>
                                     {userData?.hasTeam ? (
                                         <div className="space-y-3">
-                                            {teamData?.members?.map((playerName, i) => (
-                                                <div key={i} className="flex justify-between bg-black/40 p-2 rounded">
-                                                    <span className="flex items-center gap-2">
-                                                        <span className="size-2 bg-green-500 rounded-full"></span>
-                                                        {playerName}
-                                                        {teamData.memberIds[i] === teamData.captainId &&
-                                                            <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 rounded">Leader</span>
-                                                        }
-                                                    </span>
-                                                    {userData.uid === teamData.captainId && playerName !== userData.name && (
-                                                        <button onClick={() => removePlayer(i)} className="text-red-400 text-sm hover:underline">
-                                                            Remove
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
+                                            {teamData?.members?.map((playerName, i) => {
+                                                const memberId = teamData.memberIds[i];
+                                                const memberInfo = allStudents.find(s => s.id === memberId);
+                                                return (
+                                                    <div key={i} className="flex flex-col bg-black/40 p-3 rounded-xl border border-white/5">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="flex items-center gap-2">
+                                                                <span className="size-2 bg-green-500 rounded-full"></span>
+                                                                <span className="font-bold text-white">{playerName}</span>
+                                                                {memberId === teamData.captainId &&
+                                                                    <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Leader</span>
+                                                                }
+                                                            </span>
+                                                            {userData.uid === teamData.captainId && memberId !== userData.uid && (
+                                                                <button onClick={() => removePlayer(i)} className="text-red-400 text-[10px] font-bold uppercase hover:underline">
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="mt-1.5 ml-4 flex items-center gap-2">
+                                                            <FaEnvelope size={10} className="text-emerald-500/50" />
+                                                            <span className="text-[11px] text-gray-400 select-all">{memberInfo?.email || "Loading email..."}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <>
@@ -1245,13 +1281,13 @@ const StudentDashboard = () => {
                         <h3 className="text-xl font-bold text-white mb-2 uppercase italic">Choose Your Position</h3>
                         <p className="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">Admin will see this when matching you</p>
                         <div className="space-y-3">
-                            {['Forward', 'Defender', 'Goalkeeper'].map(pos => (
+                            {['Forward', 'Defender', 'Goalkeeper', 'Midfielder'].map(pos => (
                                 <button
                                     key={pos}
                                     onClick={() => triggerPlaySolo(pos)}
                                     className="w-full py-4 bg-white/5 hover:bg-blue-500 hover:text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3"
                                 >
-                                    {pos === 'Forward' ? '⚡' : pos === 'Defender' ? '🛡️' : '🧤'} {pos}
+                                    {pos === 'Forward' ? '⚡' : pos === 'Defender' ? '🛡️' : pos === 'Goalkeeper' ? '🧤' : '⚽'} {pos}
                                 </button>
                             ))}
                         </div>

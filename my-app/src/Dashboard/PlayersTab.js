@@ -311,7 +311,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
             <table className="w-full min-w-[800px]">
               <thead className="bg-black/50 border-b border-white/5">
                 <tr>
-                  <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rank</th>
+                  {showTop10 && <th className="text-left py-4 px-4 text-slate-400 font-bold text-sm uppercase tracking-wider">Rank</th>}
                   <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Player</th>
                   <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Account Info</th>
                   <th className="py-4 px-4 text-left text-slate-500 font-black uppercase text-[10px] tracking-widest">Team</th>
@@ -450,7 +450,7 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                   })
                 ) : (
                   <tr>
-                    <td colSpan={10} className="py-16 text-center">
+                    <td colSpan={showTop10 ? 10 : 8} className="py-16 text-center">
                       <div className="text-slate-600 italic">
                         <FaFutbol className="mx-auto text-4xl mb-3 opacity-20" />
                         No players found
@@ -510,8 +510,8 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
 
                 <div>
                   <label className="text-slate-500 text-xs font-medium mb-2 block">Team Size</label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {[2, 3, 4, 5, 6, 7].map(num => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[5, 6, 7].map(num => (
                       <button
                         key={num}
                         onClick={() => setPlayerCount(num)}

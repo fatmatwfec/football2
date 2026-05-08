@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaTimes, FaPaperPlane, FaRobot } from "react-icons/fa";
 
-const AI_KEY = process.env.REACT_APP_AI_KEY;;
+const AI_KEY = process.env.REACT_APP_AI_KEY;
+
+const fontStyle = `@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');`;
 
 const AIChatModal = ({ onClose, userData, teamData, nextMatch, userRank }) => {
     const [messages, setMessages] = useState([
         {
             role: "assistant",
-            content: ` Hello! ${userData?.name || "لاعب"} \n I'm your AI Sports Assistant\n I can Help You in : \n 1- Tactical tips\n 2- Training programs\n 3- Motivation\n 4- Performance analysis`
+            content: `Hello! ${userData?.name || "لاعب"} \nI'm your AI Sports Assistant\nI can Help You in :\n 1- Tactical tips\n 2- Training programs\n 3- Motivation\n 4- Performance analysis`
         }
     ]);
     const [input, setInput] = useState("");
@@ -15,10 +17,35 @@ const AIChatModal = ({ onClose, userData, teamData, nextMatch, userRank }) => {
     const bottomRef = useRef(null);
 
     useEffect(() => {
+        const style = document.createElement("style");
+        style.textContent = fontStyle;
+        document.head.appendChild(style);
+        return () => document.head.removeChild(style);
+    }, []);
+
+    useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const systemPrompt = `You are a smart sports assistant specialized in football for a student tournament app called SCI-Football.
+    const buildSystemPrompt = (userMessage) => {
+        const arabicPattern = /[\u0600-\u06FF]/;
+        const isArabic = arabicPattern.test(userMessage);
+        const detectedLang = isArabic ? "Arabic" : "English";
+
+        return `You are a smart sports assistant specialized in football for a student tournament app called SCI-Football.
+
+=== CRITICAL LANGUAGE RULE — HIGHEST PRIORITY ===
+The user's message is written in: ${detectedLang}
+You MUST reply ENTIRELY in ${detectedLang}. 
+- Do NOT mix languages under any circumstances.
+- Do NOT translate proper nouns, names, or technical terms. Keep them as-is in their original script.
+  Examples:
+  * Player name "Ahmed" → stays "Ahmed" (never write it as "أحمد" unless the user wrote it in Arabic themselves)
+  * Team name "Al-Ahly" → stays "Al-Ahly"
+  * Position "Striker" → if replying in Arabic, say "مهاجم" (translate the meaning, NOT the spelling of the English word)
+- If replying in Arabic: write clean Modern Standard Arabic or simple Egyptian dialect. Never transliterate English words into Arabic letters (e.g., never write "ستريكر" — say "مهاجم" instead).
+- If replying in English: write clear simple English.
+=== END LANGUAGE RULE ===
 
 Current player data:
 - Name: ${userData?.name || "Unknown"}
@@ -34,20 +61,18 @@ Current player data:
 
 Your tasks:
 1. Give tactical and technical tips based on the player's position
-2. Suggest simple training programs suitable for students - short and without complex equipment
+2. Suggest simple training programs suitable for students — short and without complex equipment
 3. Motivate the player before matches and build confidence
 4. Analyze performance based on available stats
 5. Give advice on handling cards and suspensions
 6. If captain, give team leadership advice
 
-CRITICAL RULES:
-- ALWAYS detect the language of the user's message and reply in the SAME language
-- If the user writes in Arabic, reply in clear simple Arabic
-- If the user writes in English, reply in English
+Additional rules:
 - Keep responses practical, short, and well organized using bullet points
 - Be motivating and positive even if performance is weak
 - Use the player's real data in your responses
 - Never use complicated or formal language, keep it friendly and simple`;
+    };
 
     const sendMessage = async () => {
         if (!input.trim() || loading) return;
@@ -66,9 +91,9 @@ CRITICAL RULES:
                     "Authorization": `Bearer ${AI_KEY}`
                 },
                 body: JSON.stringify({
-                    model: "openrouter/free",
+                    model: "openai/gpt-4o-mini",
                     messages: [
-                        { role: "system", content: systemPrompt },
+                        { role: "system", content: buildSystemPrompt(userMsg.content) },
                         ...updatedMessages.filter(m => m.content?.trim())
                     ],
                     max_tokens: 1000
@@ -76,10 +101,7 @@ CRITICAL RULES:
             });
 
             const data = await response.json();
-
-            if (data.error) {
-                throw new Error(data.error.message);
-            }
+            if (data.error) throw new Error(data.error.message);
 
             const aiReply = data.choices?.[0]?.message?.content || "Sorry, an error occurred.";
             setMessages(prev => [...prev, { role: "assistant", content: aiReply }]);
@@ -104,7 +126,7 @@ CRITICAL RULES:
     ];
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div style={{ fontFamily: "'Tajawal', sans-serif" }} className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-[#0f172a] border border-white/10 w-full sm:max-w-lg h-[88vh] sm:h-[600px] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col">
 
@@ -114,7 +136,7 @@ CRITICAL RULES:
                         <FaRobot className="text-emerald-400 text-lg" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-white font-bold text-xl">AI Sports Assistant</h3>
+                        <h3 style={{ fontWeight: 800 }} className="text-white text-xl">AI Sports Assistant</h3>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                             <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">AI Powered</span>
@@ -127,24 +149,24 @@ CRITICAL RULES:
 
                 {/* Player Info Strip */}
                 <div className="px-4 py-2 bg-white/[0.02] border-b border-white/5 flex items-center gap-3 flex-shrink-0 overflow-x-auto">
-                    <span className="text-[13px] text-White font-bold uppercase whitespace-nowrap"> Stats : </span>
+                    <span className="text-[13px] text-white font-bold uppercase whitespace-nowrap">Stats:</span>
                     {userData?.position && (
-                        <span className="text-[15px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[13px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold whitespace-nowrap">
                             {userData.position}
                         </span>
                     )}
                     {userData?.goals > 0 && (
-                        <span className="text-[15px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[13px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20 font-bold whitespace-nowrap">
                             {userData.goals} Goals ⚽
                         </span>
                     )}
                     {userRank && (
-                        <span className="text-[15px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[13px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold whitespace-nowrap">
                             Rank #{userRank}
                         </span>
                     )}
                     {nextMatch && (
-                        <span className="text-[15px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
+                        <span className="text-[13px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 font-bold whitespace-nowrap">
                             vs {nextMatch.opponentName}
                         </span>
                     )}
@@ -207,7 +229,7 @@ CRITICAL RULES:
                                 sendMessage();
                             }
                         }}
-                        placeholder="Ask me anything "
+                        placeholder="Ask me anything"
                         className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500/50 transition-all placeholder-gray-600"
                     />
                     <button
