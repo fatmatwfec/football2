@@ -40,8 +40,8 @@ const checkScheduleConflict = async (team1Id, team2Id, date, time, pitch) => {
     const newTime  = new Date(`${date} ${time}`);
     const diffMins = Math.abs(mTime - newTime) / 60000;
 
-    // RULE: At least 30 minutes gap between matches (assuming 30 min duration + 30 min break = 60 mins total)
-    const timeClash  = diffMins < 60; 
+    // RULE: At least 30 minutes gap between matches
+    const timeClash  = diffMins < 30; 
 
     const teamClash  =
       m.team1Id === team1Id || m.team1Id === team2Id ||
