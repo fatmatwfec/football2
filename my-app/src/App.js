@@ -12,6 +12,7 @@ import ChangePassword from './Dashboard/ChangePassword';
 import CreateTeam from './Dashboard/CreateTeam';
 import EditProfile from './Dashboard/EditProfile';
 import TeamDetails from './Dashboard/TeamDetails';
+import PlayerProfile from './Dashboard/PlayerProfile';
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -69,6 +70,7 @@ function App() {
             }
           />
           <Route path="/team/:teamId" element={<TeamDetails />} />
+          <Route path="/player/:playerId" element={<PlayerProfile />} />
         </Routes>
       </div>
     </Router>

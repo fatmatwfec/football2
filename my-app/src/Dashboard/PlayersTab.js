@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan, FaPen } from 'react-icons/fa';
+import { FaMagic, FaRunning, FaCheckCircle, FaUserCheck, FaTrashAlt, FaTimes, FaUserMinus, FaSearch, FaFutbol, FaBan, FaPen, FaExternalLinkAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, doc, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 
@@ -12,6 +13,7 @@ const PlayersTab = ({ players, matches = [], teams = [], archivedTournaments = [
   const [searchTerm, setSearchTerm] = useState("");
   const [statsFilter, setStatsFilter] = useState("total"); // "total" or tournament name
   const [filterType, setFilterType] = useState("all"); // "all", "pending", "free", "solo"
+  const navigate = useNavigate();
 
   const [showTop10, setShowTop10] = useState(false);
   const [renamingTeamId, setRenamingTeamId] = useState(null);
@@ -382,7 +384,16 @@ const PlayersTab = ({ players, matches = [], teams = [], archivedTournaments = [
                               )}
                             </div>
                             <div>
-                              <span className="text-white font-medium">{player.name || "Unknown"}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-medium">{player.name || "Unknown"}</span>
+                                <button
+                                  onClick={() => navigate(`/player/${player.uid || player.id}`)}
+                                  className="text-emerald-500 hover:text-white transition-colors"
+                                  title="View Player Profile"
+                                >
+                                  <FaExternalLinkAlt size={9} />
+                                </button>
+                              </div>
                               <p className="text-slate-600 text-[10px] font-mono">{player.studentCode || "No ID"}</p>
                             </div>
                           </div>

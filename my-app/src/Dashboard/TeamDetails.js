@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
-import { FaArrowLeft, FaFutbol, FaTrophy, FaUsers, FaEnvelope, FaPhone, FaIdCard, FaRunning } from 'react-icons/fa';
+import { FaArrowLeft, FaFutbol, FaTrophy, FaUsers, FaEnvelope, FaPhone, FaIdCard, FaRunning, FaExternalLinkAlt } from 'react-icons/fa';
 
 const TeamDetails = () => {
     const { teamId } = useParams();
@@ -168,32 +168,42 @@ const StatCard = ({ icon, label, value }) => (
     </div>
 );
 
-const MemberCard = ({ member, isCaptain }) => (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-all group">
-        <div className="w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform">
-            {member.name?.[0]}
-        </div>
-        <div className="flex-1">
-            <div className="flex items-center gap-2">
-                <p className="font-bold text-white">{member.name}</p>
-                {isCaptain && <span className="bg-yellow-500/20 text-yellow-500 text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase">Leader</span>}
+const MemberCard = ({ member, isCaptain }) => {
+    const navigate = useNavigate();
+    return (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-all group">
+            <div className="w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl flex items-center justify-center text-xl font-bold group-hover:scale-105 transition-transform">
+                {member.name?.[0]}
             </div>
-            <p className="text-xs text-gray-500">{member.position || "Player"}</p>
-            <div className="flex items-center gap-3 mt-1">
-                <div className="flex items-center gap-1">
-                    <FaEnvelope size={8} className="text-emerald-500/50" />
-                    <span className="text-[9px] text-gray-400 truncate max-w-[100px]">{member.email}</span>
+            <div className="flex-1">
+                <div className="flex items-center gap-2">
+                    <p className="font-bold text-white">{member.name}</p>
+                    {isCaptain && <span className="bg-yellow-500/20 text-yellow-500 text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase">Leader</span>}
+                    <button
+                        onClick={() => navigate(`/player/${member.uid || member.id}`)}
+                        className="text-emerald-500 hover:text-white transition-colors ml-auto"
+                        title="View Player Profile"
+                    >
+                        <FaExternalLinkAlt size={10} />
+                    </button>
                 </div>
-                {member.phone && (
+                <p className="text-xs text-gray-500">{member.position || "Player"}</p>
+                <div className="flex items-center gap-3 mt-1">
                     <div className="flex items-center gap-1">
-                        <FaPhone size={8} className="text-blue-500/50" />
-                        <span className="text-[9px] text-gray-400">{member.phone}</span>
+                        <FaEnvelope size={8} className="text-emerald-500/50" />
+                        <span className="text-[9px] text-gray-400 truncate max-w-[100px]">{member.email}</span>
                     </div>
-                )}
+                    {member.phone && (
+                        <div className="flex items-center gap-1">
+                            <FaPhone size={8} className="text-blue-500/50" />
+                            <span className="text-[9px] text-gray-400">{member.phone}</span>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const InfoRow = ({ label, value, color = "text-white" }) => (
     <div className="flex justify-between items-center text-sm">
