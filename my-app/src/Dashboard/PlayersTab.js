@@ -571,7 +571,6 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
               <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1 text-left">
                 <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2">Teams Needing {showMatchModal.position}:</p>
                 {(() => {
-<<<<<<< HEAD
                     const matchingTeams = teams.filter(t => 
                         (t.neededPositions || []).includes(showMatchModal.position) || 
                         t.needsPosition === showMatchModal.position
@@ -647,63 +646,6 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                             </button>
                         );
                     })}
-=======
-                  const matchingTeams = teams.filter(t =>
-                    (t.neededPositions || []).includes(showMatchModal.position) ||
-                    t.needsPosition === showMatchModal.position
-                  );
-
-                  if (matchingTeams.length > 0) {
-                    return matchingTeams.map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => handleAssignToTeam(showMatchModal, t)}
-                        className="w-full bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500 hover:text-white transition-all p-3 rounded-xl flex items-center justify-between group mb-2"
-                      >
-                        <div className="text-left">
-                          <span className="font-bold text-sm block">{t.teamName}</span>
-                          <div className="flex gap-1 mt-1">
-                            {(t.neededPositions || [t.needsPosition]).filter(Boolean).map((p, i) => (
-                              <span key={i} className={`text-[8px] px-1.5 py-0.5 rounded uppercase font-bold ${p === showMatchModal.position ? 'bg-white text-purple-600' : 'bg-purple-500/20 text-purple-300'}`}>
-                                {p}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-tighter opacity-60 group-hover:opacity-100">Match Now</span>
-                      </button>
-                    ));
-                  }
-                  return <p className="text-xs text-slate-600 italic py-2">No teams specifically requested a {showMatchModal.position}.</p>;
-                })()}
-
-                <div className="border-t border-white/10 my-4 pt-4">
-                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2">All Other Teams:</p>
-                  {teams.filter(t =>
-                    !(t.neededPositions || []).includes(showMatchModal.position) &&
-                    t.needsPosition !== showMatchModal.position
-                  ).map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleAssignToTeam(showMatchModal, t)}
-                      className="w-full bg-white/5 border border-white/10 hover:border-emerald-500/50 hover:bg-white/10 transition-all p-3 rounded-xl flex items-center justify-between mb-2"
-                    >
-                      <div className="text-left">
-                        <span className="text-white text-sm font-medium block">{t.teamName}</span>
-                        {t.neededPositions?.length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {t.neededPositions.map((p, i) => (
-                              <span key={i} className="text-[8px] bg-white/5 text-slate-500 px-1.5 py-0.5 rounded uppercase font-bold border border-white/5">
-                                {p}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-slate-500 text-[10px] font-bold">{t.memberIds?.length || 0}/7</span>
-                    </button>
-                  ))}
->>>>>>> f155d6c4e923a952a3cb49855dfd94aed454f838
                 </div>
               </div>
             </div>
