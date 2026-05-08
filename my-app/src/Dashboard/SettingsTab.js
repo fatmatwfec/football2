@@ -44,28 +44,65 @@ const SettingsTab = ({ onBack }) => {
       const teamsSnap = await getDocs(collection(db, "teams"));
       const usersSnap = await getDocs(collection(db, "users"));
 
-      const existingTeamIds = teamsSnap.docs.map(d => d.id);
+      const teamsData = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const usersData = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const existingTeamIds = teamsData.map(t => t.id);
+      
       let fixCount = 0;
 
+      // 1. Fix Users (Source of truth for their own status)
       usersSnap.docs.forEach(userDoc => {
         const userData = userDoc.data();
+        // If user thinks they are in a team but team is gone
         if (userData.hasTeam && !existingTeamIds.includes(userData.teamId)) {
-          batch.update(doc(db, "users", userDoc.id), {
-            hasTeam: false,
-            teamId: "",
-            assignedTeam: ""
-          });
+          batch.update(userDoc.ref, { hasTeam: false, teamId: "", assignedTeam: "" });
+          fixCount++;
+        }
+      });
+
+      // 2. Fix Teams (Sync member lists with actual users who have this teamId)
+      teamsSnap.docs.forEach(teamDoc => {
+        const teamData = teamDoc.data();
+        const actualMembers = usersData.filter(u => u.teamId === teamDoc.id);
+        const actualMemberIds = actualMembers.map(m => m.id);
+        const actualMemberNames = actualMembers.map(m => m.name || "Unknown");
+
+        // Check if member lists are out of sync
+        const currentIds = teamData.memberIds || [];
+        const currentNames = teamData.members || [];
+        
+        const isIdsSync = JSON.stringify([...currentIds].sort()) === JSON.stringify([...actualMemberIds].sort());
+        const isNamesSync = JSON.stringify([...currentNames].sort()) === JSON.stringify([...actualMemberNames].sort());
+        
+        if (!isIdsSync || !isNamesSync) {
+          const updateData = {
+            memberIds: actualMemberIds,
+            members: actualMemberNames
+          };
+
+          // Also check if captain is still in the team
+          if (teamData.captainId && !actualMemberIds.includes(teamData.captainId)) {
+             if (actualMembers.length > 0) {
+                updateData.captainId = actualMembers[0].id;
+                updateData.captainName = actualMembers[0].name || "Unknown";
+             }
+          }
+
+          batch.update(teamDoc.ref, updateData);
           fixCount++;
         }
       });
 
       if (fixCount > 0) {
         await batch.commit();
-        alert(`Done! Fixed ${fixCount} "lost" players.`);
+        alert(`Deep Repair Complete! Fixed ${fixCount} data inconsistencies.`);
       } else {
-        alert("Database is healthy! No ghost players found.");
+        alert("Database is perfectly synced! No issues found.");
       }
-    } catch (error) { console.error(error); }
+    } catch (error) { 
+      console.error(error); 
+      alert("Repair failed: " + error.message);
+    }
     setIsFixing(false);
   };
 
@@ -212,7 +249,7 @@ const SettingsTab = ({ onBack }) => {
                   className="flex-1 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-6 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all disabled:opacity-50"
                 >
                   <FaDatabase size={14} />
-                  {isResetting ? "Resetting..." : "Reset Tournament"}
+                  {isResetting ? "Resetting..." : "Full System Reset"}
                 </button>
                 
                 <button 
