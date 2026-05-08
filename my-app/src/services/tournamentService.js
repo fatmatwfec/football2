@@ -1,30 +1,37 @@
 import { db } from '../firebase';
 import {
-  doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs,
+  doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, writeBatch
 } from 'firebase/firestore';
 
-// ─── helpers ──────────────────────────────────────────────────
+// ─── helpers (Moved to top to avoid hoisting issues) ───────────
+const makeKey = (id1, id2) => [id1, id2].sort().join('__');
+
+const parseNextMatchId = (nextMatchId) => {
+  const nextR = `${parseInt(nextMatchId.split('_')[0].replace('r', ''))}`;
+  const nextM = parseInt(nextMatchId.split('_')[1].replace('m', ''));
+  return [nextR, nextM];
+};
+
 const computeRoundDateMap = (numRounds, sortedDates) => {
   const map = {};
   if (!sortedDates || sortedDates.length === 0) return map;
   
-  // توزيع الأدوار على الأيام المتاحة بشكل متوازن
   for (let r = 0; r < numRounds; r++) {
     const progress = r / numRounds;
     const idx = Math.min(Math.floor(progress * sortedDates.length), sortedDates.length - 1);
-    map[r] = sortedDates[idx]; // كائن يحتوي على { date, startTime }
+    map[r] = sortedDates[idx];
   }
   return map;
 };
 
-const autoScheduleRound0 = async (round0Matches, date, tournamentName) => {
+const autoScheduleRound0 = async (round0Matches, tournamentName) => {
   for (const match of round0Matches) {
     if (match.isBye || !match.team1 || !match.team2) continue;
     
     await addDoc(collection(db, 'matches'), {
       team1Id: match.team1.id, 
       team2Id: match.team2.id,
-      date, 
+      date: match.projectedDate, 
       time: match.projectedTime || "09:00", 
       pitch: 'Main Pitch',
       score: '', 
@@ -35,7 +42,41 @@ const autoScheduleRound0 = async (round0Matches, date, tournamentName) => {
   }
 };
 
-// ─── main export ──────────────────────────────────────────────
+export const getTournamentWinner = (tournament) => {
+  if (!tournament?.rounds) return null;
+  const keys      = Object.keys(tournament.rounds);
+  const lastRound = tournament.rounds[`${keys.length - 1}`];
+  return lastRound?.[0]?.winner ?? null;
+};
+
+export const getRoundLabel = (roundIndex, totalRounds) => {
+  const fromEnd = totalRounds - 1 - roundIndex;
+  if (fromEnd === 0) return 'Final';
+  if (fromEnd === 1) return 'Semi-Finals';
+  if (fromEnd === 2) return 'Quarter-Finals';
+  return `Round ${roundIndex + 1}`;
+};
+
+export const buildMatchCache = (tournament) => {
+  if (!tournament?.rounds) return {};
+  const cache = {};
+  Object.entries(tournament.rounds).forEach(([rKey, matches]) => {
+    matches.forEach(m => {
+      if (m.team1?.id && m.team2?.id) {
+        const key = makeKey(m.team1.id, m.team2.id);
+        cache[key] = { roundIndex: parseInt(rKey), match: m };
+      }
+    });
+  });
+  return cache;
+};
+
+export const getMatchRoundFromCache = (cache, team1Id, team2Id) => {
+  if (!team1Id || !team2Id) return null;
+  return cache[makeKey(team1Id, team2Id)] ?? null;
+};
+
+// ─── main exports ─────────────────────────────────────────────
 export const generateBracket = async (teams, tournamentDates = [], tournamentName = "") => {
   if (!teams || teams.length < 3) throw new Error('يجب وجود 3 فرق على الأقل.');
   if (!tournamentName) tournamentName = `Tournament ${new Date().toLocaleDateString()}`;
@@ -80,17 +121,13 @@ export const generateBracket = async (teams, tournamentDates = [], tournamentNam
 
   const sortedDates  = [...tournamentDates].sort((a,b) => a.date.localeCompare(b.date));
   const roundDateMap = computeRoundDateMap(numRounds, sortedDates);
-
-  // تتبع الوقت لكل يوم بشكل منفصل تماماً
   const dayTimeMap = {};
 
   for (let r = 0; r < numRounds; r++) {
     const dateObj = roundDateMap[r] || (sortedDates.length > 0 ? sortedDates[0] : null);
     if (!dateObj) continue;
-
     const rDate = dateObj.date;
     
-    // تصفير الوقت لو اليوم ده أول مرة نشوفه، نستخدم الـ startTime الخاص بيه
     if (dayTimeMap[rDate] === undefined) {
       const [h, min] = dateObj.startTime.split(':').map(Number);
       dayTimeMap[rDate] = isNaN(h) ? 540 : (h * 60 + (min || 0));
@@ -98,11 +135,10 @@ export const generateBracket = async (teams, tournamentDates = [], tournamentNam
 
     rounds[`${r}`].forEach(match => {
       const currentTime = dayTimeMap[rDate];
-      
       const h = String(Math.floor(currentTime / 60)).padStart(2, '0');
       const m = String(currentTime % 60).padStart(2, '0');
       match.projectedTime = `${h}:${m}`;
-      
+      match.projectedDate = rDate;
       if (!match.isBye) {
         dayTimeMap[rDate] += 30;
       }
@@ -110,8 +146,7 @@ export const generateBracket = async (teams, tournamentDates = [], tournamentNam
   }
 
   if (sortedDates.length > 0) {
-    const firstDateObj = roundDateMap[0] || sortedDates[0];
-    await autoScheduleRound0(rounds['0'], firstDateObj.date, tournamentName);
+    await autoScheduleRound0(rounds['0'], tournamentName);
   }
 
   await setDoc(doc(db, 'tournaments', 'main'), {
@@ -133,18 +168,9 @@ export const updateTeamNameInTournament = async (teamId, newName) => {
 
   for (const rKey of Object.keys(newRounds)) {
     for (const match of newRounds[rKey]) {
-      if (match.team1?.id === teamId) {
-        match.team1.name = newName;
-        changed = true;
-      }
-      if (match.team2?.id === teamId) {
-        match.team2.name = newName;
-        changed = true;
-      }
-      if (match.winner?.id === teamId) {
-        match.winner.name = newName;
-        changed = true;
-      }
+      if (match.team1?.id === teamId) { match.team1.name = newName; changed = true; }
+      if (match.team2?.id === teamId) { match.team2.name = newName; changed = true; }
+      if (match.winner?.id === teamId) { match.winner.name = newName; changed = true; }
     }
   }
 
@@ -165,9 +191,7 @@ export const advanceBracketWinner = async (winnerId, winnerName, team1Id, team2I
     for (const match of newRounds[rKey]) {
       const t1      = match.team1?.id;
       const t2      = match.team2?.id;
-      const isMatch =
-        (t1 === team1Id && t2 === team2Id) ||
-        (t1 === team2Id && t2 === team1Id);
+      const isMatch = (t1 === team1Id && t2 === team2Id) || (t1 === team2Id && t2 === team1Id);
 
       if (isMatch && !match.winner) {
         match.winner        = { id: winnerId, name: winnerName };
@@ -226,6 +250,19 @@ export const clearTournament = async () => {
       archivedAt:  new Date(),
       finalWinner: winner ?? null,
     });
+
+    const tName = data.name || data.registrationTitle;
+    const matchesSnap = await getDocs(collection(db, 'matches'));
+    const batch = writeBatch(db);
+    let count = 0;
+    matchesSnap.docs.forEach(d => {
+      const m = d.data();
+      if (m.tournamentName === tName || (m.tournamentName && m.tournamentName !== "Friendly")) {
+        batch.delete(d.ref);
+        count++;
+      }
+    });
+    if (count > 0) await batch.commit();
   }
 
   await deleteDoc(doc(db, 'tournaments', 'main'));
@@ -240,47 +277,4 @@ export const fetchArchivedTournaments = async () => {
       const bTime = b.archivedAt?.toDate?.() ?? new Date(0);
       return bTime - aTime;
     });
-};
-
-export const getTournamentWinner = (tournament) => {
-  if (!tournament?.rounds) return null;
-  const keys      = Object.keys(tournament.rounds);
-  const lastRound = tournament.rounds[`${keys.length - 1}`];
-  return lastRound?.[0]?.winner ?? null;
-};
-
-export const getRoundLabel = (roundIndex, totalRounds) => {
-  const fromEnd = totalRounds - 1 - roundIndex;
-  if (fromEnd === 0) return 'Final';
-  if (fromEnd === 1) return 'Semi-Finals';
-  if (fromEnd === 2) return 'Quarter-Finals';
-  return `Round ${roundIndex + 1}`;
-};
-
-export const buildMatchCache = (tournament) => {
-  if (!tournament?.rounds) return {};
-  const cache = {};
-  Object.entries(tournament.rounds).forEach(([rKey, matches]) => {
-    matches.forEach(m => {
-      if (m.team1?.id && m.team2?.id) {
-        const key = makeKey(m.team1.id, m.team2.id);
-        cache[key] = { roundIndex: parseInt(rKey), match: m };
-      }
-    });
-  });
-  return cache;
-};
-
-export const getMatchRoundFromCache = (cache, team1Id, team2Id) => {
-  if (!team1Id || !team2Id) return null;
-  return cache[makeKey(team1Id, team2Id)] ?? null;
-};
-
-const makeKey = (id1, id2) =>
-  [id1, id2].sort().join('__');
-
-const parseNextMatchId = (nextMatchId) => {
-  const nextR = `${parseInt(nextMatchId.split('_')[0].replace('r', ''))}`;
-  const nextM = parseInt(nextMatchId.split('_')[1].replace('m', ''));
-  return [nextR, nextM];
 };

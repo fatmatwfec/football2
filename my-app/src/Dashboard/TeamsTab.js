@@ -104,7 +104,8 @@ const TeamsTab = ({ teams, players, matches = [], readOnly = false }) => {
 
     const teamObj = teams.find(t => t.id === teamId);
     const teamMembers = getTeamMembers(teamObj);
-    if (teamMembers.length >= 7) return alert('Team is full!');
+    const currentMemberCount = Math.max(teamMembers.length, (teamObj.memberIds || []).length);
+    if (currentMemberCount >= 7) return alert('This team is already full (7 players max)!');
 
     const player = freeAgents.find(p => p.id === currentPlayerId);
     if (!player || !window.confirm(`Add ${player.name} to ${teamName}?`)) return;

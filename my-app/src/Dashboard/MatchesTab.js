@@ -613,16 +613,13 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
           </div>
         </div>
 
-        {/* Action Button */}
-        {!isCompleted && !readOnly && !isLive && (
+        {/* Action Button - Only show for Pending matches (matches that have passed) */}
+        {isPending && !readOnly && (
           <button
             onClick={onEnterResult}
-            className={`w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all ${isPending
-                ? 'bg-amber-500 hover:bg-amber-400 text-black'
-                : 'bg-gradient-to-r from-[#00FF9C] to-emerald-600 text-black hover:scale-105'
-              }`}
+            className="w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/10"
           >
-            {isPending ? 'Submit Match Score' : 'Enter Results Early'}
+            Submit Match Score
           </button>
         )}
 
