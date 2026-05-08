@@ -613,8 +613,8 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
           </div>
         </div>
 
-        {/* Action Button - Only show for Live or Pending matches */}
-        {(isPending || isLive) && !readOnly && (
+        {/* Action Button - Only show for Pending matches (matches that have passed) */}
+        {isPending && !readOnly && (
           <button
             onClick={onEnterResult}
             className="w-full mt-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/10"
