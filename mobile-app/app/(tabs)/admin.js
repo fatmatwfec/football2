@@ -59,7 +59,7 @@ export default function admin() {
   const [newMatchPitch, setNewMatchPitch] = useState("Main Pitch");
   const [selectedFreeAgents, setSelectedFreeAgents] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [showMatchModal, setShowMatchModal] = useState(null); 
+  const [showMatchModal, setShowMatchModal] = useState(null);
 
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
@@ -129,37 +129,37 @@ export default function admin() {
 
   useEffect(() => {
     const interval = setInterval(async () => {
-    const nowMs = Date.now();
-    setNow(nowMs);
+      const nowMs = Date.now();
+      setNow(nowMs);
 
-    const DURATION = 20 * 60 * 1000;
-    const toUpdate = matches.filter(m => {
-      if (m.status === 'completed') return false;
-      if (!m.date || !m.time) return false;
-      const [y, mm, d] = m.date.split('-').map(Number);
-      const [h, min] = m.time.split(':').map(Number);
-      const matchTime = new Date(y, mm - 1, d, h, min).getTime();
-      const isLive = matchTime <= nowMs && nowMs < matchTime + DURATION;
-      const isPast = nowMs >= matchTime + DURATION;
-      if (isLive && m.status !== 'live') return true;
-      if (isPast && m.status !== 'pending_result') return true;
-      return false;
-    });
-
-    if (toUpdate.length > 0) {
-      const batch = writeBatch(db);
-      const nowMs2 = Date.now();
-      toUpdate.forEach(m => {
+      const DURATION = 20 * 60 * 1000;
+      const toUpdate = matches.filter(m => {
+        if (m.status === 'completed') return false;
+        if (!m.date || !m.time) return false;
         const [y, mm, d] = m.date.split('-').map(Number);
         const [h, min] = m.time.split(':').map(Number);
         const matchTime = new Date(y, mm - 1, d, h, min).getTime();
-        const newStatus = (matchTime <= nowMs2 && nowMs2 < matchTime + DURATION)
-          ? 'live' : 'pending_result';
-        batch.update(doc(db, 'matches', m.id), { status: newStatus });
+        const isLive = matchTime <= nowMs && nowMs < matchTime + DURATION;
+        const isPast = nowMs >= matchTime + DURATION;
+        if (isLive && m.status !== 'live') return true;
+        if (isPast && m.status !== 'pending_result') return true;
+        return false;
       });
-      try { await batch.commit(); } catch (e) { console.error(e); }
-    }
-      
+
+      if (toUpdate.length > 0) {
+        const batch = writeBatch(db);
+        const nowMs2 = Date.now();
+        toUpdate.forEach(m => {
+          const [y, mm, d] = m.date.split('-').map(Number);
+          const [h, min] = m.time.split(':').map(Number);
+          const matchTime = new Date(y, mm - 1, d, h, min).getTime();
+          const newStatus = (matchTime <= nowMs2 && nowMs2 < matchTime + DURATION)
+            ? 'live' : 'pending_result';
+          batch.update(doc(db, 'matches', m.id), { status: newStatus });
+        });
+        try { await batch.commit(); } catch (e) { console.error(e); }
+      }
+
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -832,7 +832,7 @@ export default function admin() {
     list.sort((a, b) => {
       const valA = Number(getStat(a, 'goals')) || 0;
       const valB = Number(getStat(b, 'goals')) || 0;
-      return valB - valA; 
+      return valB - valA;
     });
 
     // Top 10 
@@ -853,8 +853,8 @@ export default function admin() {
       const term = searchTerm.toLowerCase();
       list = list.filter(p =>
         p.name?.toLowerCase().includes(term) ||
-        p.assignedTeam?.toLowerCase().includes(term)||
-        p.position?.toLowerCase().includes(term) 
+        p.assignedTeam?.toLowerCase().includes(term) ||
+        p.position?.toLowerCase().includes(term)
       );
     }
 
@@ -874,6 +874,7 @@ export default function admin() {
     if (position === "Forward") return { bg: "rgba(34,197,94,0.15)", text: "#22c55e" };
     if (position === "Defender") return { bg: "rgba(59,130,246,0.15)", text: "#60a5fa" };
     if (position === "Goalkeeper") return { bg: "rgba(234,179,8,0.15)", text: "#eab308" };
+    if (position === "Midfielder") return { bg: "rgba(234,179,8,0.15)", text: "#217c07" };
     return { bg: "rgba(100,116,139,0.15)", text: "#94a3b8" };
   };
 
@@ -883,7 +884,7 @@ export default function admin() {
     return `🏆 ${statsFilter}`;
   };
 
- const handleAssignToTeam = async (player, team) => {
+  const handleAssignToTeam = async (player, team) => {
     try {
       const teamObj = approvedTeams.find(t => t.id === team.id);
       if (getTeamMembers(teamObj).length >= 7) {
@@ -979,22 +980,22 @@ export default function admin() {
           <View style={s.headerLogo}>
             <Text style={s.headerLogoText}>SFC</Text>
           </View>
-          <Text style={s.headerTitle}>Science FC League</Text>  
-        </View>      
+          <Text style={s.headerTitle}>Science FC League</Text>
+        </View>
         <View style={{ flexDirection: "column", gap: 6, alignItems: "stretch" }}>
-  <TouchableOpacity 
-    style={[s.addBtn, { alignItems: "center" }]} 
-    onPress={() => { setAddModalView("options"); setShowAddModal(true); }}
-  >
-    <Text style={s.addBtnText}>+ Create</Text>
-  </TouchableOpacity>
-  <TouchableOpacity 
-    style={[s.addBtn, { backgroundColor: "#1e293b", borderWidth: 1, borderColor: "rgba(0,255,156,0.3)", alignItems: "center" }]} 
-    onPress={() => setShowAI(true)}
-  >
-    <Text style={[s.addBtnText, { color: "#00FF9C" }]}>🤖 AI</Text>
-  </TouchableOpacity>
-</View>
+          <TouchableOpacity
+            style={[s.addBtn, { alignItems: "center" }]}
+            onPress={() => { setAddModalView("options"); setShowAddModal(true); }}
+          >
+            <Text style={s.addBtnText}>+ Create</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.addBtn, { backgroundColor: "#1e293b", borderWidth: 1, borderColor: "rgba(0,255,156,0.3)", alignItems: "center" }]}
+            onPress={() => setShowAI(true)}
+          >
+            <Text style={[s.addBtnText, { color: "#00FF9C" }]}>🤖 AI</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Content ── */}
@@ -1043,25 +1044,25 @@ export default function admin() {
 
             {/* Tabs */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 0 }}>
-            <View style={s.dashTabRow}>
-              {[{ id: "live", label: "Live Matches" },
-              { id: "history", label: "Match History" },
-              { id: "requests", label: `Team Requests`, badge: pendingTeams.length }
-              ].map(tab => (
-                <TouchableOpacity
-                  key={tab.id}
-                  onPress={() => setActiveClick(tab.id)}
-                  style={[s.dashTab, activeClick === tab.id && s.dashTabActive]}
-                >
-                  <Text style={
-                    [s.dashTabText, activeClick === tab.id && s.dashTabTextActive]
-                  }>
-                    {tab.label}
-                  </Text>
-                  {tab.badge > 0 && <View style={s.tabBadge}><Text style={s.tabBadgeText}>{tab.badge}</Text></View>}
-                </TouchableOpacity>
-              ))}
-            </View>
+              <View style={s.dashTabRow}>
+                {[{ id: "live", label: "Live Matches" },
+                { id: "history", label: "Match History" },
+                { id: "requests", label: `Team Requests`, badge: pendingTeams.length }
+                ].map(tab => (
+                  <TouchableOpacity
+                    key={tab.id}
+                    onPress={() => setActiveClick(tab.id)}
+                    style={[s.dashTab, activeClick === tab.id && s.dashTabActive]}
+                  >
+                    <Text style={
+                      [s.dashTabText, activeClick === tab.id && s.dashTabTextActive]
+                    }>
+                      {tab.label}
+                    </Text>
+                    {tab.badge > 0 && <View style={s.tabBadge}><Text style={s.tabBadgeText}>{tab.badge}</Text></View>}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </ScrollView>
 
             {activeClick === "live" && (
@@ -1457,7 +1458,7 @@ export default function admin() {
 
                       {playersSubTab === 'solo' && !player.hasTeam && (
                         <TouchableOpacity
-                          style={{ backgroundColor: '#a78bfa', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, marginBottom: 6,width:64,alignItems:'center', }}
+                          style={{ backgroundColor: '#a78bfa', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, marginBottom: 6, width: 64, alignItems: 'center', }}
                           onPress={() => setShowMatchModal(player)}
                         >
                           <Text style={{ color: '#fff', fontWeight: '800', fontSize: 10 }}>Match</Text>
@@ -1560,29 +1561,29 @@ export default function admin() {
                       <View style={s.pulseDot} />
                     </View>
 
-                     {/* Deadline Countdown */}
-                      {getTournamentDeadlineString() && (
-                        <View style={{ backgroundColor: 'rgba(0,255,156,0.06)', borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,255,156,0.15)' }}>
-                          <Text style={{ color: '#64748b', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 }}>
-                            Registration Deadline
+                    {/* Deadline Countdown */}
+                    {getTournamentDeadlineString() && (
+                      <View style={{ backgroundColor: 'rgba(0,255,156,0.06)', borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,255,156,0.15)' }}>
+                        <Text style={{ color: '#64748b', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 }}>
+                          Registration Deadline
+                        </Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                            {getTournamentDeadlineString()}
                           </Text>
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
-                              {getTournamentDeadlineString()}
-                            </Text>
-                            <Text style={{
-                              color: getTournamentRemainingTime() === 'Expired' ? '#ef4444' : '#00FF9C',
-                              fontSize: 11, fontWeight: '900',
-                              }}>
-                              {getTournamentRemainingTime()}
-                            </Text>
-                          </View>
+                          <Text style={{
+                            color: getTournamentRemainingTime() === 'Expired' ? '#ef4444' : '#00FF9C',
+                            fontSize: 11, fontWeight: '900',
+                          }}>
+                            {getTournamentRemainingTime()}
+                          </Text>
                         </View>
-                      )}
+                      </View>
+                    )}
 
                     <Text style={s.regRange}>{tournament.startDate} → {tournament.endDate}</Text>
 
-                     {/* Registered Teams List */}
+                    {/* Registered Teams List */}
                     {tournament.registeredTeamIds?.length > 0 ? (
                       <View style={{ marginBottom: 12 }}>
                         <Text style={{ color: '#475569', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
@@ -1613,7 +1614,7 @@ export default function admin() {
                 {!tournament?.registrationOpen && (tournament?.registeredTeamIds || tournament?.status === "setup") && (
                   <View style={s.setupCard}>
                     <Text style={s.setupCardTitle}>SCHEDULE DATES</Text>
-                   <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
+                    <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
                       <TouchableOpacity
                         style={[s.modalInput, { flex: 1, marginBottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
                         onPress={() => openDatePicker("schedule")}
@@ -2149,7 +2150,7 @@ export default function admin() {
         </View>
       </Modal>
 
-      
+
       <AIChatSidebar
         visible={showAI}
         onClose={() => setShowAI(false)}
@@ -2249,117 +2250,117 @@ export default function admin() {
 
 
       {/* ════ DATE PICKER MODAL ════ */}
-<Modal visible={showDatePickerModal} transparent animationType="fade" onRequestClose={() => setShowDatePickerModal(false)}>
-  <View style={s.modalOverlay}>
-    <View style={[s.modalBox, { maxHeight: 420 }]}>
-      <View style={s.modalHeader}>
-        <Text style={s.modalTitle}>📅 Select Date</Text>
-        <TouchableOpacity onPress={() => setShowDatePickerModal(false)} style={{ marginLeft: "auto" }}>
-          <Text style={{ color: "#94a3b8", fontSize: 20 }}>✕</Text>
-        </TouchableOpacity>
-      </View>
+      <Modal visible={showDatePickerModal} transparent animationType="fade" onRequestClose={() => setShowDatePickerModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalBox, { maxHeight: 420 }]}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>📅 Select Date</Text>
+              <TouchableOpacity onPress={() => setShowDatePickerModal(false)} style={{ marginLeft: "auto" }}>
+                <Text style={{ color: "#94a3b8", fontSize: 20 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-      <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 24 }}>
-        <ScrollPicker
-          label="Day"
-          width={70}
-          data={Array.from({ length: getDaysInMonth(tempYear, tempMonth) }, (_, i) => ({
-            value: i + 1,
-            label: String(i + 1).padStart(2, "0"),
-          }))}
-          selected={tempDay}
-          onSelect={setTempDay}
-        />
-        <ScrollPicker
-          label="Month"
-          width={110}
-          data={[
-            { value: 1, label: "Jan" }, { value: 2, label: "Feb" },
-            { value: 3, label: "Mar" }, { value: 4, label: "Apr" },
-            { value: 5, label: "May" }, { value: 6, label: "Jun" },
-            { value: 7, label: "Jul" }, { value: 8, label: "Aug" },
-            { value: 9, label: "Sep" }, { value: 10, label: "Oct" },
-            { value: 11, label: "Nov" }, { value: 12, label: "Dec" },
-          ]}
-          selected={tempMonth}
-          onSelect={setTempMonth}
-        />
-        <ScrollPicker
-          label="Year"
-          width={90}
-          data={Array.from({ length: 3 }, (_, i) => {
-            const y = new Date().getFullYear() + i;
-            return { value: y, label: String(y) };
-          })}
-          selected={tempYear}
-          onSelect={setTempYear}
-        />
-      </View>
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 24 }}>
+              <ScrollPicker
+                label="Day"
+                width={70}
+                data={Array.from({ length: getDaysInMonth(tempYear, tempMonth) }, (_, i) => ({
+                  value: i + 1,
+                  label: String(i + 1).padStart(2, "0"),
+                }))}
+                selected={tempDay}
+                onSelect={setTempDay}
+              />
+              <ScrollPicker
+                label="Month"
+                width={110}
+                data={[
+                  { value: 1, label: "Jan" }, { value: 2, label: "Feb" },
+                  { value: 3, label: "Mar" }, { value: 4, label: "Apr" },
+                  { value: 5, label: "May" }, { value: 6, label: "Jun" },
+                  { value: 7, label: "Jul" }, { value: 8, label: "Aug" },
+                  { value: 9, label: "Sep" }, { value: 10, label: "Oct" },
+                  { value: 11, label: "Nov" }, { value: 12, label: "Dec" },
+                ]}
+                selected={tempMonth}
+                onSelect={setTempMonth}
+              />
+              <ScrollPicker
+                label="Year"
+                width={90}
+                data={Array.from({ length: 3 }, (_, i) => {
+                  const y = new Date().getFullYear() + i;
+                  return { value: y, label: String(y) };
+                })}
+                selected={tempYear}
+                onSelect={setTempYear}
+              />
+            </View>
 
-      {/* Preview */}
-      <View style={{ backgroundColor: "rgba(0,255,156,0.06)", borderRadius: 12, padding: 12, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(0,255,156,0.15)" }}>
-        <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Selected Date</Text>
-        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
-          {String(Math.min(tempDay, getDaysInMonth(tempYear, tempMonth))).padStart(2, "0")} / {String(tempMonth).padStart(2, "0")} / {tempYear}
-        </Text>
-      </View>
+            {/* Preview */}
+            <View style={{ backgroundColor: "rgba(0,255,156,0.06)", borderRadius: 12, padding: 12, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(0,255,156,0.15)" }}>
+              <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Selected Date</Text>
+              <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
+                {String(Math.min(tempDay, getDaysInMonth(tempYear, tempMonth))).padStart(2, "0")} / {String(tempMonth).padStart(2, "0")} / {tempYear}
+              </Text>
+            </View>
 
-      <TouchableOpacity style={s.primaryBtn} onPress={confirmDate}>
-        <Text style={s.primaryBtnText}>Confirm Date</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+            <TouchableOpacity style={s.primaryBtn} onPress={confirmDate}>
+              <Text style={s.primaryBtnText}>Confirm Date</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-{/* ════ TIME PICKER MODAL ════ */}
-<Modal visible={showTimePickerModal} transparent animationType="fade" onRequestClose={() => setShowTimePickerModal(false)}>
-  <View style={s.modalOverlay}>
-    <View style={[s.modalBox, { maxHeight: 380 }]}>
-      <View style={s.modalHeader}>
-        <Text style={s.modalTitle}>🕐 Select Time</Text>
-        <TouchableOpacity onPress={() => setShowTimePickerModal(false)} style={{ marginLeft: "auto" }}>
-          <Text style={{ color: "#94a3b8", fontSize: 20 }}>✕</Text>
-        </TouchableOpacity>
-      </View>
+      {/* ════ TIME PICKER MODAL ════ */}
+      <Modal visible={showTimePickerModal} transparent animationType="fade" onRequestClose={() => setShowTimePickerModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalBox, { maxHeight: 380 }]}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>🕐 Select Time</Text>
+              <TouchableOpacity onPress={() => setShowTimePickerModal(false)} style={{ marginLeft: "auto" }}>
+                <Text style={{ color: "#94a3b8", fontSize: 20 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 24 }}>
-        <ScrollPicker
-          label="Hour"
-          width={90}
-          data={Array.from({ length: 24 }, (_, i) => ({
-            value: i,
-            label: String(i).padStart(2, "0"),
-          }))}
-          selected={tempHour}
-          onSelect={setTempHour}
-        />
-        <Text style={{ color: "#00FF9C", fontSize: 28, fontWeight: "900", marginTop: 20 }}>:</Text>
-        <ScrollPicker
-          label="Min"
-          width={90}
-          data={Array.from({ length: 12 }, (_, i) => ({
-            value: i * 5,
-            label: String(i * 5).padStart(2, "0"),
-          }))}
-          selected={tempMinute}
-          onSelect={setTempMinute}
-        />
-      </View>
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 24 }}>
+              <ScrollPicker
+                label="Hour"
+                width={90}
+                data={Array.from({ length: 24 }, (_, i) => ({
+                  value: i,
+                  label: String(i).padStart(2, "0"),
+                }))}
+                selected={tempHour}
+                onSelect={setTempHour}
+              />
+              <Text style={{ color: "#00FF9C", fontSize: 28, fontWeight: "900", marginTop: 20 }}>:</Text>
+              <ScrollPicker
+                label="Min"
+                width={90}
+                data={Array.from({ length: 12 }, (_, i) => ({
+                  value: i * 5,
+                  label: String(i * 5).padStart(2, "0"),
+                }))}
+                selected={tempMinute}
+                onSelect={setTempMinute}
+              />
+            </View>
 
-      {/* Preview */}
-      <View style={{ backgroundColor: "rgba(0,255,156,0.06)", borderRadius: 12, padding: 12, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(0,255,156,0.15)" }}>
-        <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Selected Time</Text>
-        <Text style={{ color: "#fff", fontSize: 22, fontWeight: "900" }}>
-          {String(tempHour).padStart(2, "0")} : {String(tempMinute).padStart(2, "0")}
-        </Text>
-      </View>
+            {/* Preview */}
+            <View style={{ backgroundColor: "rgba(0,255,156,0.06)", borderRadius: 12, padding: 12, marginBottom: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(0,255,156,0.15)" }}>
+              <Text style={{ color: "#64748b", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Selected Time</Text>
+              <Text style={{ color: "#fff", fontSize: 22, fontWeight: "900" }}>
+                {String(tempHour).padStart(2, "0")} : {String(tempMinute).padStart(2, "0")}
+              </Text>
+            </View>
 
-      <TouchableOpacity style={s.primaryBtn} onPress={confirmTime}>
-        <Text style={s.primaryBtnText}>Confirm Time</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+            <TouchableOpacity style={s.primaryBtn} onPress={confirmTime}>
+              <Text style={s.primaryBtnText}>Confirm Time</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2528,7 +2529,7 @@ const s = StyleSheet.create({
   headerLogo: { width: 46, height: 46, borderRadius: 12, backgroundColor: "#00FF9C", justifyContent: "center", alignItems: "center" },
   headerLogoText: { color: "#000", fontWeight: "900", fontSize: 13 },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  addBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12},
+  addBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   addBtnText: { color: "#000", fontWeight: "800", fontSize: 13 },
 
   // Content
@@ -2545,7 +2546,7 @@ const s = StyleSheet.create({
   heroTitle: { color: "#fff", fontSize: 28, fontWeight: "900", textAlign: "center", marginBottom: 10, letterSpacing: -0.5 },
   heroSub: { color: "#64748b", fontSize: 14, textAlign: "center", marginBottom: 24, lineHeight: 20 },
   heroButtons: { flexDirection: "column", gap: 10, width: "100%", paddingHorizontal: 16 },
-  heroBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, alignItems: "center"},
+  heroBtn: { backgroundColor: "#00FF9C", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, alignItems: "center" },
   heroBtnText: { color: "#000", fontWeight: "800", fontSize: 14 },
   heroBtnOutline: { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, alignItems: "center" },
   heroBtnOutlineText: { color: "#fff", fontWeight: "700", fontSize: 14 },
@@ -2617,8 +2618,10 @@ const s = StyleSheet.create({
   matchTabRow: { flexDirection: "row" },
   matchTabBtn: { paddingHorizontal: 14, paddingVertical: 12 },
   matchTabText: { color: "#475569", fontWeight: "700", fontSize: 11 },
-  matchStatsFooter: { flexDirection: "row", justifyContent: "space-evenly", alignItems: "center", marginTop: 28, paddingTop: 20, paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1,
-   borderTopColor: "rgba(255,255,255,0.07)", backgroundColor: "#0f172a", borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
+  matchStatsFooter: {
+    flexDirection: "row", justifyContent: "space-evenly", alignItems: "center", marginTop: 28, paddingTop: 20, paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.07)", backgroundColor: "#0f172a", borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)"
+  },
   matchStat: { alignItems: "center", flex: 1 },
   matchStatNum: { color: "#fff", fontSize: 32, fontWeight: "900", letterSpacing: -1 },
   matchStatLabel: { color: "#475569", fontSize: 8, textTransform: "uppercase", letterSpacing: 1, marginTop: 4, fontWeight: "800", textAlign: "center" },
@@ -2632,7 +2635,7 @@ const s = StyleSheet.create({
   //players
   playerCard: {
     flexDirection: "row", gap: 8, backgroundColor: "#0f172a",
-    borderRadius: 16, padding: 12,  marginBottom: 10,
+    borderRadius: 16, padding: 12, marginBottom: 10,
     borderWidth: 1, borderColor: "rgb(66, 154, 104)", alignItems: "center",
   },
   playerCardSuspended: { borderColor: "rgb(214, 109, 109)" },
@@ -2655,7 +2658,7 @@ const s = StyleSheet.create({
   passRow: { flexDirection: "row", alignItems: "center", marginTop: 3 },
   passLabel: { color: "#64748b", fontSize: 8, marginRight: 3 },
   passValue: { color: "#fbbf24", fontSize: 10, fontStyle: "italic", fontWeight: "bold" },
-  playerActions: { alignItems: "flex-end", gap: 6, justifyContent: "center", minWidth: 68  },
+  playerActions: { alignItems: "flex-end", gap: 6, justifyContent: "center", minWidth: 68 },
   activateBtn: { backgroundColor: "#ea580c", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   activateBtnText: { color: "#fff", fontWeight: "bold", fontSize: 10 },
   verifiedBadge: { backgroundColor: "rgba(0,255,156,0.1)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
