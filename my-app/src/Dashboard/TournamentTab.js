@@ -15,7 +15,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   const [scheduleModal, setScheduleModal] = useState(null); 
   const [tournamentDates, setTournamentDates] = useState([]);
   const [dateInput, setDateInput] = useState("");
-  const [allMatches, setAllMatches] = useState([]);
+  const [matches, setMatches] = useState({});
   const [tournamentName, setTournamentName] = useState("");
   const [tournamentStartTime, setTournamentStartTime] = useState("09:00");
   const [tournamentStartDate, setTournamentStartDate] = useState("");
@@ -73,21 +73,19 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
   useEffect(() => {
     fetchArchivedTournaments().then(setArchived).catch(console.error);
     const unsubMatches = onSnapshot(collection(db, 'matches'), (snap) => {
-      setAllMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const cache = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const tName = tournament?.name || tournament?.registrationTitle;
+        if (data.team1Id && data.team2Id && data.tournamentName === tName && tName) {
+          const key = [data.team1Id, data.team2Id].sort().join('__');
+          cache[key] = { id: d.id, ...data };
+        }
+      });
+      setMatches(cache);
     });
     return () => unsubMatches();
-  }, []);
-
-  const matchCache = useMemo(() => {
-    const cache = {};
-    allMatches.forEach(m => {
-      if (m.team1Id && m.team2Id) {
-        const key = [m.team1Id, m.team2Id].sort().join('__');
-        cache[key] = m;
-      }
-    });
-    return cache;
-  }, [allMatches]);
+  }, [tournament?.name, tournament?.registrationTitle]);
 
   const numTeams         = teams?.length ?? 0;
   const tournamentWinner = useMemo(() => getTournamentWinner(tournament), [tournament]);
@@ -136,8 +134,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
 
     if (firstDay.date === todayStr) {
       const [h, m] = firstDay.startTime.split(':').map(Number);
-      const startDateTime = new Date();
-      startDateTime.setHours(h, m, 0, 0);
+      const startDateTime = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), nowLocal.getDate(), h, m);
       
       if (startDateTime <= nowLocal) {
         alert("The start time for today's matches must be in the future.");
@@ -162,7 +159,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
     if (!tournamentName.trim()) return alert("Enter tournament name first");
     if (!tournamentStartDate || !tournamentEndDate) return alert("Please select start and end dates for the tournament announcement");
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
     if (tournamentStartDate < today) {
       return alert("Tournament start date cannot be in the past!");
     }
@@ -512,7 +509,7 @@ const TournamentTab = ({ teams, onBack, readOnly = false }) => {
             <div className="relative animate-fade-in">
               <BracketView
                 tournament={tournament}
-                matches={matchCache}
+                matches={matches}
                 onAdvanceWinner={handleManualAdvance}
                 onScheduleMatch={handleScheduleFromBracket}
                 onClear={handleClear}
@@ -798,7 +795,12 @@ const RoundColumn = ({ roundMatches, roundIndex, totalRounds, roundDate, matches
       </h3>
       {roundDate && (
         <p className="text-slate-500 text-[8px] font-bold mt-1 uppercase tracking-tighter">
-          📅 {new Date(roundDate.date || roundDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+          📅 {(() => {
+            const dStr = roundDate.date || roundDate;
+            if (!dStr) return '';
+            const [y, m, d] = String(dStr).split('-').map(Number);
+            return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          })()}
         </p>
       )}
     </div>
@@ -857,7 +859,11 @@ const MatchCard = ({ match, roundIndex, totalRounds, roundDate, matches, onAdvan
       {displayDate && !match.winner && (
         <div className="px-3 pb-3 flex items-center justify-center gap-3 border-t border-white/5 pt-3">
            <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
-             <FaCalendarAlt size={10} /> {displayDate}
+             <FaCalendarAlt size={10} /> {(() => {
+                const [y, m, d] = String(displayDate).split('-').map(Number);
+                if (isNaN(y)) return displayDate; // fallback for non-ISO strings
+                return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+             })()}
            </div>
            {displayTime && (
              <div className="flex items-center gap-1 text-emerald-400 font-bold text-[9px] uppercase">
