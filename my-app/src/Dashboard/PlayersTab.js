@@ -84,17 +84,29 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
   const handleAction = async (player) => {
     if (readOnly) return;
     if (player.hasTeam) {
-      if (window.confirm(`Remove ${player.name} from their team?`)) {
+      if (window.confirm(`Remove ${player.name} from their team (${player.assignedTeam})?`)) {
         try {
           const batch = writeBatch(db);
+          // 1. Update User
           batch.update(doc(db, "users", player.id), { hasTeam: false, assignedTeam: null, teamId: null });
+          
+          // 2. Update Team
+          if (player.teamId) {
+            batch.update(doc(db, "teams", player.teamId), {
+              memberIds: arrayRemove(player.id),
+              members: arrayRemove(player.name)
+            });
+          }
+          
           await batch.commit();
+          alert(`${player.name} removed from team.`);
         } catch (e) { console.error(e); }
       }
     } else {
       if (window.confirm(`Delete ${player.name} permanently?`)) {
         try {
           await deleteDoc(doc(db, "users", player.id));
+          alert("Player deleted successfully.");
         } catch (e) { console.error(e); }
       }
     }
@@ -442,12 +454,42 @@ const PlayersTab = ({ players, matches = [], teams = [], readOnly = false }) => 
                                   Match
                                 </button>
                               )}
+                              
+                              {/* Remove from Team Button (Only if has team) */}
+                              {player.hasTeam && (
+                                <button
+                                  onClick={() => handleAction(player)}
+                                  className="text-orange-500 hover:text-orange-400 transition-colors p-1.5 bg-orange-500/10 rounded-lg border border-orange-500/20"
+                                  title="Remove from Team"
+                                >
+                                  <FaUserMinus size={14} />
+                                </button>
+                              )}
+
+                              {/* Permanent Delete Button (Always available) */}
                               <button
-                                onClick={() => handleAction(player)}
-                                className="text-slate-600 hover:text-red-400 transition-colors"
-                                title={player.hasTeam ? "Remove from team" : "Delete player"}
+                                onClick={async () => {
+                                  if (window.confirm(`PERMANENTLY DELETE ${player.name}? This cannot be undone.`)) {
+                                    try {
+                                      const batch = writeBatch(db);
+                                      // 1. If in team, clean up team doc
+                                      if (player.teamId) {
+                                        batch.update(doc(db, "teams", player.teamId), {
+                                          memberIds: arrayRemove(player.id),
+                                          members: arrayRemove(player.name)
+                                        });
+                                      }
+                                      // 2. Delete user doc
+                                      batch.delete(doc(db, "users", player.id));
+                                      await batch.commit();
+                                      alert("Player deleted permanently.");
+                                    } catch (e) { console.error(e); }
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-400 transition-colors p-1.5 bg-red-500/10 rounded-lg border border-red-500/20"
+                                title="Delete Permanently"
                               >
-                                {player.hasTeam ? <FaUserMinus size={16} /> : <FaTrashAlt size={16} />}
+                                <FaTrashAlt size={14} />
                               </button>
                             </div>
                           )}
