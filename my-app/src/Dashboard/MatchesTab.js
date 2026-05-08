@@ -545,11 +545,9 @@ const MatchCard = ({ match, type, roundLabel, onEnterResult, onDelete, readOnly 
               {roundLabel}
             </span>
           )}
-          {match.tournamentName && (
-            <span className="text-[14px] font-black text-amber-400 uppercase bg-amber-500/10 px-3 py-1.5 rounded-xl border-2 border-amber-500/30 shadow-lg shadow-amber-500/5">
-              {match.tournamentName}
-            </span>
-          )}
+          <span className="text-[14px] font-black text-amber-400 uppercase bg-amber-500/10 px-3 py-1.5 rounded-xl border-2 border-amber-500/30 shadow-lg shadow-amber-500/5">
+            {match.tournamentName || "Friendly"}
+          </span>
           <span className={`text-[10px] font-bold uppercase tracking-wider ${isLive ? 'text-red-400 animate-pulse' :
               isPending ? 'text-amber-400' :
                 isCompleted ? 'text-[#00FF9C]' : 'text-gray-400'
