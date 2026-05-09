@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '../firebase';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 
 import {
     Feather,
@@ -191,7 +191,14 @@ const TeamDetails = () => {
         }
     };
 
-    return (
+return (
+    <>
+        <Stack.Screen
+            options={{
+                headerShown: false,
+            }}
+        />
+
         <ScrollView
             style={styles.container}
             contentContainerStyle={{
@@ -221,34 +228,18 @@ const TeamDetails = () => {
             <View style={styles.teamCard}>
                 <View style={styles.teamTop}>
                     <View style={styles.teamLogo}>
-                        <Text
-                            style={
-                                styles.teamLogoText
-                            }
-                        >
+                        <Text style={styles.teamLogoText}>
                             {team?.teamName?.[0]}
                         </Text>
                     </View>
 
                     <View style={{ flex: 1 }}>
-                        <View
-                            style={
-                                styles.teamTitleRow
-                            }
-                        >
-                            <Text
-                                style={
-                                    styles.teamName
-                                }
-                            >
+                        <View style={styles.teamTitleRow}>
+                            <Text style={styles.teamName}>
                                 {team?.teamName}
                             </Text>
 
-                            <View
-                                style={
-                                    styles.officialBadge
-                                }
-                            >
+                            <View style={styles.officialBadge}>
                                 <Text
                                     style={
                                         styles.officialBadgeText
@@ -259,53 +250,33 @@ const TeamDetails = () => {
                             </View>
                         </View>
 
-                        <View
-                            style={
-                                styles.captainRow
-                            }
-                        >
+                        <View style={styles.captainRow}>
                             <Ionicons
                                 name="id-card"
                                 size={14}
                                 color="#00FF9C"
                             />
 
-                            <Text
-                                style={
-                                    styles.captainText
-                                }
-                            >
+                            <Text style={styles.captainText}>
                                 Captained by{' '}
                                 <Text
                                     style={{
-                                        color:
-                                            '#fff',
-                                        fontWeight:
-                                            '800',
+                                        color: '#fff',
+                                        fontWeight: '800',
                                     }}
                                 >
-                                    {
-                                        team?.captainName
-                                    }
+                                    {team?.captainName}
                                 </Text>
                             </Text>
                         </View>
 
-                        <View
-                            style={
-                                styles.playerBadge
-                            }
-                        >
+                        <View style={styles.playerBadge}>
                             <Text
                                 style={
                                     styles.playerBadgeText
                                 }
                             >
-                                👥{' '}
-                                {
-                                    members.length
-                                }{' '}
-                                Players
+                                👥 {members.length} Players
                             </Text>
                         </View>
                     </View>
@@ -362,8 +333,7 @@ const TeamDetails = () => {
                         key={member.id || i}
                         member={member}
                         isCaptain={
-                            member.uid ===
-                            team?.captainId
+                            member.uid === team?.captainId
                         }
                         onPress={() =>
                             router.push({
@@ -410,26 +380,14 @@ const TeamDetails = () => {
                     }
                 />
 
-                {team?.neededPositions
-                    ?.length > 0 && (
-                    <View
-                        style={{
-                            marginTop: 16,
-                        }}
-                    >
-                        <Text
-                            style={
-                                styles.needTitle
-                            }
-                        >
+                {team?.neededPositions?.length >
+                    0 && (
+                    <View style={{ marginTop: 16 }}>
+                        <Text style={styles.needTitle}>
                             Needed Positions
                         </Text>
 
-                        <View
-                            style={
-                                styles.needWrap
-                            }
-                        >
+                        <View style={styles.needWrap}>
                             {team.neededPositions.map(
                                 (p, i) => (
                                     <View
@@ -467,7 +425,9 @@ const TeamDetails = () => {
                 </Text>
             </View>
         </ScrollView>
-    );
+    </>
+);
+
 };
 
 // STAT CARD

@@ -408,7 +408,6 @@ export default function StudentDashboard() {
     Alert.alert("Solo Mode", `You are now a Solo ${specificPos}! Admin will match you. ⚽`);
   };
 
-  // ── FIX 1: isCaptain مصلحة ──
   const isCaptain =
     teamData?.captainId === userData?.uid ||
     (!!userData?.name &&
@@ -504,7 +503,6 @@ export default function StudentDashboard() {
                   </View>
                 )}
 
-                {/* ── FIX 2: Tournament action block مصلح ── */}
                 <View style={{ marginTop: 16 }}>
                   {getRemainingTime() === 'Expired' ? (
                     <View style={styles.lockedBox}>
