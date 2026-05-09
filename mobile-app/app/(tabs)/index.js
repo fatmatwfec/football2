@@ -357,29 +357,62 @@ export default function StudentDashboard() {
     }
   };
 
+  // ── FIX 4: handlePlaySolo مصلحة ──
   const handlePlaySolo = async (specificPos = null) => {
     if (!userData) return;
+
     if (userData.searchingForTeam) {
-      await updateDoc(doc(db, "users", userData.uid), { searchingForTeam: false, playSolo: false });
+      await updateDoc(doc(db, "users", userData.uid), {
+        searchingForTeam: false,
+        playSolo: false,
+        soloPosition: null,
+      });
       Alert.alert("Cancelled", "Solo request cancelled.");
       return;
     }
-    if (!specificPos) { setShowSoloModal(true); return; }
-    const matchingTeam = approvedTeams.find(t =>
-      (t.neededPositions || []).includes(specificPos) && (t.memberIds?.length || 0) < 7
-    );
-    if (matchingTeam) {
-      const success = await autoAssign(userData.uid, userData.name, specificPos, matchingTeam.id, matchingTeam.teamName);
-      if (success) { Alert.alert("Matched! ⚽", `You joined ${matchingTeam.teamName}!`); return; }
+
+    if (!specificPos) {
+      setShowSoloModal(true);
+      return;
     }
+
+    // إغلاق الـ modal الأول قبل أي عملية async
+    setShowSoloModal(false);
+
+    const matchingTeam = approvedTeams.find(
+      (t) =>
+        (t.neededPositions || []).includes(specificPos) &&
+        (t.memberIds?.length || 0) < 7
+    );
+
+    if (matchingTeam) {
+      const success = await autoAssign(
+        userData.uid,
+        userData.name,
+        specificPos,
+        matchingTeam.id,
+        matchingTeam.teamName
+      );
+      if (success) {
+        Alert.alert("Matched! ⚽", `You joined ${matchingTeam.teamName}!`);
+        return;
+      }
+    }
+
     await updateDoc(doc(db, "users", userData.uid), {
-      searchingForTeam: true, playSolo: true, position: specificPos, soloPosition: specificPos
+      searchingForTeam: true,
+      playSolo: true,
+      position: specificPos,
+      soloPosition: specificPos,
     });
     Alert.alert("Solo Mode", `You are now a Solo ${specificPos}! Admin will match you. ⚽`);
   };
 
-  const isCaptain = teamData?.captainId === userData?.uid ||
-    teamData?.captainName?.toLowerCase() === userData?.name?.toLowerCase();
+  // ── FIX 1: isCaptain مصلحة ──
+  const isCaptain =
+    teamData?.captainId === userData?.uid ||
+    (!!userData?.name &&
+      teamData?.captainName?.trim().toLowerCase() === userData?.name?.trim().toLowerCase());
 
   const soloPlayers = allStudents.filter(s =>
     (s.searchingForTeam === true || s.playSolo === true) && s.hasTeam !== true && s.role !== 'admin'
@@ -471,50 +504,72 @@ export default function StudentDashboard() {
                   </View>
                 )}
 
+                {/* ── FIX 2: Tournament action block مصلح ── */}
                 <View style={{ marginTop: 16 }}>
-                  {getRemainingTime() === "Expired" ? (
+                  {getRemainingTime() === 'Expired' ? (
                     <View style={styles.lockedBox}>
                       <Text style={styles.lockedTitle}>TIME LIMIT REACHED</Text>
                       <Text style={styles.lockedSub}>Registration Locked</Text>
                     </View>
-                  ) : userData?.uid === teamData?.captainId ? (
-                    tournament.registeredTeamIds?.includes(userData.teamId) ? (
+                  ) : !userData?.hasTeam ? (
+                    <View style={styles.waitingBox}>
+                      <Text style={styles.waitingTitle}>JOIN A TEAM FIRST</Text>
+                      <Text style={styles.waitingSub}>You need a team to register</Text>
+                    </View>
+                  ) : isCaptain ? (
+                    tournament?.registeredTeamIds?.includes(userData?.teamId) ? (
                       <View style={styles.registeredBox}>
                         <Text style={styles.registeredText}>✓ REGISTERED</Text>
-                        <TouchableOpacity onPress={() => {
-                          Alert.alert("Withdraw", "Withdraw from tournament?", [
-                            { text: "Cancel", style: "cancel" },
-                            {
-                              text: "Withdraw", style: "destructive", onPress: async () => {
-                                await updateDoc(doc(db, "tournaments", "main"), {
-                                  registeredTeamIds: arrayRemove(userData.teamId)
-                                });
-                              }
-                            }
-                          ]);
-                        }}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Alert.alert('Withdraw', 'Withdraw from tournament?', [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Withdraw',
+                                style: 'destructive',
+                                onPress: async () => {
+                                  await updateDoc(doc(db, 'tournaments', 'main'), {
+                                    registeredTeamIds: arrayRemove(userData.teamId),
+                                  });
+                                },
+                              },
+                            ]);
+                          }}
+                        >
                           <Text style={styles.withdrawText}>Withdraw Team</Text>
                         </TouchableOpacity>
                       </View>
                     ) : (
-                      <TouchableOpacity style={styles.joinButton} onPress={async () => {
-                        if ((teamData?.memberIds?.length || 0) < 5) {
-                          Alert.alert("Error", "Your team needs at least 5 players to register ⚽");
-                          return;
-                        }
-                        await updateDoc(doc(db, "tournaments", "main"), {
-                          registeredTeamIds: arrayUnion(userData.teamId)
-                        });
-                        Alert.alert("Success", "Team Registered! 🏆");
-                      }}>
+                      <TouchableOpacity
+                        style={styles.joinButton}
+                        onPress={async () => {
+                          if ((teamData?.memberIds?.length || 0) < 5) {
+                            Alert.alert('Error', 'Your team needs at least 5 players to register ⚽');
+                            return;
+                          }
+                          await updateDoc(doc(db, 'tournaments', 'main'), {
+                            registeredTeamIds: arrayUnion(userData.teamId),
+                          });
+                          Alert.alert('Success', 'Team Registered! 🏆');
+                        }}
+                      >
                         <Text style={styles.joinButtonText}>JOIN TOURNAMENT</Text>
                       </TouchableOpacity>
                     )
                   ) : (
-                    <View style={styles.waitingBox}>
-                      <Text style={styles.waitingTitle}>WAITING FOR CAPTAIN</Text>
-                      <Text style={styles.waitingSub}>Only leaders can register</Text>
-                    </View>
+                    tournament?.registeredTeamIds?.includes(userData?.teamId) ? (
+                      <View style={styles.registeredBox}>
+                        <Text style={styles.registeredText}>✓ YOUR TEAM IS REGISTERED</Text>
+                        <Text style={{ color: '#34d399', fontSize: 11, marginTop: 4 }}>
+                          {teamData?.teamName}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.waitingBox}>
+                        <Text style={styles.waitingTitle}>WAITING FOR CAPTAIN</Text>
+                        <Text style={styles.waitingSub}>Only your team leader can register</Text>
+                      </View>
+                    )
                   )}
                 </View>
               </View>
@@ -575,7 +630,6 @@ export default function StudentDashboard() {
                   {userData?.redCards > 0 && (
                     <Text style={styles.suspendedText}>⚠️ You are suspended due to a red card!</Text>
                   )}
-                  {/* Discipline Section */}
                   {(userData?.yellowCards > 0 || userData?.redCards > 0) && (
                     <View style={styles.disciplineBox}>
                       <Text style={styles.disciplineTitle}>🟨 Discipline</Text>
@@ -952,7 +1006,6 @@ export default function StudentDashboard() {
               </View>
             )}
 
-            {/* Past Tournaments */}
             {archived.length > 0 && (
               <View style={styles.archiveSection}>
                 <TouchableOpacity style={styles.archiveToggleBtn} onPress={() => setShowArchive(!showArchive)}>
@@ -1027,7 +1080,7 @@ export default function StudentDashboard() {
                 <TouchableOpacity
                   key={pos}
                   style={styles.soloModalBtn}
-                  onPress={() => { setShowSoloModal(false); handlePlaySolo(pos); }}
+                  onPress={() => handlePlaySolo(pos)}
                 >
                   <Text style={styles.soloModalBtnText}>
                     {pos === 'Forward' ? '⚡' : pos === 'Defender' ? '🛡️' : pos === 'Goalkeeper' ? '🧤' : '⚽'} {pos}
@@ -1083,7 +1136,6 @@ const styles = StyleSheet.create({
   badgeOrange: { backgroundColor: "rgba(249,115,22,0.2)", borderWidth: 1, borderColor: "rgba(249,115,22,0.3)" },
   badgeText: { color: "#fff", fontWeight: "600" },
 
-  // Tournament card
   tournamentCard: { backgroundColor: "rgba(16,185,129,0.08)", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(16,185,129,0.2)", marginBottom: 16 },
   statusContainer: { alignItems: "flex-end", marginBottom: 14 },
   statusBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
@@ -1223,7 +1275,6 @@ const styles = StyleSheet.create({
   infoGrid: { flexDirection: "row", gap: 12, marginBottom: 16 },
   infoCard: { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
 
-  // Tournament View
   tournamentContainer: { paddingBottom: 40 },
   tournamentHeaderCard: { backgroundColor: "rgba(0,255,156,0.08)", borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: "rgba(0,255,156,0.2)" },
   tournamentHeaderRow: { flexDirection: "row", alignItems: "center", gap: 16 },
@@ -1277,7 +1328,6 @@ const styles = StyleSheet.create({
   backToDashboardBtn: { backgroundColor: "rgba(255,255,255,0.08)", paddingHorizontal: 20, paddingVertical: 14, borderRadius: 14, alignItems: "center", marginTop: 8 },
   backToDashboardText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
 
-  // Modals
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" },
   modalContent: { backgroundColor: "#0f172a", borderRadius: 24, width: "90%", maxWidth: 400, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)" },
