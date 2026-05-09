@@ -10,7 +10,7 @@ import {
   doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDocs,
   collection, query, where, deleteDoc, getDoc, writeBatch
 } from "firebase/firestore";
-import { useRouter } from "expo-router";
+import { router, useRouter } from "expo-router";
 import AIChatModal from "../Aichatmodal";
 
 const { width } = Dimensions.get("window");
@@ -607,9 +607,33 @@ export default function StudentDashboard() {
               <Text style={styles.name}>{userData?.name || "Student Name"}</Text>
               <Text style={styles.studentId}>ID: {userData?.studentCode || "N/A"}</Text>
               <View style={[styles.badge, userData?.hasTeam ? styles.badgeGreen : styles.badgeOrange]}>
-                <Text style={styles.badgeText}>
+                {/* <Text style={styles.badgeText}>
                   {userData?.hasTeam ? `Team: ${userData?.assignedTeam}` : "No Team Yet"}
-                </Text>
+                </Text> */}
+                {userData?.hasTeam ? (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: '/TeamDetails',
+                        params: {
+                          teamId: userData?.teamId,
+                          fromPlayer: userData?.uid,
+                        },
+                      })
+                    }
+                    style={styles.teamButton}
+                  >
+                    <Text style={styles.teamText}>
+                      Team: {userData?.assignedTeam}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.noTeamBox}>
+                    <Text style={styles.noTeamText}>
+                      No Team Yet
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -1529,6 +1553,38 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+  },
+  teamButton: {
+    backgroundColor: 'rgba(34,197,94,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+
+  teamText: {
+    color: '#4ade80',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  noTeamBox: {
+    backgroundColor: 'rgba(249,115,22,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.3)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+
+  noTeamText: {
+    color: '#fb923c',
+    fontSize: 16,
   },
   statValue: { fontSize: 20, fontWeight: "bold" },
   cardsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
